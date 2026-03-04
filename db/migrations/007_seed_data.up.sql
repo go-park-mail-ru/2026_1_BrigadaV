@@ -1,17 +1,17 @@
 INSERT INTO category (name, description) VALUES
-    ('Музей', 'Художественные, исторические музеи'),
-    ('Парк', 'Городские парки и заповедники'),
-    ('Ресторан', 'Места для питания');
+    ('Museum', 'Artistic, historical museums'),
+    ('Park', 'City parks and reserves'),
+    ('Restaurant', 'Places for dining');
 
 INSERT INTO location (city, country, latitude, longitude) VALUES
-    ('Париж', 'Франция', 48.8566, 2.3522),
-    ('Рим', 'Италия', 41.9028, 12.4964),
-    ('Нью-Йорк', 'США', 40.7128, -74.0060);
+    ('Paris', 'France', 48.8566, 2.3522),
+    ('Rome', 'Italy', 41.9028, 12.4964),
+    ('New York', 'USA', 40.7128, -74.0060);
 
 INSERT INTO attraction (name, description, location_id, category_id) VALUES
-    ('Эйфелева башня', 'Знаменитая башня', 1, 2),
-    ('Колизей', 'Древний амфитеатр', 2, 1),
-    ('Статуя Свободы', 'Подарок Франции', 3, 2);
+    ('Eiffel Tower', 'Famous tower', 1, 2),
+    ('Colosseum', 'Ancient amphitheater', 2, 1),
+    ('Statue of Liberty', 'Gift from France', 3, 2);
 
 INSERT INTO photo (attraction_id, file_path, is_main) VALUES
     (1, '/photos/eiffel.jpg', true),
