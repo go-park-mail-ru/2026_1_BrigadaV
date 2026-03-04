@@ -1,211 +1,74 @@
-# Описание схемы базы данных и нормализация
+# Описание схемы базы данных и нормализации
 
+## user
+Attributes: id, email, password_hash, full_name, created_at, updated_at
+Functional dependencies: {id} → all other attributes, {email} → all other attributes
+Candidate keys: id, email
+Primary key: id
+1NF: all attributes atomic
+2NF: no composite key, therefore no partial dependencies
+3NF: no transitive dependencies
+BCNF: all determinants are candidate keys
 
-## Список таблиц
-1. user - пользователи системы
-2. session - сессии для stateful-авторизации (refresh token)
-3. category - справочник категорий достопримечательностей
-4. location - справочник локаций (города, страны, координаты)
-5. attraction - достопримечательности
-6. photo - фотографии достопримечательностей
+## session
+Attributes: id, user_id, session_token, expires_at, created_at
+Functional dependencies: {id} → all other attributes, {session_token} → all other attributes
+Candidate keys: id, session_token
+Primary key: id
+Foreign key: user_id references user(id) on delete cascade
+1NF: atomic
+2NF: no composite key
+3NF: no transitive dependencies
+BCNF: all determinants are candidate keys
 
----
+## favorite
+Attributes: user_id, place_id, created_at
+Functional dependencies: {user_id, place_id} → created_at
+Candidate keys: (user_id, place_id)
+Primary key: (user_id, place_id)
+Foreign keys: user_id references user(id), place_id references place(id)
+1NF: atomic
+2NF: all non-key attributes depend on whole key (no partial dependencies)
+3NF: no transitive dependencies
+BCNF: determinant (user_id, place_id) is the key
 
-## Таблица user
+## category
+Attributes: id, name, description, created_at
+Functional dependencies: {id} → all other attributes, {name} → all other attributes
+Candidate keys: id, name
+Primary key: id
+1NF,2NF,3NF,BCNF satisfied
 
-**Атрибуты:**
-- id (INT)
-- email (TEXT)
-- password_hash (TEXT)
-- full_name (TEXT)
-- created_at (TIMESTAMPTZ)
-- updated_at (TIMESTAMPTZ)
+## country
+Attributes: id, name, created_at
+Functional dependencies: {id} → all other attributes, {name} → all other attributes
+Candidate keys: id, name
+Primary key: id
+1NF,2NF,3NF,BCNF satisfied
 
-**Функциональные зависимости:**
-- {id} → email, password_hash, full_name, created_at, updated_at
-- {email} → id, password_hash, full_name, created_at, updated_at
+## city
+Attributes: id, name, country_id, created_at
+Functional dependencies: {id} → all other attributes, {name, country_id} → id
+Candidate keys: id, (name, country_id)
+Primary key: id
+Foreign key: country_id references country(id)
+1NF: atomic
+2NF: no partial dependencies (all non-key attributes depend on full key)
+3NF: no transitive dependencies
+BCNF: all determinants are keys
 
-**Candidate Keys:** id, email
-**Primary Key:** id
+## place
+Attributes: id, name, description, city_id, category_id, created_at, updated_at
+Functional dependencies: {id} → all other attributes
+Candidate keys: id
+Primary key: id
+Foreign keys: city_id references city(id), category_id references category(id)
+1NF,2NF,3NF,BCNF satisfied
 
-**Проверка нормальных форм:**
-- **1NF:** Все атрибуты атомарны. Нет повторяющихся групп или массивов.
-- **2NF:** Отсутствует составной ключ, поэтому частичные зависимости невозможны.
-- **3NF:** Нет транзитивных зависимостей. Все неключевые атрибуты функционально зависят только от ключа. Например, full_name зависит только от id, а не от других неключевых атрибутов.
-- **BCNF:** Все детерминанты (id, email) являются потенциальными ключами. Нет ситуации, когда неключевой атрибут определяет другой неключевой атрибут.
-
----
-
-## Таблица session
-
-**Атрибуты:**
-- id (INT)
-- user_id (INT)
-- refresh_token (TEXT)
-- expires_at (TIMESTAMPTZ)
-- created_at (TIMESTAMPTZ)
-
-**Функциональные зависимости:**
-- {id} → user_id, refresh_token, expires_at, created_at
-- {refresh_token} → id, user_id, expires_at, created_at
-
-**Candidate Keys:** id, refresh_token
-**Primary Key:** id
-**Foreign Key:** user_id REFERENCES user(id)
-
-**Проверка нормальных форм:**
-- **1NF:** Все атрибуты атомарны.
-- **2NF:** Нет составного ключа.
-- **3NF:** Нет транзитивных зависимостей. Все атрибуты зависят только от ключа.
-- **BCNF:** Детерминанты id и refresh_token являются ключами-кандидатами.
-
----
-
-## Таблица category
-
-**Атрибуты:**
-- id (INT)
-- name (TEXT)
-- description (TEXT)
-- created_at (TIMESTAMPTZ)
-
-**Функциональные зависимости:**
-- {id} → name, description, created_at
-- {name} → id, description, created_at
-
-**Candidate Keys:** id, name
-**Primary Key:** id
-
-**Проверка нормальных форм:**
-- **1NF:** Все атрибуты атомарны.
-- **2NF:** Нет составного ключа.
-- **3NF:** Нет транзитивных зависимостей. Описание категории зависит только от id/name.
-- **BCNF:** Все детерминанты являются ключами-кандидатами.
-
----
-
-## Таблица location
-
-**Атрибуты:**
-- id (INT)
-- city (TEXT)
-- country (TEXT)
-- latitude (NUMERIC(10,8))
-- longitude (NUMERIC(11,8))
-- created_at (TIMESTAMPTZ)
-
-**Функциональные зависимости:**
-- {id} → city, country, latitude, longitude, created_at
-- {city, country} → latitude, longitude (предполагаем, что пара город+страна уникальна)
-
-**Candidate Keys:** id, (city, country)
-**Primary Key:** id
-
-**Проверка нормальных форм:**
-- **1NF:** Все атрибуты атомарны.
-- **2NF:** При использовании составного ключа (city, country) все неключевые атрибуты (latitude, longitude, created_at) зависят от всего ключа, а не от его части. Частичных зависимостей нет.
-- **3NF:** Нет транзитивных зависимостей. Координаты напрямую зависят от локации, а не от других неключевых атрибутов.
-- **BCNF:** Детерминанты (id) и (city, country) являются ключами-кандидатами. Нет детерминант, не являющихся ключами.
-
----
-
-## Таблица attraction
-
-**Атрибуты:**
-- id (INT)
-- name (TEXT)
-- description (TEXT)
-- location_id (INT)
-- category_id (INT)
-- created_at (TIMESTAMPTZ)
-- updated_at (TIMESTAMPTZ)
-
-**Функциональные зависимости:**
-- {id} → name, description, location_id, category_id, created_at, updated_at
-
-**Candidate Keys:** id
-**Primary Key:** id
-**Foreign Keys:** 
-  - location_id REFERENCES location(id)
-  - category_id REFERENCES category(id)
-
-**Проверка нормальных форм:**
-- **1NF:** Все атрибуты атомарны.
-- **2NF:** Нет составного ключа.
-- **3NF:** Нет транзитивных зависимостей. Все неключевые атрибуты зависят только от id. Хотя location_id и category_id являются внешними ключами, сами значения зависят только от id, а не от других неключевых атрибутов.
-- **BCNF:** Детерминанта id является ключом.
-
----
-
-## Таблица photo
-
-**Атрибуты:**
-- id (INT)
-- attraction_id (INT)
-- file_path (TEXT)
-- is_main (BOOLEAN)
-- created_at (TIMESTAMPTZ)
-
-**Функциональные зависимости:**
-- {id} → attraction_id, file_path, is_main, created_at
-
-**Candidate Keys:** id
-**Primary Key:** id
-**Foreign Key:** attraction_id REFERENCES attraction(id) ON DELETE CASCADE
-
-**Проверка нормальных форм:**
-- **1NF:** Все атрибуты атомарны.
-- **2NF:** Нет составного ключа.
-- **3NF:** Нет транзитивных зависимостей.
-- **BCNF:** Детерминанта id является ключом.
-
----
-
-## Обоснование выбора типов данных
-
-| Тип данных | Обоснование |
-|------------|-------------|
-| `INT GENERATED BY DEFAULT AS IDENTITY` | Числовой идентификатор, автоинкремент. Предпочтительнее SERIAL, так как соответствует стандарту SQL и даёт больше контроля. |
-| `TEXT` | Для строковых полей, где длина заранее неизвестна или может быть большой. В PostgreSQL TEXT и VARCHAR(n) работают одинаково эффективно, но TEXT предпочтительнее, если нет жёстких ограничений длины. |
-| `NUMERIC(10,8)` и `NUMERIC(11,8)` | Для хранения географических координат с высокой точностью. NUMERIC обеспечивает точное хранение без погрешностей. |
-| `BOOLEAN` | Для флагов (главное фото). |
-| `TIMESTAMPTZ` | Для временных меток с часовым поясом. Позволяет корректно храть время независимо от часового пояса сервера. |
-
----
-
-## Ограничения целостности
-
-### Primary Keys
-- У каждой таблицы явно определён PRIMARY KEY на поле id.
-
-### Unique Keys
-- user.email – UNIQUE
-- session.refresh_token – UNIQUE
-- category.name – UNIQUE
-- location (city + country) – UNIQUE (обеспечивается через составной ключ-кандидат)
-
-### Foreign Keys
-- session.user_id → user.id ON DELETE CASCADE (при удалении пользователя удаляются его сессии)
-- attraction.location_id → location.id ON DELETE SET NULL (при удалении локации место остаётся, но ссылка обнуляется)
-- attraction.category_id → category.id ON DELETE SET NULL
-- photo.attraction_id → attraction.id ON DELETE CASCADE (при удалении места удаляются его фото)
-
-### NOT NULL Constraints
-- Все поля, помеченные NOT NULL в определении таблиц, обязательны к заполнению:
-  - user: email, password_hash
-  - session: user_id, refresh_token, expires_at
-  - category: name
-  - location: city, country
-  - attraction: name
-  - photo: attraction_id, file_path
-
-### Default Values
-- created_at во всех таблицах: DEFAULT NOW()
-- updated_at в user и attraction: DEFAULT NOW()
-- is_main в photo: DEFAULT false
-
-### Check Constraints
-Дополнительные проверки не требуются на уровне БД, так как валидация email и пароля выполняется на уровне приложения. При необходимости можно добавить, но оно нам не надо.
-
----
-
+## place_photo
+Attributes: id, place_id, file_path, is_main, created_at
+Functional dependencies: {id} → all other attributes
+Candidate keys: id
+Primary key: id
+Foreign key: place_id references place(id) on delete cascade
+1NF,2NF,3NF,BCNF satisfied

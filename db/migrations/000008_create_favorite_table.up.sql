@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS favorite (
+    user_id BIGINT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    place_id BIGINT NOT NULL REFERENCES place(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, place_id)
+);

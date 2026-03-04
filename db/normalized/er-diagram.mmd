@@ -1,11 +1,14 @@
 erDiagram
     USER ||--o{ SESSION : has
-    CATEGORY ||--o{ ATTRACTION : belongs
-    LOCATION ||--o{ ATTRACTION : located
-    ATTRACTION ||--o{ PHOTO : contains
+    USER ||--o{ FAVORITE : adds
+    PLACE ||--o{ FAVORITE : added
+    PLACE ||--o{ PLACE_PHOTO : contains
+    CATEGORY ||--o{ PLACE : belongs
+    CITY ||--o{ PLACE : located
+    COUNTRY ||--o{ CITY : contains
 
     USER {
-        int id PK
+        bigint id PK
         text email UK
         text password_hash
         text full_name
@@ -14,43 +17,53 @@ erDiagram
     }
 
     SESSION {
-        int id PK
-        int user_id FK
-        text refresh_token UK
+        bigint id PK
+        bigint user_id FK
+        text session_token UK
         timestamptz expires_at
         timestamptz created_at
     }
 
+    FAVORITE {
+        bigint user_id FK
+        bigint place_id FK
+        timestamptz created_at
+    }
+
+    PLACE {
+        bigint id PK
+        text name
+        text description
+        bigint city_id FK
+        bigint category_id FK
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    PLACE_PHOTO {
+        bigint id PK
+        bigint place_id FK
+        text file_path
+        boolean is_main
+        timestamptz created_at
+    }
+
     CATEGORY {
-        int id PK
+        bigint id PK
         text name UK
         text description
         timestamptz created_at
     }
 
-    LOCATION {
-        int id PK
-        text city
-        text country
-        numeric latitude
-        numeric longitude
-        timestamptz created_at
-    }
-
-    ATTRACTION {
-        int id PK
+    CITY {
+        bigint id PK
         text name
-        text description
-        int location_id FK
-        int category_id FK
+        bigint country_id FK
         timestamptz created_at
-        timestamptz updated_at
     }
 
-    PHOTO {
-        int id PK
-        int attraction_id FK
-        text file_path
-        boolean is_main
+    COUNTRY {
+        bigint id PK
+        text name UK
         timestamptz created_at
     }
