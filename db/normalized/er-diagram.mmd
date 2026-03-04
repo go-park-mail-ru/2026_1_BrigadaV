@@ -1,0 +1,56 @@
+erDiagram
+    USER ||--o{ SESSION : has
+    CATEGORY ||--o{ ATTRACTION : belongs
+    LOCATION ||--o{ ATTRACTION : located
+    ATTRACTION ||--o{ PHOTO : contains
+
+    USER {
+        int id PK
+        text email UK
+        text password_hash
+        text full_name
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    SESSION {
+        int id PK
+        int user_id FK
+        text refresh_token UK
+        timestamptz expires_at
+        timestamptz created_at
+    }
+
+    CATEGORY {
+        int id PK
+        text name UK
+        text description
+        timestamptz created_at
+    }
+
+    LOCATION {
+        int id PK
+        text city
+        text country
+        numeric latitude
+        numeric longitude
+        timestamptz created_at
+    }
+
+    ATTRACTION {
+        int id PK
+        text name
+        text description
+        int location_id FK
+        int category_id FK
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    PHOTO {
+        int id PK
+        int attraction_id FK
+        text file_path
+        boolean is_main
+        timestamptz created_at
+    }
