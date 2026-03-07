@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"sync"
 	"time"
-
+	"strings"
 	"golang.org/x/crypto/argon2"
 )
 
@@ -83,7 +83,7 @@ func decodeHash(encodedHash string) (salt, hash []byte, err error) {
 }
 
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && s[len(s)-len(substr):] == substr
+	return strings.Contains(s, substr)
 }
 
 type User struct {
