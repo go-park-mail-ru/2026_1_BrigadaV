@@ -3,10 +3,10 @@ INSERT INTO country (name) VALUES
     ('Italy'), 
     ('USA');
 
-INSERT INTO city (name, country_id) VALUES
-    ('Paris', 1),
-    ('Rome', 2),
-    ('New York', 3);
+INSERT INTO locality (name, country_id) VALUES
+    ('Paris', 1, 48.8566, 2.3522),
+    ('Rome', 2, 41.9028, 12.4964),
+    ('New York', 3, 40.7128, -74.0060);
 
 INSERT INTO category (name, description) VALUES
     ('Museum', 'Art and history museums'),
@@ -20,5 +20,6 @@ INSERT INTO place (name, description, city_id, category_id) VALUES
 
 INSERT INTO place_photo (place_id, file_path, is_main) VALUES
     (1, '/photos/eiffel.jpg', true),
+    (1, '/photos/eiffel_night.jpg', false),
     (2, '/photos/colosseum.jpg', true),
     (3, '/photos/statue.jpg', true);

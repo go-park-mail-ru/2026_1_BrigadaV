@@ -1,74 +1,175 @@
-# Описание схемы базы данных и нормализации
+# Описание схемы базы данных и нормализация
 
-## user
-Attributes: id, email, password_hash, full_name, created_at, updated_at
-Functional dependencies: {id} → all other attributes, {email} → all other attributes
-Candidate keys: id, email
-Primary key: id
-1NF: all attributes atomic
-2NF: no composite key, therefore no partial dependencies
-3NF: no transitive dependencies
-BCNF: all determinants are candidate keys
+---
 
-## session
-Attributes: id, user_id, session_token, expires_at, created_at
-Functional dependencies: {id} → all other attributes, {session_token} → all other attributes
-Candidate keys: id, session_token
-Primary key: id
-Foreign key: user_id references user(id) on delete cascade
-1NF: atomic
-2NF: no composite key
-3NF: no transitive dependencies
-BCNF: all determinants are candidate keys
+## user – пользователи системы
+Содержит учётные записи пользователей. Аутентификация выполняется по уникальному логину и паролю
 
-## favorite
-Attributes: user_id, place_id, created_at
-Functional dependencies: {user_id, place_id} → created_at
-Candidate keys: (user_id, place_id)
-Primary key: (user_id, place_id)
-Foreign keys: user_id references user(id), place_id references place(id)
-1NF: atomic
-2NF: all non-key attributes depend on whole key (no partial dependencies)
-3NF: no transitive dependencies
-BCNF: determinant (user_id, place_id) is the key
+**Атрибуты:**  
+id, login, password_hash, full_name, created_at, updated_at
 
-## category
-Attributes: id, name, description, created_at
-Functional dependencies: {id} → all other attributes, {name} → all other attributes
-Candidate keys: id, name
-Primary key: id
-1NF,2NF,3NF,BCNF satisfied
+**Функциональные зависимости:**  
+{id} → login, password_hash, full_name, created_at, updated_at  
+{login} → id, password_hash, full_name, created_at, updated_at
 
-## country
-Attributes: id, name, created_at
-Functional dependencies: {id} → all other attributes, {name} → all other attributes
-Candidate keys: id, name
-Primary key: id
-1NF,2NF,3NF,BCNF satisfied
+**Ключи-кандидаты:** id, login  
+**Первичный ключ:** id
 
-## city
-Attributes: id, name, country_id, created_at
-Functional dependencies: {id} → all other attributes, {name, country_id} → id
-Candidate keys: id, (name, country_id)
-Primary key: id
-Foreign key: country_id references country(id)
-1NF: atomic
-2NF: no partial dependencies (all non-key attributes depend on full key)
-3NF: no transitive dependencies
-BCNF: all determinants are keys
+**Нормальные формы:**  
+- **1NF:**  
+  * Все атрибуты атомарны, колонки обычные (нет указателей с неявными побочными эффектами).  
+  * Схема данных не опирается на порядок строк или столбцов.  
+  * Из-за наличия первичного ключа нет повторяющихся строк.  
+  * Каждое пересечение строки и столбца содержит только одно значение из предметной области.  
+- **2NF:** Отсутствует составной ключ, поэтому частичные зависимости невозможны.  
+- **3NF:** Нет транзитивных зависимостей: неключевые атрибуты (password_hash, full_name, created_at, updated_at) зависят только от ключа (id или login).  
+- **BCNF:** Все детерминанты (id, login) являются ключами-кандидатами.
 
-## place
-Attributes: id, name, description, city_id, category_id, created_at, updated_at
-Functional dependencies: {id} → all other attributes
-Candidate keys: id
-Primary key: id
-Foreign keys: city_id references city(id), category_id references category(id)
-1NF,2NF,3NF,BCNF satisfied
+---
 
-## place_photo
-Attributes: id, place_id, file_path, is_main, created_at
-Functional dependencies: {id} → all other attributes
-Candidate keys: id
-Primary key: id
-Foreign key: place_id references place(id) on delete cascade
-1NF,2NF,3NF,BCNF satisfied
+## session – сессии пользователей
+Используется для аутентификации. Хранит токены сессий и срок их действия
+
+**Атрибуты:**  
+id, user_id, session_token, expires_at, created_at
+
+**Функциональные зависимости:**  
+{id} → user_id, session_token, expires_at, created_at  
+{session_token} → id, user_id, expires_at, created_at
+
+**Ключи-кандидаты:** id, session_token  
+**Первичный ключ:** id  
+**Внешний ключ:** user_id → user(id) ON DELETE CASCADE
+
+**Нормальные формы:**  
+- **1NF:** Все атрибуты атомарны, порядок не важен, строки уникальны благодаря PK, каждое поле содержит одно значение.  
+- **2NF:** Нет составного ключа.  
+- **3NF:** Нет транзитивных зависимостей: все неключевые атрибуты зависят только от ключа.  
+- **BCNF:** Детерминанты (id, session_token) являются ключами-кандидатами.
+
+---
+
+## favorite – избранное пользователей
+Связь многие-ко-многим между пользователями и достопримечательностями
+
+**Атрибуты:**  
+user_id, place_id, created_at
+
+**Функциональные зависимости:**  
+{user_id, place_id} → created_at
+
+**Ключи-кандидаты:** (user_id, place_id)  
+**Первичный ключ:** (user_id, place_id)  
+**Внешние ключи:** user_id → user(id) ON DELETE CASCADE, place_id → place(id) ON DELETE CASCADE
+
+**Нормальные формы:**  
+- **1NF:** Атомарность, строки уникальны за счёт составного PK, каждое поле содержит одно значение.  
+- **2NF:** Единственный неключевой атрибут (created_at) зависит от полного составного ключа; частичная зависимость (зависимость только от user_id или только от place_id) отсутствует.  
+- **3NF:** Нет транзитивных зависимостей, так как нет других неключевых атрибутов.  
+- **BCNF:** Детерминант (user_id, place_id) является ключом.
+
+---
+
+## category – категории достопримечательностей
+Справочник категорий (музей, парк, ресторан и т.д.)
+
+**Атрибуты:**  
+id, name, description, created_at
+
+**Функциональные зависимости:**  
+{id} → name, description, created_at  
+{name} → id, description, created_at
+
+**Ключи-кандидаты:** id, name  
+**Первичный ключ:** id
+
+**Нормальные формы:**  
+- **1NF:** Атомарность, уникальность строк, порядок не важен.  
+- **2NF:** Нет составного ключа.  
+- **3NF:** Нет транзитивных зависимостей (description зависит только от id/name).  
+- **BCNF:** Все детерминанты являются ключами-кандидатами.
+
+---
+
+## country – страны
+Справочник стран
+
+**Атрибуты:**  
+id, name, created_at
+
+**Функциональные зависимости:**  
+{id} → name, created_at  
+{name} → id, created_at
+
+**Ключи-кандидаты:** id, name  
+**Первичный ключ:** id
+
+**Нормальные формы:**  
+- **1NF:** Атомарность, строки уникальны.  
+- **2NF:** Нет составного ключа.  
+- **3NF:** Нет транзитивных зависимостей.  
+- **BCNF:** Все детерминанты являются ключами-кандидатами.
+
+---
+
+## locality – населённые пункты (города, посёлки и т.п.)
+Содержит информацию о географических точках, где могут находиться достопримечательности. Включает координаты для отображения на карте
+
+**Атрибуты:**  
+id, name, country_id, latitude, longitude, created_at
+
+**Функциональные зависимости:**  
+{id} → name, country_id, latitude, longitude, created_at  
+{name, country_id} → id, latitude, longitude, created_at (благодаря уникальности пары)
+
+**Ключи-кандидаты:** id, (name, country_id)  
+**Первичный ключ:** id  
+**Внешний ключ:** country_id → country(id) ON DELETE CASCADE
+
+**Нормальные формы:**  
+- **1NF:** Все атрибуты атомарны; координаты хранятся как отдельные числа, а не в составе одного поля; строки уникальны; порядок не важен; каждое поле содержит одно значение.  
+- **2NF:** При использовании составного ключа (name, country_id) все неключевые атрибуты (latitude, longitude, created_at) зависят от полного ключа. Частичной зависимости (например, latitude только от name) нет, так как одинаковые названия городов в разных странах имеют разные координаты. Для простого ключа id частичные зависимости невозможны.  
+- **3NF:** Нет транзитивных зависимостей: координаты напрямую зависят от локации, а не от других неключевых атрибутов.  
+- **BCNF:** Все детерминанты (id и (name, country_id)) являются ключами-кандидатами.
+
+---
+
+## place – достопримечательности
+Основная сущность каталога. Связана с населённым пунктом и категорией. Фотографии хранятся отдельно, главное фото определяется флагом is_main
+
+**Атрибуты:**  
+id, name, description, locality_id, category_id, created_at, updated_at
+
+**Функциональные зависимости:**  
+{id} → name, description, locality_id, category_id, created_at, updated_at
+
+**Ключи-кандидаты:** id  
+**Первичный ключ:** id  
+**Внешние ключи:** locality_id → locality(id) ON DELETE CASCADE, category_id → category(id) ON DELETE SET NULL
+
+**Нормальные формы:**  
+- **1NF:** Атомарность, уникальность строк, порядок не важен.  
+- **2NF:** Нет составного ключа.  
+- **3NF:** Нет транзитивных зависимостей: все неключевые атрибуты зависят только от id (например, название места зависит от id, а не от названия города).  
+- **BCNF:** Детерминант id является ключом.
+
+---
+
+## place_photo – фотографии достопримечательностей
+Хранит ссылки на изображения. Поле is_main указывает на главное фото для быстрого доступа
+
+**Атрибуты:**  
+id, place_id, file_path, is_main, created_at
+
+**Функциональные зависимости:**  
+{id} → place_id, file_path, is_main, created_at
+
+**Ключи-кандидаты:** id  
+**Первичный ключ:** id  
+**Внешний ключ:** place_id → place(id) ON DELETE CASCADE
+
+**Нормальные формы:**  
+- **1NF:** Все атрибуты атомарны; нет составных полей; строки уникальны; порядок не важен.  
+- **2NF:** Нет составного ключа.  
+- **3NF:** Нет транзитивных зависимостей (например, is_main зависит только от id, а не от place_id).  
+- **BCNF:** Детерминант id является ключом.

@@ -5,3 +5,6 @@ CREATE TABLE IF NOT EXISTS place_photo (
     is_main BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Индекс для быстрого поиска главного фото
+CREATE INDEX idx_place_photo_main ON place_photo(place_id, is_main) WHERE is_main = true;

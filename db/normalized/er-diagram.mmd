@@ -4,12 +4,12 @@ erDiagram
     PLACE ||--o{ FAVORITE : added
     PLACE ||--o{ PLACE_PHOTO : contains
     CATEGORY ||--o{ PLACE : belongs
-    CITY ||--o{ PLACE : located
-    COUNTRY ||--o{ CITY : contains
+    LOCALITY ||--o{ PLACE : located
+    COUNTRY ||--o{ LOCALITY : contains
 
     USER {
         bigint id PK
-        text email UK
+        text login UK
         text password_hash
         text full_name
         timestamptz created_at
@@ -34,7 +34,7 @@ erDiagram
         bigint id PK
         text name
         text description
-        bigint city_id FK
+        bigint locality_id FK
         bigint category_id FK
         timestamptz created_at
         timestamptz updated_at
@@ -55,10 +55,12 @@ erDiagram
         timestamptz created_at
     }
 
-    CITY {
+    LOCALITY {
         bigint id PK
         text name
         bigint country_id FK
+        numeric latitude
+        numeric longitude
         timestamptz created_at
     }
 
