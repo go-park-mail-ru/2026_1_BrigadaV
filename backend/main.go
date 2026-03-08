@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -98,10 +97,9 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	SessionToken string `json:"session_token"`
-	UserID       uint64 `json:"user_id"`
-	Login        string `json:"login"`
-	FullName     string `json:"full_name"`
+	UserID   uint64 `json:"user_id"`
+	Login    string `json:"login"`
+	FullName string `json:"full_name"`
 }
 
 type ErrorResponse struct {
@@ -110,10 +108,10 @@ type ErrorResponse struct {
 }
 
 var (
-	users        = make(map[uint64]User)
-	usersByLogin = make(map[string]uint64)
-	sessions     = make(map[string]Session)
-	places       []Place
+	users               = make(map[uint64]User)
+	usersByLogin        = make(map[string]uint64)
+	sessions            = make(map[string]Session)
+	places              = make(map[uint64]Place)
 	nextUserID   uint64 = 1
 	mu           sync.RWMutex
 )
@@ -171,23 +169,30 @@ func generateSessionToken() (string, error) {
 	return base64.URLEncoding.EncodeToString(b), nil
 }
 
-func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
+func authenticate(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(ErrorResponse{Error: "UNAUTHORIZED", Message: "Missing token"})
+		cookie, err := r.Cookie("session_token")
+		if err != nil {
+			if err == http.ErrNoCookie {
+				w.WriteHeader(http.StatusUnauthorized)
+				json.NewEncoder(w).Encode(ErrorResponse{Error: "UNAUTHORIZED", Message: "Missing session cookie"})
+				return
+			}
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "BAD_REQUEST", Message: "Invalid cookie"})
 			return
 		}
-		token := strings.TrimPrefix(authHeader, "Bearer ")
+
+		token := cookie.Value
 		mu.RLock()
 		session, exists := sessions[token]
 		mu.RUnlock()
 		if !exists || time.Now().After(session.ExpiresAt) {
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(ErrorResponse{Error: "UNAUTHORIZED", Message: "Invalid or expired token"})
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "UNAUTHORIZED", Message: "Invalid or expired session"})
 			return
 		}
+
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, "user_id", session.UserID)
 		ctx = context.WithValue(ctx, "session_token", token)
@@ -248,11 +253,20 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	sessions[token] = session
 	mu.Unlock()
 
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_token",
+		Value:    token,
+		Expires:  session.ExpiresAt,
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+	})
+
 	json.NewEncoder(w).Encode(LoginResponse{
-		SessionToken: token,
-		UserID:       user.ID,
-		Login:        user.Login,
-		FullName:     user.FullName,
+		UserID:   user.ID,
+		Login:    user.Login,
+		FullName: user.FullName,
 	})
 }
 
@@ -262,15 +276,29 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "METHOD_NOT_ALLOWED", Message: "Use POST"})
 		return
 	}
-	token, ok := r.Context().Value("session_token").(string)
-	if !ok {
+
+	cookie, err := r.Cookie("session_token")
+	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "UNAUTHORIZED", Message: "No session"})
 		return
 	}
+	token := cookie.Value
+
 	mu.Lock()
 	delete(sessions, token)
 	mu.Unlock()
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_token",
+		Value:    "",
+		Expires:  time.Unix(0, 0),
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+	})
+
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "logged out"})
 }
@@ -281,6 +309,7 @@ func placesHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "METHOD_NOT_ALLOWED", Message: "Use GET"})
 		return
 	}
+
 	mu.RLock()
 	defer mu.RUnlock()
 
@@ -344,44 +373,42 @@ func initPlaces() {
 
 	now := time.Now()
 
-	places = append(places,
-		Place{
-			ID:          1,
-			Name:        "Eiffel Tower",
-			Description: "Famous tower in Paris",
-			Locality:    locParis,
-			Category:    catPark,
-			Photos: []PlacePhoto{
-				{ID: 1, PlaceID: 1, FilePath: "/photos/eiffel.jpg", IsMain: true},
-			},
-			CreatedAt: now,
-			UpdatedAt: now,
+	places[1] = Place{
+		ID:          1,
+		Name:        "Eiffel Tower",
+		Description: "Famous tower in Paris",
+		Locality:    locParis,
+		Category:    catPark,
+		Photos: []PlacePhoto{
+			{ID: 1, PlaceID: 1, FilePath: "/photos/eiffel.jpg", IsMain: true},
 		},
-		Place{
-			ID:          2,
-			Name:        "Colosseum",
-			Description: "Ancient amphitheater in Rome",
-			Locality:    locRome,
-			Category:    catMuseum,
-			Photos: []PlacePhoto{
-				{ID: 2, PlaceID: 2, FilePath: "/photos/colosseum.jpg", IsMain: true},
-			},
-			CreatedAt: now,
-			UpdatedAt: now,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	places[2] = Place{
+		ID:          2,
+		Name:        "Colosseum",
+		Description: "Ancient amphitheater in Rome",
+		Locality:    locRome,
+		Category:    catMuseum,
+		Photos: []PlacePhoto{
+			{ID: 2, PlaceID: 2, FilePath: "/photos/colosseum.jpg", IsMain: true},
 		},
-		Place{
-			ID:          3,
-			Name:        "Statue of Liberty",
-			Description: "Gift from France to USA",
-			Locality:    locNY,
-			Category:    catPark,
-			Photos: []PlacePhoto{
-				{ID: 3, PlaceID: 3, FilePath: "/photos/statue.jpg", IsMain: true},
-			},
-			CreatedAt: now,
-			UpdatedAt: now,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	places[3] = Place{
+		ID:          3,
+		Name:        "Statue of Liberty",
+		Description: "Gift from France to USA",
+		Locality:    locNY,
+		Category:    catPark,
+		Photos: []PlacePhoto{
+			{ID: 3, PlaceID: 3, FilePath: "/photos/statue.jpg", IsMain: true},
 		},
-	)
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
 }
 
 func main() {
@@ -390,19 +417,19 @@ func main() {
 	hashed, _ := hashPassword("123456")
 	john := User{
 		ID:           nextUserID,
-		Login:        "BMSTU",
+		Login:        "john",
 		PasswordHash: hashed,
-		FullName:     "Daunka",
+		FullName:     "John Doe",
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
 	users[john.ID] = john
-	usersByLogin["BMSTU"] = john.ID
+	usersByLogin["john"] = john.ID
 	nextUserID++
 
 	http.HandleFunc("/api/login", loginHandler)
-	http.HandleFunc("/api/logout", authMiddleware(logoutHandler))
-	http.HandleFunc("/api/places", authMiddleware(placesHandler))
+	http.HandleFunc("/api/logout", authenticate(logoutHandler))
+	http.HandleFunc("/api/places", authenticate(placesHandler))
 
 	log.Println("Server started on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
