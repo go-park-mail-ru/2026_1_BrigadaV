@@ -1,3 +1,19 @@
+// Package main GUIDELY API
+//
+// Документация для API регистрации сервиса Guidely
+//
+// Schemes: http
+// Host: localhost:8080
+// BasePath: /
+// Version: 1.0.0
+//
+// Consumes:
+// - application/json
+//
+// Produces:
+// - application/json
+//
+// swagger:meta
 package main
 
 import (
@@ -8,9 +24,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
-	"strings"
+
+	_ "guidely-app/docs"
+	"github.com/swaggo/http-swagger"
 	"golang.org/x/crypto/argon2"
 )
 
@@ -86,6 +105,7 @@ func contains(s, substr string) bool {
 	return strings.Contains(s, substr)
 }
 
+// User представляет модель пользователя в системе
 type User struct {
 	ID           uint64    `json:"id"`
 	Email        string    `json:"email"`
@@ -95,26 +115,68 @@ type User struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+// RegisterRequest представляет тело запроса для регистрации нового пользователя
+// swagger:parameters registerUser
 type RegisterRequest struct {
-	Email    string `json:"email"`
+	// Email пользователя, используется для входа
+	// required: true
+	// example: user@example.com
+	// pattern: ^\S+@\S+\.\S+$
+	Email string `json:"email"`
+
+	// Пароль пользователя (минимум 8 символов)
+	// required: true
+	// min length: 8
+	// example: securePass123
 	Password string `json:"password"`
+
+	// Полное имя пользователя
+	// required: true
+	// example: Иван Петров
 	FullName string `json:"full_name"`
 }
 
+// RegisterResponse представляет успешный ответ на регистрацию
+// swagger:response registerResponse
 type RegisterResponse struct {
-	ID        uint64    `json:"id"`
-	Email     string    `json:"email"`
-	FullName  string    `json:"full_name"`
+	// Уникальный идентификатор пользователя
+	// example: 1
+	ID uint64 `json:"id"`
+
+	// Email пользователя
+	// example: user@example.com
+	Email string `json:"email"`
+
+	// Полное имя пользователя
+	// example: Иван Петров
+	FullName string `json:"full_name"`
+
+	// Дата и время создания аккаунта
+	// example: 2024-01-15T10:30:00Z
 	CreatedAt time.Time `json:"created_at"`
-	Message   string    `json:"message,omitempty"`
+
+	// Сообщение о результате операции
+	// example: Регистрация прошла успешно
+	Message string `json:"message,omitempty"`
 }
 
+// ErrorResponse представляет структуру ошибки
+// swagger:response errorResponse
 type ErrorResponse struct {
-	Error   string `json:"error"`
-	Field   string `json:"field,omitempty"`
+	// Код ошибки
+	// example: VALIDATION_ERROR
+	Error string `json:"error"`
+
+	// Поле, в котором произошла ошибка (если применимо)
+	// example: email
+	Field string `json:"field,omitempty"`
+
+	// Описание ошибки
+	// example: Email не может быть пустым
 	Message string `json:"message"`
 }
 
+// Handlers содержит состояние сервера и обработчики HTTP запросов
 type Handlers struct {
 	users  []User
 	nextID uint64
@@ -164,6 +226,20 @@ func (h *Handlers) validateRegisterRequest(req RegisterRequest) *ErrorResponse {
 	return nil
 }
 
+// HandleRegister обрабатывает запросы на регистрацию новых пользователей
+//
+// @Summary Регистрация нового пользователя
+// @Description Создаёт новую учётную запись пользователя с указанными email, паролем и именем
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param request body RegisterRequest true "Данные для регистрации"
+// @Success 201 {object} RegisterResponse "Пользователь успешно создан"
+// @Failure 400 {object} ErrorResponse "Ошибка валидации или неверный формат запроса"
+// @Failure 409 {object} ErrorResponse "Email уже зарегистрирован"
+// @Failure 405 {object} ErrorResponse "Метод не поддерживается"
+// @Failure 500 {object} ErrorResponse "Внутренняя ошибка сервера"
+// @Router /api/register [post]
 func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Получен запрос на регистрацию с IP: %s", r.RemoteAddr)
 	w.Header().Set("Content-Type", "application/json")
@@ -265,7 +341,10 @@ func main() {
 
 	http.HandleFunc("/api/register", handlers.HandleRegister)
 
+	http.HandleFunc("/swagger/", httpSwagger.WrapHandler)
+
 	port := ":8080"
 	log.Printf("Сервер запущен на http://localhost%s", port)
+	log.Printf("Swagger доступен на http://localhost%s/swagger/index.html", port)
 	log.Fatal(http.ListenAndServe(port, nil))
 }

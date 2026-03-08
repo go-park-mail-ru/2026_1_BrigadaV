@@ -1,0 +1,127 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "contact": {}
+    },
+    "paths": {
+        "/api/register": {
+            "post": {
+                "description": "Создаёт новую учётную запись пользователя с указанными email, паролем и именем",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Регистрация нового пользователя",
+                "parameters": [
+                    {
+                        "description": "Данные для регистрации",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Пользователь успешно создан",
+                        "schema": {
+                            "$ref": "#/definitions/main.RegisterResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Ошибка валидации или неверный формат запроса",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    },
+                    "405": {
+                        "description": "Метод не поддерживается",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Email уже зарегистрирован",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "main.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "description": "Код ошибки\nexample: VALIDATION_ERROR",
+                    "type": "string"
+                },
+                "field": {
+                    "description": "Поле, в котором произошла ошибка (если применимо)\nexample: email",
+                    "type": "string"
+                },
+                "message": {
+                    "description": "Описание ошибки\nexample: Email не может быть пустым",
+                    "type": "string"
+                }
+            }
+        },
+        "main.RegisterRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "description": "Email пользователя, используется для входа\nrequired: true\nexample: user@example.com\npattern: ^\\S+@\\S+\\.\\S+$",
+                    "type": "string"
+                },
+                "full_name": {
+                    "description": "Полное имя пользователя\nrequired: true\nexample: Иван Петров",
+                    "type": "string"
+                },
+                "password": {
+                    "description": "Пароль пользователя (минимум 8 символов)\nrequired: true\nmin length: 8\nexample: securePass123",
+                    "type": "string"
+                }
+            }
+        },
+        "main.RegisterResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "description": "Дата и время создания аккаунта\nexample: 2024-01-15T10:30:00Z",
+                    "type": "string"
+                },
+                "email": {
+                    "description": "Email пользователя\nexample: user@example.com",
+                    "type": "string"
+                },
+                "full_name": {
+                    "description": "Полное имя пользователя\nexample: Иван Петров",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "Уникальный идентификатор пользователя\nexample: 1",
+                    "type": "integer"
+                },
+                "message": {
+                    "description": "Сообщение о результате операции\nexample: Регистрация прошла успешно",
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,113 @@
+definitions:
+  main.ErrorResponse:
+    properties:
+      error:
+        description: |-
+          Код ошибки
+          example: VALIDATION_ERROR
+        type: string
+      field:
+        description: |-
+          Поле, в котором произошла ошибка (если применимо)
+          example: email
+        type: string
+      message:
+        description: |-
+          Описание ошибки
+          example: Email не может быть пустым
+        type: string
+    type: object
+  main.RegisterRequest:
+    properties:
+      email:
+        description: |-
+          Email пользователя, используется для входа
+          required: true
+          example: user@example.com
+          pattern: ^\S+@\S+\.\S+$
+        type: string
+      full_name:
+        description: |-
+          Полное имя пользователя
+          required: true
+          example: Иван Петров
+        type: string
+      password:
+        description: |-
+          Пароль пользователя (минимум 8 символов)
+          required: true
+          min length: 8
+          example: securePass123
+        type: string
+    type: object
+  main.RegisterResponse:
+    properties:
+      created_at:
+        description: |-
+          Дата и время создания аккаунта
+          example: 2024-01-15T10:30:00Z
+        type: string
+      email:
+        description: |-
+          Email пользователя
+          example: user@example.com
+        type: string
+      full_name:
+        description: |-
+          Полное имя пользователя
+          example: Иван Петров
+        type: string
+      id:
+        description: |-
+          Уникальный идентификатор пользователя
+          example: 1
+        type: integer
+      message:
+        description: |-
+          Сообщение о результате операции
+          example: Регистрация прошла успешно
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /api/register:
+    post:
+      consumes:
+      - application/json
+      description: Создаёт новую учётную запись пользователя с указанными email, паролем
+        и именем
+      parameters:
+      - description: Данные для регистрации
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Пользователь успешно создан
+          schema:
+            $ref: '#/definitions/main.RegisterResponse'
+        "400":
+          description: Ошибка валидации или неверный формат запроса
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "405":
+          description: Метод не поддерживается
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "409":
+          description: Email уже зарегистрирован
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: Регистрация нового пользователя
+      tags:
+      - users
+swagger: "2.0"
