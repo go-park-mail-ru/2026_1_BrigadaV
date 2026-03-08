@@ -5,5 +5,7 @@ CREATE TABLE IF NOT EXISTS locality (
     latitude NUMERIC(10,8),
     longitude NUMERIC(11,8),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE(name, country_id)
+    UNIQUE(name, country_id),
+    CHECK (latitude >= -90 AND latitude <= 90),
+    CHECK (longitude >= -180 AND longitude <= 180)
 );
