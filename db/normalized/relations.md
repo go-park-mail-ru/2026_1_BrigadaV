@@ -6,13 +6,14 @@
 Содержит учётные записи пользователей. Аутентификация выполняется по уникальному логину и паролю
 
 **Атрибуты:**  
-id, login, password_hash, full_name, created_at, updated_at
+id, login, email,  password_hash, full_name, created_at, updated_at
 
 **Функциональные зависимости:**  
 {id} → login, password_hash, full_name, created_at, updated_at  
+{email} → id, login, password_hash, full_name, created_at, updated_at
 {login} → id, password_hash, full_name, created_at, updated_at
 
-**Ключи-кандидаты:** id, login  
+**Ключи-кандидаты:** id, email, login  
 **Первичный ключ:** id
 
 **Нормальные формы:**  
