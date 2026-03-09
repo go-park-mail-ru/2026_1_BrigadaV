@@ -220,7 +220,7 @@ func contains(s, substr string) bool {
 
 func authenticate(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost")
+		w.Header().Set("Access-Control-Allow-Origin", "http://212.233.96.48:80")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		if r.Method == "OPTIONS" {
@@ -262,7 +262,7 @@ func authenticate(next http.HandlerFunc) http.HandlerFunc {
 // @Failure 401 {object} ErrorResponse
 // @Router /api/login [post]
 func loginHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "http://localhost")
+	w.Header().Set("Access-Control-Allow-Origin", "http://212.233.96.48:80")
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.Header().Set("Content-Type", "application/json")
 
@@ -349,7 +349,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 401 {object} ErrorResponse
 // @Router /api/logout [post]
 func logoutHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "http://localhost")
+	w.Header().Set("Access-Control-Allow-Origin", "http://212.233.96.48:80")
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.Header().Set("Content-Type", "application/json")
 
@@ -399,7 +399,7 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 401 {object} ErrorResponse
 // @Router /api/ [get]
 func placesHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "http://localhost")
+	w.Header().Set("Access-Control-Allow-Origin", "http://212.233.96.48:80")
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.Header().Set("Content-Type", "application/json")
 
@@ -632,7 +632,7 @@ func (h *Handlers) validateRegisterRequest(req RegisterRequest) *ErrorResponse {
 // @Failure 409 {object} ErrorResponse
 // @Router /api/register [post]
 func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "http://localhost")
+	w.Header().Set("Access-Control-Allow-Origin", "http://212.233.96.48:80")
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.Header().Set("Content-Type", "application/json")
 
