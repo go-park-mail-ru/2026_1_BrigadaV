@@ -690,7 +690,7 @@ func main() {
 	http.HandleFunc("/api/register", handlers.HandleRegister)
 	http.HandleFunc("/api/login", loginHandler)
 	http.HandleFunc("/api/logout", authenticate(logoutHandler))
-	http.HandleFunc("/api/", authenticate(placesHandler))
+	http.HandleFunc("/api/", placesHandler)
 	http.HandleFunc("/swagger/", httpSwagger.WrapHandler)
 
 	log.Println("Server started on :8080")
