@@ -48,6 +48,7 @@ type User struct {
 	ID           uint64    `json:"id"`
 	Email        string    `json:"email"`
 	Nickname     string    `json:"nickname"`
+	AvatarURL    string    `json:"avatar_url"`
 	PasswordHash string    `json:"-"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
@@ -89,7 +90,7 @@ type Place struct {
 	ID          uint64       `json:"id"`
 	Name        string       `json:"name"`
 	Description string       `json:"description"`
-	Price       float64      `json:"price"` 
+	Price       int64        `json:"price"`
 	Locality    Locality     `json:"locality"`
 	Category    Category     `json:"category"`
 	Photos      []PlacePhoto `json:"photos"`
@@ -103,7 +104,7 @@ type PlaceResponse struct {
 	ID          uint64       `json:"id"`
 	Name        string       `json:"name"`
 	Description string       `json:"description"`
-	Price       float64      `json:"price"`    
+	Price       int64        `json:"price"`
 	IsLiked     bool         `json:"is_liked"`
 	Locality    Locality     `json:"locality"`
 	Category    *Category    `json:"category,omitempty"`
@@ -128,9 +129,10 @@ type LoginRequest struct {
 // LoginResponse represents the login response
 // swagger:response loginResponse
 type LoginResponse struct {
-	UserID   uint64 `json:"user_id"`
-	Email    string `json:"email"`
-	Nickname string `json:"nickname"`
+	UserID    uint64 `json:"user_id"`
+	Email     string `json:"email"`
+	Nickname  string `json:"nickname"`
+	AvatarURL string `json:"avatar_url"`
 }
 
 // RegisterRequest represents the registration request body
@@ -159,6 +161,7 @@ type RegisterResponse struct {
 	ID        uint64    `json:"id"`
 	Email     string    `json:"email"`
 	Nickname  string    `json:"nickname"`
+	AvatarURL string    `json:"avatar_url"`
 	CreatedAt time.Time `json:"created_at"`
 	Message   string    `json:"message,omitempty"`
 }
@@ -352,9 +355,10 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	json.NewEncoder(w).Encode(LoginResponse{
-		UserID:   user.ID,
-		Email:    user.Email,
-		Nickname: user.Nickname,
+		UserID:    user.ID,
+		Email:     user.Email,
+		Nickname:  user.Nickname,
+		AvatarURL: user.AvatarURL,
 	})
 }
 
@@ -456,50 +460,121 @@ func placesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func initPlaces() {
-	catMuseum := Category{ID: 1, Name: "Museum", Description: "Art and historical museums"}
-	catPark := Category{ID: 2, Name: "Park", Description: "City parks and reserves"}
+	catHotel := Category{ID: 1, Name: "Hotel", Description: "Hotels and accommodations"}
+	catMuseum := Category{ID: 2, Name: "Museum", Description: "Art and historical museums"}
+	catHistorical := Category{ID: 3, Name: "Historical Site", Description: "Ancient ruins and landmarks"}
+	catSquare := Category{ID: 4, Name: "Square", Description: "Public squares and plazas"}
+	catResort := Category{ID: 5, Name: "Resort", Description: "Resorts and retreats"}
 
-	locParis := Locality{ID: 1, Name: "Paris", Country: "France", Latitude: 48.8566, Longitude: 2.3522}
-	locRome := Locality{ID: 2, Name: "Rome", Country: "Italy", Latitude: 41.9028, Longitude: 12.4964}
-	locNY := Locality{ID: 3, Name: "New York", Country: "USA", Latitude: 40.7128, Longitude: -74.0060}
+	locGramado := Locality{ID: 1, Name: "Gramado", Country: "Brazil", Latitude: -29.3733, Longitude: -50.8762}
+	locParis := Locality{ID: 2, Name: "Paris", Country: "France", Latitude: 48.8566, Longitude: 2.3522}
+	locRome := Locality{ID: 3, Name: "Rome", Country: "Italy", Latitude: 41.9028, Longitude: 12.4964}
+	locBarcelona := Locality{ID: 4, Name: "Barcelona", Country: "Spain", Latitude: 41.3851, Longitude: 2.1734}
+	locAmsterdam := Locality{ID: 5, Name: "Amsterdam", Country: "Netherlands", Latitude: 52.3676, Longitude: 4.9041}
+	locBali := Locality{ID: 6, Name: "Bali", Country: "Indonesia", Latitude: -8.4095, Longitude: 115.1889}
 
 	now := time.Now()
 
 	places[1] = Place{
 		ID:          1,
-		Name:        "Eiffel Tower",
-		Description: "Famous tower in Paris",
-		Price:       345500,
-		Locality:    locParis,
-		Category:    catPark,
+		Name:        "Hotel Estalagem St Hubertus",
+		Description: "Charming hotel in Gramado",
+		Price:       2370000,
+		Locality:    locGramado,
+		Category:    catHotel,
 		Photos: []PlacePhoto{
-			{ID: 1, PlaceID: 1, FilePath: "/photos/eiffel.jpg", IsMain: true},
+			{ID: 1, PlaceID: 1, FilePath: "/photos/hotel_estalagem.jpg", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
 	places[2] = Place{
 		ID:          2,
-		Name:        "Colosseum",
-		Description: "Ancient amphitheater in Rome",
-		Price:       220400,
-		Locality:    locRome,
-		Category:    catMuseum,
+		Name:        "Hotel Ritta Höppner",
+		Description: "Cozy hotel in Gramado",
+		Price:       1138100,
+		Locality:    locGramado,
+		Category:    catHotel,
 		Photos: []PlacePhoto{
-			{ID: 2, PlaceID: 2, FilePath: "/photos/colosseum.jpg", IsMain: true},
+			{ID: 2, PlaceID: 2, FilePath: "/photos/hotel_ritta.jpg", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
 	places[3] = Place{
 		ID:          3,
-		Name:        "Statue of Liberty",
-		Description: "Gift from France to USA",
-		Price:       0,
-		Locality:    locNY,
-		Category:    catPark,
+		Name:        "Rodin Musée",
+		Description: "Museum dedicated to Auguste Rodin",
+		Price:       126900,
+		Locality:    locParis,
+		Category:    catMuseum,
 		Photos: []PlacePhoto{
-			{ID: 3, PlaceID: 3, FilePath: "/photos/statue.jpg", IsMain: true},
+			{ID: 3, PlaceID: 3, FilePath: "/photos/rodin.jpg", IsMain: true},
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	places[4] = Place{
+		ID:          4,
+		Name:        "Roman Forum",
+		Description: "Ancient Roman forum",
+		Price:       126900,
+		Locality:    locRome,
+		Category:    catHistorical,
+		Photos: []PlacePhoto{
+			{ID: 4, PlaceID: 4, FilePath: "/photos/roman_forum.jpg", IsMain: true},
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	places[5] = Place{
+		ID:          5,
+		Name:        "Basílica de Santa María del Pi",
+		Description: "Gothic church in Barcelona",
+		Price:       199400,
+		Locality:    locBarcelona,
+		Category:    catHistorical,
+		Photos: []PlacePhoto{
+			{ID: 5, PlaceID: 5, FilePath: "/photos/basilica_pi.jpg", IsMain: true},
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	places[6] = Place{
+		ID:          6,
+		Name:        "De Hallen Amsterdam",
+		Description: "Cultural complex in Amsterdam",
+		Price:       3398800,
+		Locality:    locAmsterdam,
+		Category:    catMuseum,
+		Photos: []PlacePhoto{
+			{ID: 6, PlaceID: 6, FilePath: "/photos/de_hallen.jpg", IsMain: true},
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	places[7] = Place{
+		ID:          7,
+		Name:        "Amnaya Resort Kuta",
+		Description: "Resort in Bali",
+		Price:       584400,
+		Locality:    locBali,
+		Category:    catResort,
+		Photos: []PlacePhoto{
+			{ID: 7, PlaceID: 7, FilePath: "/photos/amnaya.jpg", IsMain: true},
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	places[8] = Place{
+		ID:          8,
+		Name:        "Plaça Reial",
+		Description: "Historic square in Barcelona",
+		Price:       1236900,
+		Locality:    locBarcelona,
+		Category:    catSquare,
+		Photos: []PlacePhoto{
+			{ID: 8, PlaceID: 8, FilePath: "/photos/placa_reial.jpg", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -627,6 +702,7 @@ func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		ID:           h.nextID,
 		Email:        req.Email,
 		Nickname:     req.Nickname,
+		AvatarURL:    "",
 		PasswordHash: passwordHash,
 		CreatedAt:    now,
 		UpdatedAt:    now,
@@ -648,6 +724,7 @@ func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		ID:        user.ID,
 		Email:     req.Email,
 		Nickname:  req.Nickname,
+		AvatarURL: user.AvatarURL,
 		CreatedAt: user.CreatedAt,
 		Message:   "Регистрация прошла успешно",
 	}
@@ -675,6 +752,7 @@ func main() {
 		ID:           nextUserID,
 		Email:        "john@example.com",
 		Nickname:     "johnny",
+		AvatarURL:    "/avatars/john.jpg",
 		PasswordHash: hashed,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
@@ -687,7 +765,7 @@ func main() {
 	http.HandleFunc("/api/register", handlers.HandleRegister)
 	http.HandleFunc("/api/login", loginHandler)
 	http.HandleFunc("/api/logout", authenticate(logoutHandler))
-	http.HandleFunc("/api/", placesHandler)
+	http.HandleFunc("/api/", authenticate(placesHandler))
 	http.HandleFunc("/swagger/", httpSwagger.WrapHandler)
 
 	log.Println("Server started on :8080")
