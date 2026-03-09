@@ -43,7 +43,6 @@ const (
 	argon2Threads = 4
 )
 
-// User represents a user in the system
 type User struct {
 	ID           uint64    `json:"id"`
 	Email        string    `json:"email"`
@@ -54,21 +53,18 @@ type User struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
-// Session represents a user session
 type Session struct {
 	Token     string
 	UserID    uint64
 	ExpiresAt time.Time
 }
 
-// Category represents a place category
 type Category struct {
 	ID          uint64 `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }
 
-// Locality represents a geographical location
 type Locality struct {
 	ID        uint64  `json:"id"`
 	Name      string  `json:"name"`
@@ -77,7 +73,6 @@ type Locality struct {
 	Longitude float64 `json:"longitude"`
 }
 
-// PlacePhoto represents a photo of a place
 type PlacePhoto struct {
 	ID       uint64 `json:"id"`
 	PlaceID  uint64 `json:"place_id"`
@@ -85,7 +80,6 @@ type PlacePhoto struct {
 	IsMain   bool   `json:"is_main"`
 }
 
-// Place represents a tourist place
 type Place struct {
 	ID          uint64       `json:"id"`
 	Name        string       `json:"name"`
@@ -98,8 +92,6 @@ type Place struct {
 	UpdatedAt   time.Time    `json:"updated_at"`
 }
 
-// PlaceResponse represents the response for places endpoint
-// swagger:response placeResponse
 type PlaceResponse struct {
 	ID          uint64       `json:"id"`
 	Name        string       `json:"name"`
@@ -112,22 +104,11 @@ type PlaceResponse struct {
 	CreatedAt   time.Time    `json:"created_at"`
 }
 
-// LoginRequest represents the login request body
-// swagger:parameters login
 type LoginRequest struct {
-	// User email
-	// required: true
-	// example: john@example.com
-	Email string `json:"email"`
-
-	// User password
-	// required: true
-	// example: 123456
+	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
-// LoginResponse represents the login response
-// swagger:response loginResponse
 type LoginResponse struct {
 	UserID    uint64 `json:"user_id"`
 	Email     string `json:"email"`
@@ -135,28 +116,12 @@ type LoginResponse struct {
 	AvatarURL string `json:"avatar_url"`
 }
 
-// RegisterRequest represents the registration request body
-// swagger:parameters register
 type RegisterRequest struct {
-	// User email
-	// required: true
-	// example: newuser@example.com
-	Email string `json:"email"`
-
-	// User password (min 8 characters)
-	// required: true
-	// min length: 8
-	// example: password123
+	Email    string `json:"email"`
 	Password string `json:"password"`
-
-	// User nickname
-	// required: true
-	// example: newbie
 	Nickname string `json:"nickname"`
 }
 
-// RegisterResponse represents the registration response
-// swagger:response registerResponse
 type RegisterResponse struct {
 	ID        uint64    `json:"id"`
 	Email     string    `json:"email"`
@@ -166,8 +131,6 @@ type RegisterResponse struct {
 	Message   string    `json:"message,omitempty"`
 }
 
-// ErrorResponse represents an error response
-// swagger:response errorResponse
 type ErrorResponse struct {
 	Error   string `json:"error"`
 	Field   string `json:"field,omitempty"`
@@ -180,11 +143,10 @@ var (
 	usersByNickname = make(map[string]uint64)
 	sessions        = make(map[string]Session)
 	places          = make(map[uint64]Place)
-	// userLikes stores likes: userLikes[userID][placeID] = true
-	userLikes  = make(map[uint64]map[uint64]bool)
-	nextUserID = uint64(1)
-	mu         sync.RWMutex
-	likesMu    sync.RWMutex
+	userLikes       = make(map[uint64]map[uint64]bool)
+	nextUserID      = uint64(1)
+	mu              sync.RWMutex
+	likesMu         sync.RWMutex
 )
 
 func generateSalt() ([]byte, error) {
@@ -258,6 +220,14 @@ func contains(s, substr string) bool {
 
 func authenticate(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
 		cookie, err := r.Cookie("session_token")
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -292,6 +262,15 @@ func authenticate(next http.HandlerFunc) http.HandlerFunc {
 // @Failure 401 {object} ErrorResponse
 // @Router /api/login [post]
 func loginHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "METHOD_NOT_ALLOWED", Message: "Use POST"})
@@ -370,6 +349,15 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 401 {object} ErrorResponse
 // @Router /api/logout [post]
 func logoutHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "METHOD_NOT_ALLOWED", Message: "Use POST"})
@@ -411,6 +399,15 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 401 {object} ErrorResponse
 // @Router /api/ [get]
 func placesHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "METHOD_NOT_ALLOWED", Message: "Use GET"})
@@ -455,7 +452,6 @@ func placesHandler(w http.ResponseWriter, r *http.Request) {
 		response = append(response, pr)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -636,8 +632,16 @@ func (h *Handlers) validateRegisterRequest(req RegisterRequest) *ErrorResponse {
 // @Failure 409 {object} ErrorResponse
 // @Router /api/register [post]
 func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Регистрация: %s", r.RemoteAddr)
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	log.Printf("Регистрация: %s", r.RemoteAddr)
 
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
