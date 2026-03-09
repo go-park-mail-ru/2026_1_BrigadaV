@@ -178,9 +178,20 @@ type ErrorResponse struct {
 
 // Handlers содержит состояние сервера и обработчики HTTP запросов
 type Handlers struct {
-	users  []User
+	users  map[uint64]User
+	usersByEmail map[string]uint64
 	nextID uint64
 	mu     *sync.Mutex
+}
+
+func (h *Handlers) findUserByEmail(email string) (User, bool) {
+    h.mu.Lock()
+    defer h.mu.Unlock()
+    
+    if userID, exists := h.usersByEmail[email]; exists {
+        return h.users[userID], true
+    }
+    return User{}, false
 }
 
 func (h *Handlers) validateRegisterRequest(req RegisterRequest) *ErrorResponse {
@@ -276,18 +287,16 @@ func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	for _, user := range h.users {
-		if user.Email == req.Email {
-			log.Printf("Конфликт: email %s уже зарегистрирован", req.Email)
-			w.WriteHeader(http.StatusConflict)
-			json.NewEncoder(w).Encode(ErrorResponse{
-				Error:   "EMAIL_ALREADY_EXISTS",
-				Field:   "email",
-				Message: "Email уже существует",
-			})
-			return
-		}
-	}
+	if _, exists := h.findUserByEmail(req.Email); exists {
+    log.Printf("Конфликт: email %s уже зарегистрирован", req.Email)
+    w.WriteHeader(http.StatusConflict)
+    json.NewEncoder(w).Encode(ErrorResponse{
+        Error:   "EMAIL_ALREADY_EXISTS",
+        Field:   "email",
+        Message: "Email уже существует",
+    })
+    return
+}
 	log.Printf("Email %s свободен", req.Email)
 
 	hash, salt, err := hashPassword(req.Password)
@@ -314,7 +323,8 @@ func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:    now,
 	}
 
-	h.users = append(h.users, user)
+	h.users[user.ID] = user
+  h.usersByEmail[user.Email] = user.ID
 	h.nextID++
 
 	log.Printf("Пользователь сохранен. Текущее количество пользователей: %d", len(h.users))
@@ -334,7 +344,8 @@ func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	handlers := &Handlers{
-		users:  []User{},
+		users:  make(map[uint64]User),
+		usersByEmail: make(map[string]uint64),
 		nextID: 1,
 		mu:     &sync.Mutex{},
 	}
