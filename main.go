@@ -42,100 +42,125 @@ const (
 	argon2Threads = 4
 )
 
+// User represents a user in the system
 type User struct {
 	ID           uint64    `json:"id"`
 	Email        string    `json:"email"`
-	Nickname     string    `json:"nickname,omitempty"`
-	FullName     string    `json:"full_name,omitempty"`
+	Nickname     string    `json:"nickname"`
 	PasswordHash string    `json:"-"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+// Session represents a user session
 type Session struct {
 	Token     string
 	UserID    uint64
 	ExpiresAt time.Time
 }
 
+// Category represents a place category
 type Category struct {
-	ID          uint64
-	Name        string
-	Description string
-}
-
-type Locality struct {
-	ID        uint64
-	Name      string
-	Country   string
-	Latitude  float64
-	Longitude float64
-}
-
-type PlacePhoto struct {
-	ID       uint64
-	PlaceID  uint64
-	FilePath string
-	IsMain   bool
-}
-
-type Place struct {
-	ID          uint64
-	Name        string
-	Description string
-	Locality    Locality
-	Category    Category
-	Photos      []PlacePhoto
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-}
-
-type PlaceResponse struct {
 	ID          uint64 `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
-	Locality    struct {
-		Name      string  `json:"name"`
-		Country   string  `json:"country"`
-		Latitude  float64 `json:"latitude"`
-		Longitude float64 `json:"longitude"`
-	} `json:"locality"`
-	Category *struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
-	} `json:"category,omitempty"`
-	Photos []struct {
-		FilePath string `json:"file_path"`
-		IsMain   bool   `json:"is_main"`
-	} `json:"photos,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
 }
 
+// Locality represents a geographical location
+type Locality struct {
+	ID        uint64  `json:"id"`
+	Name      string  `json:"name"`
+	Country   string  `json:"country"`
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+}
+
+// PlacePhoto represents a photo of a place
+type PlacePhoto struct {
+	ID       uint64 `json:"id"`
+	PlaceID  uint64 `json:"place_id"`
+	FilePath string `json:"file_path"`
+	IsMain   bool   `json:"is_main"`
+}
+
+// Place represents a tourist place
+type Place struct {
+	ID          uint64       `json:"id"`
+	Name        string       `json:"name"`
+	Description string       `json:"description"`
+	Locality    Locality     `json:"locality"`
+	Category    Category     `json:"category"`
+	Photos      []PlacePhoto `json:"photos"`
+	CreatedAt   time.Time    `json:"created_at"`
+	UpdatedAt   time.Time    `json:"updated_at"`
+}
+
+// PlaceResponse represents the response for places endpoint
+// swagger:response placeResponse
+type PlaceResponse struct {
+	ID          uint64       `json:"id"`
+	Name        string       `json:"name"`
+	Description string       `json:"description"`
+	Locality    Locality     `json:"locality"`
+	Category    *Category    `json:"category,omitempty"`
+	Photos      []PlacePhoto `json:"photos,omitempty"`
+	CreatedAt   time.Time    `json:"created_at"`
+}
+
+// LoginRequest represents the login request body
+// swagger:parameters login
 type LoginRequest struct {
-	Email    string `json:"email"`
+	// User email
+	// required: true
+	// example: john@example.com
+	Email string `json:"email"`
+
+	// User password
+	// required: true
+	// example: 123456
 	Password string `json:"password"`
 }
 
+// LoginResponse represents the login response
+// swagger:response loginResponse
 type LoginResponse struct {
 	UserID   uint64 `json:"user_id"`
 	Email    string `json:"email"`
 	Nickname string `json:"nickname"`
 }
 
+// RegisterRequest represents the registration request body
+// swagger:parameters register
 type RegisterRequest struct {
-	Email    string `json:"email"`
+	// User email
+	// required: true
+	// example: newuser@example.com
+	Email string `json:"email"`
+
+	// User password (min 8 characters)
+	// required: true
+	// min length: 8
+	// example: password123
 	Password string `json:"password"`
-	FullName string `json:"full_name"`
+
+	// User nickname
+	// required: true
+	// example: newbie
+	Nickname string `json:"nickname"`
 }
 
+// RegisterResponse represents the registration response
+// swagger:response registerResponse
 type RegisterResponse struct {
 	ID        uint64    `json:"id"`
 	Email     string    `json:"email"`
-	FullName  string    `json:"full_name"`
+	Nickname  string    `json:"nickname"`
 	CreatedAt time.Time `json:"created_at"`
 	Message   string    `json:"message,omitempty"`
 }
 
+// ErrorResponse represents an error response
+// swagger:response errorResponse
 type ErrorResponse struct {
 	Error   string `json:"error"`
 	Field   string `json:"field,omitempty"`
@@ -245,6 +270,17 @@ func authenticate(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// loginHandler handles user login
+// @Summary Login user
+// @Description Authenticates user and returns session cookie
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body LoginRequest true "Login credentials"
+// @Success 200 {object} LoginResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Router /api/login [post]
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -315,6 +351,13 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// logoutHandler handles user logout
+// @Summary Logout user
+// @Description Invalidates user session
+// @Tags auth
+// @Success 200 {object} map[string]string
+// @Failure 401 {object} ErrorResponse
+// @Router /api/logout [post]
 func logoutHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -348,6 +391,14 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "logged out"})
 }
 
+// placesHandler returns list of places
+// @Summary Get places
+// @Description Returns list of tourist places
+// @Tags places
+// @Produce json
+// @Success 200 {array} PlaceResponse
+// @Failure 401 {object} ErrorResponse
+// @Router /api/ [get]
 func placesHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -364,42 +415,14 @@ func placesHandler(w http.ResponseWriter, r *http.Request) {
 			ID:          p.ID,
 			Name:        p.Name,
 			Description: p.Description,
-			Locality: struct {
-				Name      string  `json:"name"`
-				Country   string  `json:"country"`
-				Latitude  float64 `json:"latitude"`
-				Longitude float64 `json:"longitude"`
-			}{
-				Name:      p.Locality.Name,
-				Country:   p.Locality.Country,
-				Latitude:  p.Locality.Latitude,
-				Longitude: p.Locality.Longitude,
-			},
-			CreatedAt: p.CreatedAt,
+			Locality:    p.Locality,
+			CreatedAt:   p.CreatedAt,
 		}
 		if p.Category.ID != 0 {
-			pr.Category = &struct {
-				Name        string `json:"name"`
-				Description string `json:"description"`
-			}{
-				Name:        p.Category.Name,
-				Description: p.Category.Description,
-			}
+			pr.Category = &p.Category
 		}
 		if len(p.Photos) > 0 {
-			pr.Photos = make([]struct {
-				FilePath string `json:"file_path"`
-				IsMain   bool   `json:"is_main"`
-			}, len(p.Photos))
-			for i, ph := range p.Photos {
-				pr.Photos[i] = struct {
-					FilePath string `json:"file_path"`
-					IsMain   bool   `json:"is_main"`
-				}{
-					FilePath: ph.FilePath,
-					IsMain:   ph.IsMain,
-				}
-			}
+			pr.Photos = p.Photos
 		}
 		response = append(response, pr)
 	}
@@ -456,11 +479,15 @@ func initPlaces() {
 	}
 }
 
-func (h *Handlers) validateRegisterRequest(req RegisterRequest) *ErrorResponse {
-	log.Printf("Валидация запроса для email: %s", req.Email)
+type Handlers struct {
+	users        map[uint64]User
+	usersByEmail map[string]uint64
+	nextID       uint64
+	mu           sync.RWMutex
+}
 
+func (h *Handlers) validateRegisterRequest(req RegisterRequest) *ErrorResponse {
 	if req.Email == "" {
-		log.Println("Ошибка валидации: пустой email")
 		return &ErrorResponse{
 			Error:   "VALIDATION_ERROR",
 			Field:   "email",
@@ -469,7 +496,6 @@ func (h *Handlers) validateRegisterRequest(req RegisterRequest) *ErrorResponse {
 	}
 
 	if !contains(req.Email, "@") {
-		log.Printf("Ошибка валидации: email без @ - %s", req.Email)
 		return &ErrorResponse{
 			Error:   "VALIDATION_ERROR",
 			Field:   "email",
@@ -478,7 +504,6 @@ func (h *Handlers) validateRegisterRequest(req RegisterRequest) *ErrorResponse {
 	}
 
 	if len(req.Password) < 8 {
-		log.Println("Ошибка валидации: пароль короче 8 символов")
 		return &ErrorResponse{
 			Error:   "VALIDATION_ERROR",
 			Field:   "password",
@@ -486,64 +511,47 @@ func (h *Handlers) validateRegisterRequest(req RegisterRequest) *ErrorResponse {
 		}
 	}
 
-	if req.FullName == "" {
-		log.Println("Ошибка валидации: пустое имя")
+	if req.Nickname == "" {
 		return &ErrorResponse{
 			Error:   "VALIDATION_ERROR",
-			Field:   "full_name",
-			Message: "Имя не может быть пустым",
+			Field:   "nickname",
+			Message: "Никнейм не может быть пустым",
 		}
 	}
 
-	log.Printf("Валидация успешно пройдена для email: %s", req.Email)
 	return nil
 }
 
-type Handlers struct {
-	users        map[uint64]User
-	usersByEmail map[string]uint64
-	nextID       uint64
-	mu           *sync.Mutex
-}
-
-func (h *Handlers) findUserByEmail(email string) (User, bool) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if userID, exists := h.usersByEmail[email]; exists {
-		return h.users[userID], true
-	}
-	return User{}, false
-}
-
+// HandleRegister handles user registration
+// @Summary Register new user
+// @Description Creates a new user account
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body RegisterRequest true "Registration data"
+// @Success 201 {object} RegisterResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 409 {object} ErrorResponse
+// @Router /api/register [post]
 func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Получен запрос на регистрацию с IP: %s", r.RemoteAddr)
+	log.Printf("Регистрация: %s", r.RemoteAddr)
 	w.Header().Set("Content-Type", "application/json")
 
 	if r.Method != http.MethodPost {
-		log.Printf("Ошибка: неверный метод %s от %s", r.Method, r.RemoteAddr)
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(ErrorResponse{
-			Error:   "METHOD_NOT_ALLOWED",
-			Message: "Метод не поддерживается. Используйте POST",
-		})
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "METHOD_NOT_ALLOWED", Message: "Use POST"})
 		return
 	}
 
 	var req RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("Ошибка декодирования JSON от %s: %v", r.RemoteAddr, err)
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
-			Error:   "INVALID_REQUEST",
-			Message: "Неверный формат запроса",
-		})
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "INVALID_REQUEST", Message: "Invalid JSON"})
 		return
 	}
 	defer r.Body.Close()
 
 	if errResp := h.validateRegisterRequest(req); errResp != nil {
-		log.Printf("Ошибка валидации для %s: %s", req.Email, errResp.Message)
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(errResp)
 		return
@@ -552,8 +560,7 @@ func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if _, exists := h.findUserByEmail(req.Email); exists {
-		log.Printf("Конфликт: email %s уже зарегистрирован", req.Email)
+	if _, exists := h.usersByEmail[req.Email]; exists {
 		w.WriteHeader(http.StatusConflict)
 		json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "EMAIL_ALREADY_EXISTS",
@@ -562,11 +569,22 @@ func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	log.Printf("Email %s свободен", req.Email)
+
+	mu.RLock()
+	_, nicknameExists := usersByNickname[req.Nickname]
+	mu.RUnlock()
+	if nicknameExists {
+		w.WriteHeader(http.StatusConflict)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "NICKNAME_ALREADY_EXISTS",
+			Field:   "nickname",
+			Message: "Никнейм уже занят",
+		})
+		return
+	}
 
 	hash, salt, err := hashPasswordForRegister(req.Password)
 	if err != nil {
-		log.Printf("Ошибка хеширования пароля для %s: %v", req.Email, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(ErrorResponse{
 			Error:   "INTERNAL_ERROR",
@@ -574,7 +592,6 @@ func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	log.Println("Пароль успешно захеширован")
 
 	passwordHash := encodeHash(salt, hash)
 	now := time.Now()
@@ -582,29 +599,30 @@ func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	user := User{
 		ID:           h.nextID,
 		Email:        req.Email,
+		Nickname:     req.Nickname,
 		PasswordHash: passwordHash,
-		FullName:     req.FullName,
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
 
 	h.users[user.ID] = user
 	h.usersByEmail[user.Email] = user.ID
+	mu.Lock()
+	usersByNickname[user.Nickname] = user.ID
+	mu.Unlock()
 	h.nextID++
-
-	log.Printf("Пользователь сохранен. Текущее количество пользователей: %d", len(h.users))
 
 	response := RegisterResponse{
 		ID:        user.ID,
 		Email:     req.Email,
-		FullName:  req.FullName,
+		Nickname:  req.Nickname,
 		CreatedAt: user.CreatedAt,
 		Message:   "Регистрация прошла успешно",
 	}
 
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response)
-	log.Printf("Успешная регистрация: %s (ID: %d)", user.Email, user.ID)
+	log.Printf("Успешная регистрация: %s (%s)", user.Email, user.Nickname)
 }
 
 func main() {
@@ -614,7 +632,6 @@ func main() {
 		users:        make(map[uint64]User),
 		usersByEmail: make(map[string]uint64),
 		nextID:       1,
-		mu:           &sync.Mutex{},
 	}
 
 	hashed, _ := hashPassword("123456")
@@ -622,7 +639,6 @@ func main() {
 		ID:           nextUserID,
 		Email:        "john@example.com",
 		Nickname:     "johnny",
-		FullName:     "John Doe",
 		PasswordHash: hashed,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
@@ -635,7 +651,7 @@ func main() {
 	http.HandleFunc("/api/register", handlers.HandleRegister)
 	http.HandleFunc("/api/login", loginHandler)
 	http.HandleFunc("/api/logout", authenticate(logoutHandler))
-	http.HandleFunc("/api/places", authenticate(placesHandler))
+	http.HandleFunc("/api/", authenticate(placesHandler))
 	http.HandleFunc("/swagger/", httpSwagger.WrapHandler)
 
 	log.Println("Server started on :8080")

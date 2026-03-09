@@ -1,84 +1,200 @@
 definitions:
+  main.Category:
+    properties:
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
   main.ErrorResponse:
     properties:
       error:
-        description: |-
-          Код ошибки
-          example: VALIDATION_ERROR
         type: string
       field:
-        description: |-
-          Поле, в котором произошла ошибка (если применимо)
-          example: email
         type: string
       message:
-        description: |-
-          Описание ошибки
-          example: Email не может быть пустым
         type: string
+    type: object
+  main.Locality:
+    properties:
+      country:
+        type: string
+      id:
+        type: integer
+      latitude:
+        type: number
+      longitude:
+        type: number
+      name:
+        type: string
+    type: object
+  main.LoginRequest:
+    properties:
+      email:
+        description: |-
+          User email
+          required: true
+          example: john@example.com
+        type: string
+      password:
+        description: |-
+          User password
+          required: true
+          example: 123456
+        type: string
+    type: object
+  main.LoginResponse:
+    properties:
+      email:
+        type: string
+      nickname:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  main.PlacePhoto:
+    properties:
+      file_path:
+        type: string
+      id:
+        type: integer
+      is_main:
+        type: boolean
+      place_id:
+        type: integer
+    type: object
+  main.PlaceResponse:
+    properties:
+      category:
+        $ref: '#/definitions/main.Category'
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      locality:
+        $ref: '#/definitions/main.Locality'
+      name:
+        type: string
+      photos:
+        items:
+          $ref: '#/definitions/main.PlacePhoto'
+        type: array
     type: object
   main.RegisterRequest:
     properties:
       email:
         description: |-
-          Email пользователя, используется для входа
+          User email
           required: true
-          example: user@example.com
-          pattern: ^\S+@\S+\.\S+$
+          example: newuser@example.com
         type: string
-      full_name:
+      nickname:
         description: |-
-          Полное имя пользователя
+          User nickname
           required: true
-          example: Иван Петров
+          example: newbie
         type: string
       password:
         description: |-
-          Пароль пользователя (минимум 8 символов)
+          User password (min 8 characters)
           required: true
           min length: 8
-          example: securePass123
+          example: password123
         type: string
     type: object
   main.RegisterResponse:
     properties:
       created_at:
-        description: |-
-          Дата и время создания аккаунта
-          example: 2024-01-15T10:30:00Z
         type: string
       email:
-        description: |-
-          Email пользователя
-          example: user@example.com
-        type: string
-      full_name:
-        description: |-
-          Полное имя пользователя
-          example: Иван Петров
         type: string
       id:
-        description: |-
-          Уникальный идентификатор пользователя
-          example: 1
         type: integer
       message:
-        description: |-
-          Сообщение о результате операции
-          example: Регистрация прошла успешно
+        type: string
+      nickname:
         type: string
     type: object
 info:
   contact: {}
 paths:
+  /api/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates user and returns session cookie
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: Login user
+      tags:
+      - auth
+  /api/logout:
+    post:
+      description: Invalidates user session
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: Logout user
+      tags:
+      - auth
+  /api/places:
+    get:
+      description: Returns list of tourist places
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/main.PlaceResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: Get places
+      tags:
+      - places
   /api/register:
     post:
       consumes:
       - application/json
-      description: Создаёт новую учётную запись пользователя с указанными email, паролем
-        и именем
+      description: Creates a new user account
       parameters:
-      - description: Данные для регистрации
+      - description: Registration data
         in: body
         name: request
         required: true
@@ -88,26 +204,18 @@ paths:
       - application/json
       responses:
         "201":
-          description: Пользователь успешно создан
+          description: Created
           schema:
             $ref: '#/definitions/main.RegisterResponse'
         "400":
-          description: Ошибка валидации или неверный формат запроса
-          schema:
-            $ref: '#/definitions/main.ErrorResponse'
-        "405":
-          description: Метод не поддерживается
+          description: Bad Request
           schema:
             $ref: '#/definitions/main.ErrorResponse'
         "409":
-          description: Email уже зарегистрирован
+          description: Conflict
           schema:
             $ref: '#/definitions/main.ErrorResponse'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/main.ErrorResponse'
-      summary: Регистрация нового пользователя
+      summary: Register new user
       tags:
-      - users
+      - auth
 swagger: "2.0"
