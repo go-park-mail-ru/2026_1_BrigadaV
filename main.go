@@ -31,7 +31,7 @@ import (
 
 	_ "guidely-app/docs"
 
-	"github.com/swaggo/http-swagger"
+	httpSwagger "github.com/swaggo/http-swagger"
 	"golang.org/x/crypto/argon2"
 )
 
@@ -415,11 +415,11 @@ func placesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userIDVal := r.Context().Value("user_id")
-	userID, ok := userIDVal.(uint64)
-	if !ok {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "INTERNAL_ERROR", Message: "Invalid user context"})
-		return
+	var userID uint64
+	if userIDVal != nil {
+		if id, ok := userIDVal.(uint64); ok {
+			userID = id
+		}
 	}
 
 	mu.RLock()
@@ -769,7 +769,7 @@ func main() {
 	http.HandleFunc("/api/register", handlers.HandleRegister)
 	http.HandleFunc("/api/login", loginHandler)
 	http.HandleFunc("/api/logout", authenticate(logoutHandler))
-	http.HandleFunc("/api/", authenticate(placesHandler))
+	http.HandleFunc("/api/", placesHandler)
 	http.HandleFunc("/swagger/", httpSwagger.WrapHandler)
 
 	log.Println("Server started on :8080")
