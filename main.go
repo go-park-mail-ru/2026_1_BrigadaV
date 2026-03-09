@@ -1,6 +1,6 @@
 // Package main GUIDELY API
 //
-// Документация для API сервиса Guidely
+// # Documentation for Guidely API service
 //
 // Schemes: http
 // Host: localhost:8080
@@ -30,6 +30,7 @@ import (
 	"time"
 
 	_ "guidely-app/docs"
+
 	"github.com/swaggo/http-swagger"
 	"golang.org/x/crypto/argon2"
 )
@@ -88,6 +89,7 @@ type Place struct {
 	ID          uint64       `json:"id"`
 	Name        string       `json:"name"`
 	Description string       `json:"description"`
+	Price       float64      `json:"price"` // Added price field
 	Locality    Locality     `json:"locality"`
 	Category    Category     `json:"category"`
 	Photos      []PlacePhoto `json:"photos"`
@@ -101,6 +103,8 @@ type PlaceResponse struct {
 	ID          uint64       `json:"id"`
 	Name        string       `json:"name"`
 	Description string       `json:"description"`
+	Price       float64      `json:"price"`    // Added price field
+	IsLiked     bool         `json:"is_liked"` // Flag indicating if current user liked this place
 	Locality    Locality     `json:"locality"`
 	Category    *Category    `json:"category,omitempty"`
 	Photos      []PlacePhoto `json:"photos,omitempty"`
@@ -173,8 +177,11 @@ var (
 	usersByNickname = make(map[string]uint64)
 	sessions        = make(map[string]Session)
 	places          = make(map[uint64]Place)
-	nextUserID      = uint64(1)
-	mu              sync.RWMutex
+	// userLikes stores likes: userLikes[userID][placeID] = true
+	userLikes  = make(map[uint64]map[uint64]bool)
+	nextUserID = uint64(1)
+	mu         sync.RWMutex
+	likesMu    sync.RWMutex // separate mutex for likes
 )
 
 func generateSalt() ([]byte, error) {
@@ -406,15 +413,33 @@ func placesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userIDVal := r.Context().Value("user_id")
+	userID, ok := userIDVal.(uint64)
+	if !ok {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "INTERNAL_ERROR", Message: "Invalid user context"})
+		return
+	}
+
 	mu.RLock()
 	defer mu.RUnlock()
 
 	response := make([]PlaceResponse, 0, len(places))
 	for _, p := range places {
+		// Check if current user liked this place
+		likesMu.RLock()
+		liked := false
+		if userLikesMap, exists := userLikes[userID]; exists {
+			_, liked = userLikesMap[p.ID]
+		}
+		likesMu.RUnlock()
+
 		pr := PlaceResponse{
 			ID:          p.ID,
 			Name:        p.Name,
 			Description: p.Description,
+			Price:       p.Price,
+			IsLiked:     liked,
 			Locality:    p.Locality,
 			CreatedAt:   p.CreatedAt,
 		}
@@ -445,6 +470,7 @@ func initPlaces() {
 		ID:          1,
 		Name:        "Eiffel Tower",
 		Description: "Famous tower in Paris",
+		Price:       15.0,
 		Locality:    locParis,
 		Category:    catPark,
 		Photos: []PlacePhoto{
@@ -457,6 +483,7 @@ func initPlaces() {
 		ID:          2,
 		Name:        "Colosseum",
 		Description: "Ancient amphitheater in Rome",
+		Price:       12.5,
 		Locality:    locRome,
 		Category:    catMuseum,
 		Photos: []PlacePhoto{
@@ -469,6 +496,7 @@ func initPlaces() {
 		ID:          3,
 		Name:        "Statue of Liberty",
 		Description: "Gift from France to USA",
+		Price:       10.0,
 		Locality:    locNY,
 		Category:    catPark,
 		Photos: []PlacePhoto{
@@ -610,6 +638,12 @@ func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
 	usersByNickname[user.Nickname] = user.ID
 	mu.Unlock()
+
+	// Initialize empty likes map for new user
+	likesMu.Lock()
+	userLikes[user.ID] = make(map[uint64]bool)
+	likesMu.Unlock()
+
 	h.nextID++
 
 	response := RegisterResponse{
@@ -627,6 +661,11 @@ func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	initPlaces()
+
+	// Initialize likes for existing user
+	likesMu.Lock()
+	userLikes[1] = make(map[uint64]bool)
+	likesMu.Unlock()
 
 	handlers := &Handlers{
 		users:        make(map[uint64]User),
