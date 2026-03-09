@@ -89,7 +89,7 @@ type Place struct {
 	ID          uint64       `json:"id"`
 	Name        string       `json:"name"`
 	Description string       `json:"description"`
-	Price       float64      `json:"price"` // Added price field
+	Price       float64      `json:"price"` 
 	Locality    Locality     `json:"locality"`
 	Category    Category     `json:"category"`
 	Photos      []PlacePhoto `json:"photos"`
@@ -103,8 +103,8 @@ type PlaceResponse struct {
 	ID          uint64       `json:"id"`
 	Name        string       `json:"name"`
 	Description string       `json:"description"`
-	Price       float64      `json:"price"`    // Added price field
-	IsLiked     bool         `json:"is_liked"` // Flag indicating if current user liked this place
+	Price       float64      `json:"price"`    
+	IsLiked     bool         `json:"is_liked"`
 	Locality    Locality     `json:"locality"`
 	Category    *Category    `json:"category,omitempty"`
 	Photos      []PlacePhoto `json:"photos,omitempty"`
@@ -181,7 +181,7 @@ var (
 	userLikes  = make(map[uint64]map[uint64]bool)
 	nextUserID = uint64(1)
 	mu         sync.RWMutex
-	likesMu    sync.RWMutex // separate mutex for likes
+	likesMu    sync.RWMutex
 )
 
 func generateSalt() ([]byte, error) {
@@ -426,7 +426,6 @@ func placesHandler(w http.ResponseWriter, r *http.Request) {
 
 	response := make([]PlaceResponse, 0, len(places))
 	for _, p := range places {
-		// Check if current user liked this place
 		likesMu.RLock()
 		liked := false
 		if userLikesMap, exists := userLikes[userID]; exists {
@@ -470,7 +469,7 @@ func initPlaces() {
 		ID:          1,
 		Name:        "Eiffel Tower",
 		Description: "Famous tower in Paris",
-		Price:       15.0,
+		Price:       345500,
 		Locality:    locParis,
 		Category:    catPark,
 		Photos: []PlacePhoto{
@@ -483,7 +482,7 @@ func initPlaces() {
 		ID:          2,
 		Name:        "Colosseum",
 		Description: "Ancient amphitheater in Rome",
-		Price:       12.5,
+		Price:       220400,
 		Locality:    locRome,
 		Category:    catMuseum,
 		Photos: []PlacePhoto{
@@ -496,7 +495,7 @@ func initPlaces() {
 		ID:          3,
 		Name:        "Statue of Liberty",
 		Description: "Gift from France to USA",
-		Price:       10.0,
+		Price:       0,
 		Locality:    locNY,
 		Category:    catPark,
 		Photos: []PlacePhoto{
@@ -639,7 +638,6 @@ func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	usersByNickname[user.Nickname] = user.ID
 	mu.Unlock()
 
-	// Initialize empty likes map for new user
 	likesMu.Lock()
 	userLikes[user.ID] = make(map[uint64]bool)
 	likesMu.Unlock()
@@ -662,7 +660,6 @@ func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
 func main() {
 	initPlaces()
 
-	// Initialize likes for existing user
 	likesMu.Lock()
 	userLikes[1] = make(map[uint64]bool)
 	likesMu.Unlock()
