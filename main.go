@@ -479,7 +479,7 @@ func initPlaces() {
 		Locality:    locGramado,
 		Category:    catHotel,
 		Photos: []PlacePhoto{
-			{ID: 1, PlaceID: 1, FilePath: "/photos/hotel_estalagem.jpg", IsMain: true},
+			{ID: 1, PlaceID: 1, FilePath: "/mock/places/hotel_estalagem.jpg", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -492,7 +492,7 @@ func initPlaces() {
 		Locality:    locGramado,
 		Category:    catHotel,
 		Photos: []PlacePhoto{
-			{ID: 2, PlaceID: 2, FilePath: "/photos/hotel_ritta.jpg", IsMain: true},
+			{ID: 2, PlaceID: 2, FilePath: "mock/places/hotel_ritta.jpg", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -505,7 +505,7 @@ func initPlaces() {
 		Locality:    locParis,
 		Category:    catMuseum,
 		Photos: []PlacePhoto{
-			{ID: 3, PlaceID: 3, FilePath: "/photos/rodin.jpg", IsMain: true},
+			{ID: 3, PlaceID: 3, FilePath: "mock/places/rodin.jpg", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
