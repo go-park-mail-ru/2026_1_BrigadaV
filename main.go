@@ -492,7 +492,7 @@ func initPlaces() {
 		Locality:    locGramado,
 		Category:    catHotel,
 		Photos: []PlacePhoto{
-			{ID: 2, PlaceID: 2, FilePath: "mock/places/hotel_ritta.jpg", IsMain: true},
+			{ID: 2, PlaceID: 2, FilePath: "/mock/places/hotel_ritta.jpg", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -505,7 +505,7 @@ func initPlaces() {
 		Locality:    locParis,
 		Category:    catMuseum,
 		Photos: []PlacePhoto{
-			{ID: 3, PlaceID: 3, FilePath: "mock/places/rodin.jpg", IsMain: true},
+			{ID: 3, PlaceID: 3, FilePath: "/mock/places/rodin.jpg", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -518,7 +518,7 @@ func initPlaces() {
 		Locality:    locRome,
 		Category:    catHistorical,
 		Photos: []PlacePhoto{
-			{ID: 4, PlaceID: 4, FilePath: "/photos/roman_forum.jpg", IsMain: true},
+			{ID: 4, PlaceID: 4, FilePath: "/mock/places/roman_forum.jpg", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -531,7 +531,7 @@ func initPlaces() {
 		Locality:    locBarcelona,
 		Category:    catHistorical,
 		Photos: []PlacePhoto{
-			{ID: 5, PlaceID: 5, FilePath: "/photos/basilica_pi.jpg", IsMain: true},
+			{ID: 5, PlaceID: 5, FilePath: "/mock/places/basilica_pi.jpg", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -544,7 +544,7 @@ func initPlaces() {
 		Locality:    locAmsterdam,
 		Category:    catMuseum,
 		Photos: []PlacePhoto{
-			{ID: 6, PlaceID: 6, FilePath: "/photos/de_hallen.jpg", IsMain: true},
+			{ID: 6, PlaceID: 6, FilePath: "/mock/places/de_hallen.jpg", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -557,7 +557,7 @@ func initPlaces() {
 		Locality:    locBali,
 		Category:    catResort,
 		Photos: []PlacePhoto{
-			{ID: 7, PlaceID: 7, FilePath: "/photos/amnaya.jpg", IsMain: true},
+			{ID: 7, PlaceID: 7, FilePath: "/mock/places/amnaya.jpg", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -570,7 +570,7 @@ func initPlaces() {
 		Locality:    locBarcelona,
 		Category:    catSquare,
 		Photos: []PlacePhoto{
-			{ID: 8, PlaceID: 8, FilePath: "/photos/placa_reial.jpg", IsMain: true},
+			{ID: 8, PlaceID: 8, FilePath: "/mock/places/placa_reial.jpg", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
