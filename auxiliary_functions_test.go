@@ -4,103 +4,73 @@ import (
 	"encoding/base64"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGenerateSaltLengthAndUniqueness(t *testing.T) {
-	salt1, err1 := generateSalt()
-	salt2, err2 := generateSalt()
+	salt1, err := generateSalt()
+	require.NoError(t, err)
+	salt2, err := generateSalt()
+	require.NoError(t, err)
 
-	if err1 != nil || err2 != nil {
-		t.Fatalf("generateSalt error: %v, %v", err1, err2)
-	}
-	if len(salt1) != saltLength {
-		t.Errorf("expected salt length %d, got %d", saltLength, len(salt1))
-	}
-	if len(salt2) != saltLength {
-		t.Errorf("expected salt length %d, got %d", saltLength, len(salt2))
-	}
-	if string(salt1) == string(salt2) {
-		t.Error("two salts are identical, expected them to be different")
-	}
+	assert.Len(t, salt1, saltLength)
+	assert.Len(t, salt2, saltLength)
+	assert.NotEqual(t, salt1, salt2, "salts should be unique")
 }
 
 func TestHashPasswordProducesValidFormat(t *testing.T) {
 	pass := "mySecretPassword"
 	hash, err := hashPassword(pass)
-	if err != nil {
-		t.Fatalf("hashPassword error: %v", err)
-	}
-	if hash == "" {
-		t.Error("hashPassword returned empty string")
-	}
-	if !strings.HasPrefix(hash, "argon2id$") {
-		t.Errorf("hash does not start with argon2id$: %s", hash)
-	}
+	require.NoError(t, err)
+	assert.NotEmpty(t, hash)
+	assert.True(t, strings.HasPrefix(hash, "argon2id$"), "hash should start with argon2id$")
 	parts := strings.Split(hash, "$")
-	if len(parts) != 5 {
-		t.Errorf("expected 5 parts, got %d", len(parts))
-	}
-	if len(hash) < 80 {
-		t.Errorf("hash too short: %d", len(hash))
-	}
+	assert.Len(t, parts, 5, "hash should have 5 parts separated by $")
 }
 
 func TestHashPasswordEmptyString(t *testing.T) {
 	hash, err := hashPassword("")
-	if err != nil {
-		t.Fatalf("hashPassword with empty string error: %v", err)
-	}
-	if hash == "" {
-		t.Error("hashPassword returned empty string for empty password")
-	}
+	require.NoError(t, err)
+	assert.NotEmpty(t, hash, "hash of empty string should not be empty")
 }
 
 func TestSamePasswordDifferentHashes(t *testing.T) {
 	pass := "pass"
-	hash1, _ := hashPassword(pass)
-	hash2, _ := hashPassword(pass)
-	if hash1 == hash2 {
-		t.Error("same password produced identical hash, expected different due to salt")
-	}
+	hash1, err := hashPassword(pass)
+	require.NoError(t, err)
+	hash2, err := hashPassword(pass)
+	require.NoError(t, err)
+	assert.NotEqual(t, hash1, hash2, "hashes of same password should differ due to salt")
 }
 
 func TestCheckPasswordCorrect(t *testing.T) {
 	pass := "pass123"
-	hash, _ := hashPassword(pass)
+	hash, err := hashPassword(pass)
+	require.NoError(t, err)
 	ok, err := checkPassword(pass, hash)
-	if err != nil {
-		t.Fatalf("checkPassword error: %v", err)
-	}
-	if !ok {
-		t.Error("checkPassword returned false for correct password")
-	}
+	require.NoError(t, err)
+	assert.True(t, ok, "checkPassword should return true for correct password")
 }
 
 func TestCheckPasswordWrong(t *testing.T) {
 	pass := "pass123"
-	wrong := "wrong"
-	hash, _ := hashPassword(pass)
-	ok, err := checkPassword(wrong, hash)
-	if err != nil {
-		t.Fatalf("checkPassword error: %v", err)
-	}
-	if ok {
-		t.Error("checkPassword returned true for wrong password")
-	}
+	hash, err := hashPassword(pass)
+	require.NoError(t, err)
+	ok, err := checkPassword("wrong", hash)
+	require.NoError(t, err)
+	assert.False(t, ok, "checkPassword should return false for wrong password")
 }
 
 func TestCheckPasswordInvalidHashFormat(t *testing.T) {
 	_, err := checkPassword("pass", "invalid")
-	if err == nil {
-		t.Error("expected error for invalid hash format, got nil")
-	}
+	assert.Error(t, err, "expected error for invalid hash format")
 }
 
 func TestCheckPasswordUnsupportedAlgorithm(t *testing.T) {
 	_, err := checkPassword("pass", "md5$v=19$m=...")
-	if err == nil {
-		t.Error("expected error for unsupported algorithm, got nil")
-	}
+	assert.Error(t, err, "expected error for unsupported algorithm")
 }
 
 func TestEncodeHashDecodable(t *testing.T) {
@@ -109,45 +79,33 @@ func TestEncodeHashDecodable(t *testing.T) {
 	encoded := encodeHash(salt, hash)
 
 	parts := strings.Split(encoded, "$")
-	if len(parts) != 5 {
-		t.Fatalf("encoded hash has %d parts, expected 5", len(parts))
-	}
-	if parts[0] != "argon2id" {
-		t.Errorf("algorithm = %s, want argon2id", parts[0])
-	}
+	assert.Len(t, parts, 5, "encoded hash should have 5 parts")
+	assert.Equal(t, "argon2id", parts[0], "algorithm should be argon2id")
+
 	_, err := base64.RawStdEncoding.DecodeString(parts[3])
-	if err != nil {
-		t.Errorf("salt base64 decode error: %v", err)
-	}
+	assert.NoError(t, err, "salt part should be valid base64")
 	_, err = base64.RawStdEncoding.DecodeString(parts[4])
-	if err != nil {
-		t.Errorf("hash base64 decode error: %v", err)
-	}
+	assert.NoError(t, err, "hash part should be valid base64")
 }
 
 func TestGenerateSessionTokenNotEmpty(t *testing.T) {
 	token, err := generateSessionToken()
-	if err != nil {
-		t.Fatalf("generateSessionToken error: %v", err)
-	}
-	if token == "" {
-		t.Error("token is empty")
-	}
+	require.NoError(t, err)
+	assert.NotEmpty(t, token)
 }
 
 func TestGenerateSessionTokenLength(t *testing.T) {
-	token, _ := generateSessionToken()
-	if len(token) < 40 || len(token) > 45 {
-		t.Errorf("unexpected token length %d, expected around 43", len(token))
-	}
+	token, err := generateSessionToken()
+	require.NoError(t, err)
+	assert.Contains(t, []int{43, 44}, len(token), "token length should be 43 or 44")
 }
 
 func TestGenerateSessionTokenUniqueness(t *testing.T) {
-	token1, _ := generateSessionToken()
-	token2, _ := generateSessionToken()
-	if token1 == token2 {
-		t.Error("tokens are identical")
-	}
+	token1, err := generateSessionToken()
+	require.NoError(t, err)
+	token2, err := generateSessionToken()
+	require.NoError(t, err)
+	assert.NotEqual(t, token1, token2, "tokens should be unique")
 }
 
 func TestContains(t *testing.T) {
@@ -164,8 +122,6 @@ func TestContains(t *testing.T) {
 		{"abc", "d", false},
 	}
 	for _, tt := range tests {
-		if got := contains(tt.s, tt.substr); got != tt.want {
-			t.Errorf("contains(%q, %q) = %v; want %v", tt.s, tt.substr, got, tt.want)
-		}
+		assert.Equal(t, tt.want, contains(tt.s, tt.substr), "contains(%q, %q)", tt.s, tt.substr)
 	}
 }
