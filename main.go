@@ -260,10 +260,38 @@ func contains(s, substr string) bool {
 	return strings.Contains(s, substr)
 }
 
+func containsEmoji(s string) bool {
+    for _, r := range s {
+        if r >= 0x1F600 && r <= 0x1F64F {
+            return true
+        }
+        if r >= 0x1F300 && r <= 0x1F5FF {
+            return true
+        }
+        if r >= 0x1F680 && r <= 0x1F6FF {
+            return true
+        }
+        if r >= 0x2600 && r <= 0x26FF {
+            return true
+        }
+        if r >= 0x2700 && r <= 0x27BF {
+            return true
+        }
+        if r >= 0xFE00 && r <= 0xFE0F {
+            return true
+        }
+        if r >= 0x1F900 && r <= 0x1F9FF {
+            return true
+        }
+    }
+    return false
+}
+
 func (h *Handlers) authenticate(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "http://212.233.96.48")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
@@ -633,134 +661,134 @@ func initPlaces() {
 // @Failure 409 {object} ErrorResponse
 // @Router /api/register [post]
 func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
-    log.Println("1. Начало HandleRegister")
-    w.Header().Set("Access-Control-Allow-Origin", "http://212.233.96.48")
-    w.Header().Set("Access-Control-Allow-Credentials", "true")
-    w.Header().Set("Content-Type", "application/json")
-    w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+  w.Header().Set("Access-Control-Allow-Origin", "http://212.233.96.48")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
-    if r.Method == "OPTIONS" {
-        w.WriteHeader(http.StatusOK)
-        return
-    }
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 
-    log.Printf("Регистрация: %s", r.RemoteAddr)
+	log.Printf("Регистрация: %s", r.RemoteAddr)
 
-    if r.Method != http.MethodPost {
-        w.WriteHeader(http.StatusMethodNotAllowed)
-        json.NewEncoder(w).Encode(ErrorResponse{Error: "METHOD_NOT_ALLOWED", Message: "Use POST"})
-        return
-    }
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "METHOD_NOT_ALLOWED", Message: "Use POST"})
+		return
+	}
 
-    log.Println("2. Декодирование запроса")
-    var req RegisterRequest
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        log.Printf("3. Ошибка декодирования: %v", err)
-        w.WriteHeader(http.StatusBadRequest)
-        json.NewEncoder(w).Encode(ErrorResponse{Error: "INVALID_REQUEST", Message: "Invalid JSON"})
-        return
-    }
-    defer r.Body.Close()
-    log.Printf("3. Запрос декодирован: %+v", req)
+	var req RegisterRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "INVALID_REQUEST", Message: "Invalid JSON"})
+		return
+	}
+	defer r.Body.Close()
 
-    log.Println("4. Валидация запроса")
-    if errResp := h.validateRegisterRequest(req); errResp != nil {
-        log.Printf("5. Ошибка валидации: %+v", errResp)
-        w.WriteHeader(http.StatusBadRequest)
-        json.NewEncoder(w).Encode(errResp)
-        return
-    }
-    log.Println("5. Валидация пройдена")
+	if errResp := h.validateRegisterRequest(req); errResp != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errResp)
+		return
+	}
 
-    log.Println("6. Блокировка мьютекса")
-    h.mu.Lock()
-    defer h.mu.Unlock()
-    log.Println("7. Мьютекс захвачен")
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
-    log.Println("8. Проверка существования логина")
-    if _, exists := h.usersByLogin[req.Login]; exists {
-        log.Printf("9. Логин уже существует: %s", req.Login)
-        w.WriteHeader(http.StatusConflict)
-        json.NewEncoder(w).Encode(ErrorResponse{
-            Error:   "LOGIN_ALREADY_EXISTS",
-            Field:   "login",
-            Message: "Логин уже существует",
-        })
-        return
-    }
-    log.Println("9. Логин свободен")
+	if _, exists := h.usersByLogin[req.Login]; exists {
+		w.WriteHeader(http.StatusConflict)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "LOGIN_ALREADY_EXISTS",
+			Field:   "login",
+			Message: "Логин уже существует",
+		})
+		return
+	}
 
-    log.Println("10. Проверка никнейма")
-    _, nicknameExists := h.usersByNickname[req.Nickname]
-    if nicknameExists {
-        log.Printf("11. Никнейм уже занят: %s", req.Nickname)
-        w.WriteHeader(http.StatusConflict)
-        json.NewEncoder(w).Encode(ErrorResponse{
-            Error:   "NICKNAME_ALREADY_EXISTS",
-            Field:   "nickname",
-            Message: "Никнейм уже занят",
-        })
-        return
-    }
-    log.Println("11. Никнейм свободен")
+	_, nicknameExists := h.usersByNickname[req.Nickname]
+	if nicknameExists {
+		w.WriteHeader(http.StatusConflict)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "NICKNAME_ALREADY_EXISTS",
+			Field:   "nickname",
+			Message: "Никнейм уже занят",
+		})
+		return
+	}
 
-    log.Println("12. Хеширование пароля")
-    hash, salt, err := hashPasswordForRegister(req.Password)
-    if err != nil {
-        log.Printf("13. Ошибка хеширования: %v", err)
-        w.WriteHeader(http.StatusInternalServerError)
-        json.NewEncoder(w).Encode(ErrorResponse{
-            Error:   "INTERNAL_ERROR",
-            Message: "Внутренняя ошибка сервера",
-        })
-        return
-    }
-    log.Println("13. Пароль захеширован")
+	hash, salt, err := hashPasswordForRegister(req.Password)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "INTERNAL_ERROR",
+			Message: "Внутренняя ошибка сервера",
+		})
+		return
+	}
 
-    log.Println("14. Кодирование хеша")
-    passwordHash := encodeHash(salt, hash)
-    now := time.Now()
-    log.Println("15. Хеш закодирован")
+	passwordHash := encodeHash(salt, hash)
+	now := time.Now()
 
-    log.Println("16. Создание пользователя")
-    user := User{
-        ID:           h.nextID,
-        Login:        req.Login,
-        Nickname:     req.Nickname,
-        AvatarURL:    "",
-        PasswordHash: passwordHash,
-        CreatedAt:    now,
-        UpdatedAt:    now,
-    }
-    log.Printf("17. Пользователь создан: %+v", user)
+	user := User{
+		ID:           h.nextID,
+		Login:        req.Login,
+		Nickname:     req.Nickname,
+		AvatarURL:    "",
+		PasswordHash: passwordHash,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
 
-    log.Println("18. Сохранение в мапы")
-    h.users[user.ID] = user
-    h.usersByLogin[user.Login] = user.ID
-    h.usersByNickname[user.Nickname] = user.ID
-    h.nextID++
-    log.Println("19. Пользователь сохранен")
+	h.users[user.ID] = user
+	h.usersByLogin[user.Login] = user.ID
+	h.usersByNickname[user.Nickname] = user.ID
 
-    log.Println("20. Инициализация лайков")
-    likesMu.Lock()
-    userLikes[user.ID] = make(map[uint64]bool)
-    likesMu.Unlock()
-    log.Println("21. Лайки инициализированы")
+	token, err := generateSessionToken()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "INTERNAL_ERROR",
+			Message: "Failed to generate token",
+		})
+		return
+	}
 
-    log.Println("22. Формирование ответа")
-    response := RegisterResponse{
-        ID:        user.ID,
-        Login:     req.Login,
-        Nickname:  req.Nickname,
-        AvatarURL: user.AvatarURL,
-        CreatedAt: user.CreatedAt,
-        Message:   "Регистрация прошла успешно",
-    }
+	session := Session{
+		Token:     token,
+		UserID:    user.ID,
+		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+	}
 
-    log.Println("23. Отправка ответа")
-    w.WriteHeader(http.StatusCreated)
-    json.NewEncoder(w).Encode(response)
-    log.Printf("24. Успешная регистрация: %s (%s)", user.Login, user.Nickname)
+	h.sessions[token] = session
+	h.nextID++
+
+	likesMu.Lock()
+	userLikes[user.ID] = make(map[uint64]bool)
+	likesMu.Unlock()
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_token",
+		Value:    token,
+		Expires:  session.ExpiresAt,
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+	})
+
+	response := RegisterResponse{
+		ID:        user.ID,
+		Login:     req.Login,
+		Nickname:  req.Nickname,
+		AvatarURL: user.AvatarURL,
+		CreatedAt: user.CreatedAt,
+		Message:   "Регистрация прошла успешно",
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response)
+	log.Printf("Успешная регистрация: %s (%s)", user.Login, user.Nickname)
 }
 
 func (h *Handlers) validateRegisterRequest(req RegisterRequest) *ErrorResponse {
@@ -771,6 +799,14 @@ func (h *Handlers) validateRegisterRequest(req RegisterRequest) *ErrorResponse {
 			Message: "Логин не может быть пустым",
 		}
 	}
+
+	if containsEmoji(req.Login) {
+        return &ErrorResponse{
+            Error:   "VALIDATION_ERROR",
+            Field:   "login",
+            Message: "Логин не может содержать эмодзи",
+        }
+    }
 
 	if !contains(req.Login, "@") {
 		return &ErrorResponse{
@@ -788,6 +824,14 @@ func (h *Handlers) validateRegisterRequest(req RegisterRequest) *ErrorResponse {
 		}
 	}
 
+	if containsEmoji(req.Password) {
+        return &ErrorResponse{
+            Error:   "VALIDATION_ERROR",
+            Field:   "password",
+            Message: "Пароль не может содержать эмодзи",
+        }
+    }
+
 	if req.Nickname == "" {
 		return &ErrorResponse{
 			Error:   "VALIDATION_ERROR",
@@ -795,6 +839,14 @@ func (h *Handlers) validateRegisterRequest(req RegisterRequest) *ErrorResponse {
 			Message: "Никнейм не может быть пустым",
 		}
 	}
+
+	if containsEmoji(req.Nickname) {
+        return &ErrorResponse{
+            Error:   "VALIDATION_ERROR",
+            Field:   "nickname",
+            Message: "Никнейм не может содержать эмодзи",
+        }
+    }
 
 	return nil
 }
