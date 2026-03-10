@@ -1,6 +1,6 @@
 // Package main GUIDELY API
 //
-// # Documentation for Guidely API service
+// Documentation for Guidely API service
 //
 // Schemes: http
 // Host: localhost:8080
@@ -43,9 +43,10 @@ const (
 	argon2Threads = 4
 )
 
+// User represents a user in the system
 type User struct {
 	ID           uint64    `json:"id"`
-	Email        string    `json:"email"`
+	Login        string    `json:"login"`
 	Nickname     string    `json:"nickname"`
 	AvatarURL    string    `json:"avatar_url"`
 	PasswordHash string    `json:"-"`
@@ -53,18 +54,21 @@ type User struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+// Session represents a user session
 type Session struct {
 	Token     string
 	UserID    uint64
 	ExpiresAt time.Time
 }
 
+// Category represents a place category
 type Category struct {
 	ID          uint64 `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }
 
+// Locality represents a geographical location
 type Locality struct {
 	ID        uint64  `json:"id"`
 	Name      string  `json:"name"`
@@ -73,6 +77,7 @@ type Locality struct {
 	Longitude float64 `json:"longitude"`
 }
 
+// PlacePhoto represents a photo of a place
 type PlacePhoto struct {
 	ID       uint64 `json:"id"`
 	PlaceID  uint64 `json:"place_id"`
@@ -80,6 +85,7 @@ type PlacePhoto struct {
 	IsMain   bool   `json:"is_main"`
 }
 
+// Place represents a tourist place
 type Place struct {
 	ID          uint64       `json:"id"`
 	Name        string       `json:"name"`
@@ -92,6 +98,8 @@ type Place struct {
 	UpdatedAt   time.Time    `json:"updated_at"`
 }
 
+// PlaceResponse represents the response for places endpoint
+// swagger:response placeResponse
 type PlaceResponse struct {
 	ID          uint64       `json:"id"`
 	Name        string       `json:"name"`
@@ -104,33 +112,63 @@ type PlaceResponse struct {
 	CreatedAt   time.Time    `json:"created_at"`
 }
 
+// LoginRequest represents the login request body
+// swagger:parameters login
 type LoginRequest struct {
-	Email    string `json:"email"`
+	// User login (email)
+	// required: true
+	// example: john@example.com
+	Login string `json:"login"`
+
+	// User password
+	// required: true
+	// min length: 8
+	// example: 12345678
 	Password string `json:"password"`
 }
 
+// LoginResponse represents the login response
+// swagger:response loginResponse
 type LoginResponse struct {
 	UserID    uint64 `json:"user_id"`
-	Email     string `json:"email"`
+	Login     string `json:"login"`
 	Nickname  string `json:"nickname"`
 	AvatarURL string `json:"avatar_url"`
 }
 
+// RegisterRequest represents the registration request body
+// swagger:parameters register
 type RegisterRequest struct {
-	Email    string `json:"email"`
+	// User login (email)
+	// required: true
+	// example: newuser@example.com
+	Login string `json:"login"`
+
+	// User password (min 8 characters)
+	// required: true
+	// min length: 8
+	// example: password123
 	Password string `json:"password"`
+
+	// User nickname
+	// required: true
+	// example: newbie
 	Nickname string `json:"nickname"`
 }
 
+// RegisterResponse represents the registration response
+// swagger:response registerResponse
 type RegisterResponse struct {
 	ID        uint64    `json:"id"`
-	Email     string    `json:"email"`
+	Login     string    `json:"login"`
 	Nickname  string    `json:"nickname"`
 	AvatarURL string    `json:"avatar_url"`
 	CreatedAt time.Time `json:"created_at"`
 	Message   string    `json:"message,omitempty"`
 }
 
+// ErrorResponse represents an error response
+// swagger:response errorResponse
 type ErrorResponse struct {
 	Error   string `json:"error"`
 	Field   string `json:"field,omitempty"`
@@ -138,16 +176,20 @@ type ErrorResponse struct {
 }
 
 var (
-	users           = make(map[uint64]User)
-	usersByEmail    = make(map[string]uint64)
-	usersByNickname = make(map[string]uint64)
-	sessions        = make(map[string]Session)
-	places          = make(map[uint64]Place)
-	userLikes       = make(map[uint64]map[uint64]bool)
-	nextUserID      = uint64(1)
-	mu              sync.RWMutex
-	likesMu         sync.RWMutex
+	places     = make(map[uint64]Place)
+	userLikes  = make(map[uint64]map[uint64]bool)
+	likesMu    sync.RWMutex
+	nextUserID = uint64(1)
 )
+
+type Handlers struct {
+	users           map[uint64]User
+	usersByLogin    map[string]uint64
+	usersByNickname map[string]uint64
+	sessions        map[string]Session
+	nextID          uint64
+	mu              sync.RWMutex
+}
 
 func generateSalt() ([]byte, error) {
 	salt := make([]byte, saltLength)
@@ -218,7 +260,7 @@ func contains(s, substr string) bool {
 	return strings.Contains(s, substr)
 }
 
-func authenticate(next http.HandlerFunc) http.HandlerFunc {
+func (h *Handlers) authenticate(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "http://212.233.96.48")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -236,9 +278,9 @@ func authenticate(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		token := cookie.Value
-		mu.RLock()
-		session, exists := sessions[token]
-		mu.RUnlock()
+		h.mu.RLock()
+		session, exists := h.sessions[token]
+		h.mu.RUnlock()
 		if !exists || time.Now().After(session.ExpiresAt) {
 			w.WriteHeader(http.StatusUnauthorized)
 			json.NewEncoder(w).Encode(ErrorResponse{Error: "UNAUTHORIZED", Message: "Invalid or expired session"})
@@ -261,10 +303,11 @@ func authenticate(next http.HandlerFunc) http.HandlerFunc {
 // @Failure 400 {object} ErrorResponse
 // @Failure 401 {object} ErrorResponse
 // @Router /api/login [post]
-func loginHandler(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) loginHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "http://212.233.96.48")
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
@@ -279,30 +322,32 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("Login decode error: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "INVALID_REQUEST", Message: "Invalid JSON"})
 		return
 	}
+	log.Printf("Login attempt: %s", req.Login)
 	defer r.Body.Close()
 
-	mu.RLock()
-	userID, ok := usersByEmail[req.Email]
+	h.mu.RLock()
+	userID, ok := h.usersByLogin[req.Login]
 	var user User
 	if ok {
-		user = users[userID]
+		user = h.users[userID]
 	}
-	mu.RUnlock()
+	h.mu.RUnlock()
 
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "INVALID_CREDENTIALS", Message: "Invalid email or password"})
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "INVALID_CREDENTIALS", Message: "Invalid login or password"})
 		return
 	}
 
 	valid, err := checkPassword(req.Password, user.PasswordHash)
 	if err != nil || !valid {
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "INVALID_CREDENTIALS", Message: "Invalid email or password"})
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "INVALID_CREDENTIALS", Message: "Invalid login or password"})
 		return
 	}
 
@@ -319,9 +364,9 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
 	}
 
-	mu.Lock()
-	sessions[token] = session
-	mu.Unlock()
+	h.mu.Lock()
+	h.sessions[token] = session
+	h.mu.Unlock()
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
@@ -335,7 +380,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(LoginResponse{
 		UserID:    user.ID,
-		Email:     user.Email,
+		Login:     user.Login,
 		Nickname:  user.Nickname,
 		AvatarURL: user.AvatarURL,
 	})
@@ -348,10 +393,11 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} map[string]string
 // @Failure 401 {object} ErrorResponse
 // @Router /api/logout [post]
-func logoutHandler(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) logoutHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "http://212.233.96.48")
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
@@ -372,9 +418,9 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	token := cookie.Value
 
-	mu.Lock()
-	delete(sessions, token)
-	mu.Unlock()
+	h.mu.Lock()
+	delete(h.sessions, token)
+	h.mu.Unlock()
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
@@ -398,10 +444,11 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {array} PlaceResponse
 // @Failure 401 {object} ErrorResponse
 // @Router /api/ [get]
-func placesHandler(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) placesHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "http://212.233.96.48")
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
@@ -421,9 +468,6 @@ func placesHandler(w http.ResponseWriter, r *http.Request) {
 			userID = id
 		}
 	}
-
-	mu.RLock()
-	defer mu.RUnlock()
 
 	response := make([]PlaceResponse, 0, len(places))
 	for _, p := range places {
@@ -462,12 +506,12 @@ func initPlaces() {
 	catSquare := Category{ID: 4, Name: "Square", Description: "Public squares and plazas"}
 	catResort := Category{ID: 5, Name: "Resort", Description: "Resorts and retreats"}
 
-	locGramado := Locality{ID: 1, Name: "Gramado", Country: "Brazil", Latitude: -29.3733, Longitude: -50.8762}
-	locParis := Locality{ID: 2, Name: "Paris", Country: "France", Latitude: 48.8566, Longitude: 2.3522}
-	locRome := Locality{ID: 3, Name: "Rome", Country: "Italy", Latitude: 41.9028, Longitude: 12.4964}
-	locBarcelona := Locality{ID: 4, Name: "Barcelona", Country: "Spain", Latitude: 41.3851, Longitude: 2.1734}
-	locAmsterdam := Locality{ID: 5, Name: "Amsterdam", Country: "Netherlands", Latitude: 52.3676, Longitude: 4.9041}
-	locBali := Locality{ID: 6, Name: "Bali", Country: "Indonesia", Latitude: -8.4095, Longitude: 115.1889}
+	locGramado := Locality{ID: 1, Name: "Грамаду", Country: "Бразилия", Latitude: -29.3733, Longitude: -50.8762}
+	locParis := Locality{ID: 2, Name: "Париж", Country: "Франция", Latitude: 48.8566, Longitude: 2.3522}
+	locRome := Locality{ID: 3, Name: "Рим", Country: "Италия", Latitude: 41.9028, Longitude: 12.4964}
+	locBarcelona := Locality{ID: 4, Name: "Барселона", Country: "Испания", Latitude: 41.3851, Longitude: 2.1734}
+	locAmsterdam := Locality{ID: 5, Name: "Амстердам", Country: "Нидерланды", Latitude: 52.3676, Longitude: 4.9041}
+	locBali := Locality{ID: 6, Name: "Бали", Country: "Индонезия", Latitude: -8.4095, Longitude: 115.1889}
 
 	now := time.Now()
 
@@ -479,7 +523,7 @@ func initPlaces() {
 		Locality:    locGramado,
 		Category:    catHotel,
 		Photos: []PlacePhoto{
-			{ID: 1, PlaceID: 1, FilePath: "/mock/place/hotel_estalagem.jpg", IsMain: true},
+			{ID: 1, PlaceID: 1, FilePath: "public/mock/place/rcmd1.png", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -492,7 +536,7 @@ func initPlaces() {
 		Locality:    locGramado,
 		Category:    catHotel,
 		Photos: []PlacePhoto{
-			{ID: 2, PlaceID: 2, FilePath: "/mock/place/hotel_ritta.jpg", IsMain: true},
+			{ID: 2, PlaceID: 2, FilePath: "public/mock/place/rcmd2.png", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -505,7 +549,7 @@ func initPlaces() {
 		Locality:    locParis,
 		Category:    catMuseum,
 		Photos: []PlacePhoto{
-			{ID: 3, PlaceID: 3, FilePath: "/mock/place/rodin.jpg", IsMain: true},
+			{ID: 3, PlaceID: 3, FilePath: "public/mock/place/rcmd3.png", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -518,7 +562,7 @@ func initPlaces() {
 		Locality:    locRome,
 		Category:    catHistorical,
 		Photos: []PlacePhoto{
-			{ID: 4, PlaceID: 4, FilePath: "/mock/place/roman_forum.jpg", IsMain: true},
+			{ID: 4, PlaceID: 4, FilePath: "public/mock/place/rcmd4.png", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -531,7 +575,7 @@ func initPlaces() {
 		Locality:    locBarcelona,
 		Category:    catHistorical,
 		Photos: []PlacePhoto{
-			{ID: 5, PlaceID: 5, FilePath: "/mock/place/basilica_pi.jpg", IsMain: true},
+			{ID: 5, PlaceID: 5, FilePath: "public/mock/place/rcmd5.png", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -544,7 +588,7 @@ func initPlaces() {
 		Locality:    locAmsterdam,
 		Category:    catMuseum,
 		Photos: []PlacePhoto{
-			{ID: 6, PlaceID: 6, FilePath: "/mock/place/de_hallen.jpg", IsMain: true},
+			{ID: 6, PlaceID: 6, FilePath: "public/mock/place/rcmd6.png", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -557,7 +601,7 @@ func initPlaces() {
 		Locality:    locBali,
 		Category:    catResort,
 		Photos: []PlacePhoto{
-			{ID: 7, PlaceID: 7, FilePath: "/mock/place/amnaya.jpg", IsMain: true},
+			{ID: 7, PlaceID: 7, FilePath: "public/mock/place/rcmd7.png", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -570,33 +614,168 @@ func initPlaces() {
 		Locality:    locBarcelona,
 		Category:    catSquare,
 		Photos: []PlacePhoto{
-			{ID: 8, PlaceID: 8, FilePath: "/mock/place/placa_reial.jpg", IsMain: true},
+			{ID: 8, PlaceID: 8, FilePath: "public/mock/place/rcmd8.png", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
 }
 
-type Handlers struct {
-	users        map[uint64]User
-	usersByEmail map[string]uint64
-	nextID       uint64
-	mu           sync.RWMutex
+// HandleRegister handles user registration
+// @Summary Register new user
+// @Description Creates a new user account
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body RegisterRequest true "Registration data"
+// @Success 201 {object} RegisterResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 409 {object} ErrorResponse
+// @Router /api/register [post]
+func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
+    log.Println("1. Начало HandleRegister")
+    w.Header().Set("Access-Control-Allow-Origin", "http://212.233.96.48")
+    w.Header().Set("Access-Control-Allow-Credentials", "true")
+    w.Header().Set("Content-Type", "application/json")
+    w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+    if r.Method == "OPTIONS" {
+        w.WriteHeader(http.StatusOK)
+        return
+    }
+
+    log.Printf("Регистрация: %s", r.RemoteAddr)
+
+    if r.Method != http.MethodPost {
+        w.WriteHeader(http.StatusMethodNotAllowed)
+        json.NewEncoder(w).Encode(ErrorResponse{Error: "METHOD_NOT_ALLOWED", Message: "Use POST"})
+        return
+    }
+
+    log.Println("2. Декодирование запроса")
+    var req RegisterRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        log.Printf("3. Ошибка декодирования: %v", err)
+        w.WriteHeader(http.StatusBadRequest)
+        json.NewEncoder(w).Encode(ErrorResponse{Error: "INVALID_REQUEST", Message: "Invalid JSON"})
+        return
+    }
+    defer r.Body.Close()
+    log.Printf("3. Запрос декодирован: %+v", req)
+
+    log.Println("4. Валидация запроса")
+    if errResp := h.validateRegisterRequest(req); errResp != nil {
+        log.Printf("5. Ошибка валидации: %+v", errResp)
+        w.WriteHeader(http.StatusBadRequest)
+        json.NewEncoder(w).Encode(errResp)
+        return
+    }
+    log.Println("5. Валидация пройдена")
+
+    log.Println("6. Блокировка мьютекса")
+    h.mu.Lock()
+    defer h.mu.Unlock()
+    log.Println("7. Мьютекс захвачен")
+
+    log.Println("8. Проверка существования логина")
+    if _, exists := h.usersByLogin[req.Login]; exists {
+        log.Printf("9. Логин уже существует: %s", req.Login)
+        w.WriteHeader(http.StatusConflict)
+        json.NewEncoder(w).Encode(ErrorResponse{
+            Error:   "LOGIN_ALREADY_EXISTS",
+            Field:   "login",
+            Message: "Логин уже существует",
+        })
+        return
+    }
+    log.Println("9. Логин свободен")
+
+    log.Println("10. Проверка никнейма")
+    _, nicknameExists := h.usersByNickname[req.Nickname]
+    if nicknameExists {
+        log.Printf("11. Никнейм уже занят: %s", req.Nickname)
+        w.WriteHeader(http.StatusConflict)
+        json.NewEncoder(w).Encode(ErrorResponse{
+            Error:   "NICKNAME_ALREADY_EXISTS",
+            Field:   "nickname",
+            Message: "Никнейм уже занят",
+        })
+        return
+    }
+    log.Println("11. Никнейм свободен")
+
+    log.Println("12. Хеширование пароля")
+    hash, salt, err := hashPasswordForRegister(req.Password)
+    if err != nil {
+        log.Printf("13. Ошибка хеширования: %v", err)
+        w.WriteHeader(http.StatusInternalServerError)
+        json.NewEncoder(w).Encode(ErrorResponse{
+            Error:   "INTERNAL_ERROR",
+            Message: "Внутренняя ошибка сервера",
+        })
+        return
+    }
+    log.Println("13. Пароль захеширован")
+
+    log.Println("14. Кодирование хеша")
+    passwordHash := encodeHash(salt, hash)
+    now := time.Now()
+    log.Println("15. Хеш закодирован")
+
+    log.Println("16. Создание пользователя")
+    user := User{
+        ID:           h.nextID,
+        Login:        req.Login,
+        Nickname:     req.Nickname,
+        AvatarURL:    "",
+        PasswordHash: passwordHash,
+        CreatedAt:    now,
+        UpdatedAt:    now,
+    }
+    log.Printf("17. Пользователь создан: %+v", user)
+
+    log.Println("18. Сохранение в мапы")
+    h.users[user.ID] = user
+    h.usersByLogin[user.Login] = user.ID
+    h.usersByNickname[user.Nickname] = user.ID
+    h.nextID++
+    log.Println("19. Пользователь сохранен")
+
+    log.Println("20. Инициализация лайков")
+    likesMu.Lock()
+    userLikes[user.ID] = make(map[uint64]bool)
+    likesMu.Unlock()
+    log.Println("21. Лайки инициализированы")
+
+    log.Println("22. Формирование ответа")
+    response := RegisterResponse{
+        ID:        user.ID,
+        Login:     req.Login,
+        Nickname:  req.Nickname,
+        AvatarURL: user.AvatarURL,
+        CreatedAt: user.CreatedAt,
+        Message:   "Регистрация прошла успешно",
+    }
+
+    log.Println("23. Отправка ответа")
+    w.WriteHeader(http.StatusCreated)
+    json.NewEncoder(w).Encode(response)
+    log.Printf("24. Успешная регистрация: %s (%s)", user.Login, user.Nickname)
 }
 
 func (h *Handlers) validateRegisterRequest(req RegisterRequest) *ErrorResponse {
-	if req.Email == "" {
+	if req.Login == "" {
 		return &ErrorResponse{
 			Error:   "VALIDATION_ERROR",
-			Field:   "email",
-			Message: "Email не может быть пустым",
+			Field:   "login",
+			Message: "Логин не может быть пустым",
 		}
 	}
 
-	if !contains(req.Email, "@") {
+	if !contains(req.Login, "@") {
 		return &ErrorResponse{
 			Error:   "VALIDATION_ERROR",
-			Field:   "email",
+			Field:   "login",
 			Message: "Введите корректный email",
 		}
 	}
@@ -620,124 +799,6 @@ func (h *Handlers) validateRegisterRequest(req RegisterRequest) *ErrorResponse {
 	return nil
 }
 
-// HandleRegister handles user registration
-// @Summary Register new user
-// @Description Creates a new user account
-// @Tags auth
-// @Accept json
-// @Produce json
-// @Param request body RegisterRequest true "Registration data"
-// @Success 201 {object} RegisterResponse
-// @Failure 400 {object} ErrorResponse
-// @Failure 409 {object} ErrorResponse
-// @Router /api/register [post]
-func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "http://212.233.96.48")
-	w.Header().Set("Access-Control-Allow-Credentials", "true")
-	w.Header().Set("Content-Type", "application/json")
-
-	if r.Method == "OPTIONS" {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
-	log.Printf("Регистрация: %s", r.RemoteAddr)
-
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "METHOD_NOT_ALLOWED", Message: "Use POST"})
-		return
-	}
-
-	var req RegisterRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "INVALID_REQUEST", Message: "Invalid JSON"})
-		return
-	}
-	defer r.Body.Close()
-
-	if errResp := h.validateRegisterRequest(req); errResp != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(errResp)
-		return
-	}
-
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if _, exists := h.usersByEmail[req.Email]; exists {
-		w.WriteHeader(http.StatusConflict)
-		json.NewEncoder(w).Encode(ErrorResponse{
-			Error:   "EMAIL_ALREADY_EXISTS",
-			Field:   "email",
-			Message: "Email уже существует",
-		})
-		return
-	}
-
-	mu.RLock()
-	_, nicknameExists := usersByNickname[req.Nickname]
-	mu.RUnlock()
-	if nicknameExists {
-		w.WriteHeader(http.StatusConflict)
-		json.NewEncoder(w).Encode(ErrorResponse{
-			Error:   "NICKNAME_ALREADY_EXISTS",
-			Field:   "nickname",
-			Message: "Никнейм уже занят",
-		})
-		return
-	}
-
-	hash, salt, err := hashPasswordForRegister(req.Password)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ErrorResponse{
-			Error:   "INTERNAL_ERROR",
-			Message: "Внутренняя ошибка сервера",
-		})
-		return
-	}
-
-	passwordHash := encodeHash(salt, hash)
-	now := time.Now()
-
-	user := User{
-		ID:           h.nextID,
-		Email:        req.Email,
-		Nickname:     req.Nickname,
-		AvatarURL:    "",
-		PasswordHash: passwordHash,
-		CreatedAt:    now,
-		UpdatedAt:    now,
-	}
-
-	h.users[user.ID] = user
-	h.usersByEmail[user.Email] = user.ID
-	mu.Lock()
-	usersByNickname[user.Nickname] = user.ID
-	mu.Unlock()
-
-	likesMu.Lock()
-	userLikes[user.ID] = make(map[uint64]bool)
-	likesMu.Unlock()
-
-	h.nextID++
-
-	response := RegisterResponse{
-		ID:        user.ID,
-		Email:     req.Email,
-		Nickname:  req.Nickname,
-		AvatarURL: user.AvatarURL,
-		CreatedAt: user.CreatedAt,
-		Message:   "Регистрация прошла успешно",
-	}
-
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
-	log.Printf("Успешная регистрация: %s (%s)", user.Email, user.Nickname)
-}
-
 func main() {
 	initPlaces()
 
@@ -746,30 +807,33 @@ func main() {
 	likesMu.Unlock()
 
 	handlers := &Handlers{
-		users:        make(map[uint64]User),
-		usersByEmail: make(map[string]uint64),
-		nextID:       1,
+		users:           make(map[uint64]User),
+		usersByLogin:    make(map[string]uint64),
+		usersByNickname: make(map[string]uint64),
+		sessions:        make(map[string]Session),
+		nextID:          1,
 	}
 
 	hashed, _ := hashPassword("123456")
 	john := User{
 		ID:           nextUserID,
-		Email:        "john@example.com",
+		Login:        "john",
 		Nickname:     "johnny",
-		AvatarURL:    "/mock/user-avatar/john.jpg",
+		AvatarURL:    "public/mock/user-avatar/john.jpg",
 		PasswordHash: hashed,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
-	users[john.ID] = john
-	usersByEmail[john.Email] = john.ID
-	usersByNickname[john.Nickname] = john.ID
+
+	handlers.users[john.ID] = john
+	handlers.usersByLogin[john.Login] = john.ID
+	handlers.usersByNickname[john.Nickname] = john.ID
 	nextUserID++
 
 	http.HandleFunc("/api/register", handlers.HandleRegister)
-	http.HandleFunc("/api/login", loginHandler)
-	http.HandleFunc("/api/logout", authenticate(logoutHandler))
-	http.HandleFunc("/api/", placesHandler)
+	http.HandleFunc("/api/login", handlers.loginHandler)
+	http.HandleFunc("/api/logout", handlers.authenticate(handlers.logoutHandler))
+	http.HandleFunc("/api/", handlers.placesHandler)
 	http.HandleFunc("/swagger/", httpSwagger.WrapHandler)
 
 	log.Println("Server started on :8080")

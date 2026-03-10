@@ -15,6 +15,35 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/": {
+            "get": {
+                "description": "Returns list of tourist places",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "places"
+                ],
+                "summary": "Get places",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/main.PlaceResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/login": {
             "post": {
                 "description": "Authenticates user and returns session cookie",
@@ -75,35 +104,6 @@ const docTemplate = `{
                             "type": "object",
                             "additionalProperties": {
                                 "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/main.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/places": {
-            "get": {
-                "description": "Returns list of tourist places",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "places"
-                ],
-                "summary": "Get places",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/main.PlaceResponse"
                             }
                         }
                     },
@@ -215,12 +215,12 @@ const docTemplate = `{
         "main.LoginRequest": {
             "type": "object",
             "properties": {
-                "email": {
-                    "description": "User email\nrequired: true\nexample: john@example.com",
+                "login": {
+                    "description": "User login (email)\nrequired: true\nexample: john@example.com",
                     "type": "string"
                 },
                 "password": {
-                    "description": "User password\nrequired: true\nexample: 123456",
+                    "description": "User password\nrequired: true\nmin length: 8\nexample: 12345678",
                     "type": "string"
                 }
             }
@@ -228,7 +228,10 @@ const docTemplate = `{
         "main.LoginResponse": {
             "type": "object",
             "properties": {
-                "email": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "login": {
                     "type": "string"
                 },
                 "nickname": {
@@ -271,6 +274,9 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "is_liked": {
+                    "type": "boolean"
+                },
                 "locality": {
                     "$ref": "#/definitions/main.Locality"
                 },
@@ -282,14 +288,17 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/main.PlacePhoto"
                     }
+                },
+                "price": {
+                    "type": "integer"
                 }
             }
         },
         "main.RegisterRequest": {
             "type": "object",
             "properties": {
-                "email": {
-                    "description": "User email\nrequired: true\nexample: newuser@example.com",
+                "login": {
+                    "description": "User login (email)\nrequired: true\nexample: newuser@example.com",
                     "type": "string"
                 },
                 "nickname": {
@@ -305,14 +314,17 @@ const docTemplate = `{
         "main.RegisterResponse": {
             "type": "object",
             "properties": {
-                "created_at": {
+                "avatar_url": {
                     "type": "string"
                 },
-                "email": {
+                "created_at": {
                     "type": "string"
                 },
                 "id": {
                     "type": "integer"
+                },
+                "login": {
+                    "type": "string"
                 },
                 "message": {
                     "type": "string"

@@ -32,9 +32,9 @@ definitions:
     type: object
   main.LoginRequest:
     properties:
-      email:
+      login:
         description: |-
-          User email
+          User login (email)
           required: true
           example: john@example.com
         type: string
@@ -42,12 +42,15 @@ definitions:
         description: |-
           User password
           required: true
-          example: 123456
+          min length: 8
+          example: 12345678
         type: string
     type: object
   main.LoginResponse:
     properties:
-      email:
+      avatar_url:
+        type: string
+      login:
         type: string
       nickname:
         type: string
@@ -75,6 +78,8 @@ definitions:
         type: string
       id:
         type: integer
+      is_liked:
+        type: boolean
       locality:
         $ref: '#/definitions/main.Locality'
       name:
@@ -83,12 +88,14 @@ definitions:
         items:
           $ref: '#/definitions/main.PlacePhoto'
         type: array
+      price:
+        type: integer
     type: object
   main.RegisterRequest:
     properties:
-      email:
+      login:
         description: |-
-          User email
+          User login (email)
           required: true
           example: newuser@example.com
         type: string
@@ -108,12 +115,14 @@ definitions:
     type: object
   main.RegisterResponse:
     properties:
-      created_at:
+      avatar_url:
         type: string
-      email:
+      created_at:
         type: string
       id:
         type: integer
+      login:
+        type: string
       message:
         type: string
       nickname:
@@ -122,6 +131,25 @@ definitions:
 info:
   contact: {}
 paths:
+  /api/:
+    get:
+      description: Returns list of tourist places
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/main.PlaceResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: Get places
+      tags:
+      - places
   /api/login:
     post:
       consumes:
@@ -169,25 +197,6 @@ paths:
       summary: Logout user
       tags:
       - auth
-  /api/places:
-    get:
-      description: Returns list of tourist places
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/main.PlaceResponse'
-            type: array
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/main.ErrorResponse'
-      summary: Get places
-      tags:
-      - places
   /api/register:
     post:
       consumes:
