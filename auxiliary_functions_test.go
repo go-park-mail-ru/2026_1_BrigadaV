@@ -33,7 +33,14 @@ func TestHashPasswordProducesValidFormat(t *testing.T) {
 	if hash == "" {
 		t.Error("hashPassword returned empty string")
 	}
-	if len(hash) < 100 {
+	if !strings.HasPrefix(hash, "argon2id$") {
+		t.Errorf("hash does not start with argon2id$: %s", hash)
+	}
+	parts := strings.Split(hash, "$")
+	if len(parts) != 5 {
+		t.Errorf("expected 5 parts, got %d", len(parts))
+	}
+	if len(hash) < 80 {
 		t.Errorf("hash too short: %d", len(hash))
 	}
 }
