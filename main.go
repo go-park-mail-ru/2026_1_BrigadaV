@@ -260,6 +260,33 @@ func contains(s, substr string) bool {
 	return strings.Contains(s, substr)
 }
 
+func containsEmoji(s string) bool {
+    for _, r := range s {
+        if r >= 0x1F600 && r <= 0x1F64F {
+            return true
+        }
+        if r >= 0x1F300 && r <= 0x1F5FF {
+            return true
+        }
+        if r >= 0x1F680 && r <= 0x1F6FF {
+            return true
+        }
+        if r >= 0x2600 && r <= 0x26FF {
+            return true
+        }
+        if r >= 0x2700 && r <= 0x27BF {
+            return true
+        }
+        if r >= 0xFE00 && r <= 0xFE0F {
+            return true
+        }
+        if r >= 0x1F900 && r <= 0x1F9FF {
+            return true
+        }
+    }
+    return false
+}
+
 func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "http://212.233.96.48")
@@ -642,14 +669,23 @@ func initPlaces() {
 // @Router /api/register [post]
 func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	log.Println("1. Начало HandleRegister")
+	w.Header().Set("Access-Control-Allow-Origin", "http://212.233.96.48")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	log.Printf("Регистрация: %s", r.RemoteAddr)
 
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "METHOD_NOT_ALLOWED", Message: "Use POST"})
 		return
 	}
-
-	log.Printf("Регистрация: %s", r.RemoteAddr)
 
 	log.Println("2. Декодирование запроса")
 	var req RegisterRequest
@@ -737,6 +773,24 @@ func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	h.users[user.ID] = user
 	h.usersByLogin[user.Login] = user.ID
 	h.usersByNickname[user.Nickname] = user.ID
+
+	token, err := generateSessionToken()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "INTERNAL_ERROR",
+			Message: "Failed to generate token",
+		})
+		return
+	}
+
+	session := Session{
+		Token:     token,
+		UserID:    user.ID,
+		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+	}
+
+	h.sessions[token] = session
 	h.nextID++
 	log.Println("19. Пользователь сохранен")
 
@@ -745,6 +799,16 @@ func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	userLikes[user.ID] = make(map[uint64]bool)
 	likesMu.Unlock()
 	log.Println("21. Лайки инициализированы")
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_token",
+		Value:    token,
+		Expires:  session.ExpiresAt,
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+	})
 
 	log.Println("22. Формирование ответа")
 	response := RegisterResponse{
@@ -771,6 +835,14 @@ func (h *Handlers) validateRegisterRequest(req RegisterRequest) *ErrorResponse {
 		}
 	}
 
+	if containsEmoji(req.Login) {
+        return &ErrorResponse{
+            Error:   "VALIDATION_ERROR",
+            Field:   "login",
+            Message: "Логин не может содержать эмодзи",
+        }
+    }
+
 	if !contains(req.Login, "@") {
 		return &ErrorResponse{
 			Error:   "VALIDATION_ERROR",
@@ -787,6 +859,14 @@ func (h *Handlers) validateRegisterRequest(req RegisterRequest) *ErrorResponse {
 		}
 	}
 
+	if containsEmoji(req.Password) {
+        return &ErrorResponse{
+            Error:   "VALIDATION_ERROR",
+            Field:   "password",
+            Message: "Пароль не может содержать эмодзи",
+        }
+    }
+
 	if req.Nickname == "" {
 		return &ErrorResponse{
 			Error:   "VALIDATION_ERROR",
@@ -794,6 +874,14 @@ func (h *Handlers) validateRegisterRequest(req RegisterRequest) *ErrorResponse {
 			Message: "Никнейм не может быть пустым",
 		}
 	}
+
+	if containsEmoji(req.Nickname) {
+        return &ErrorResponse{
+            Error:   "VALIDATION_ERROR",
+            Field:   "nickname",
+            Message: "Никнейм не может содержать эмодзи",
+        }
+    }
 
 	return nil
 }
