@@ -1,6 +1,6 @@
 // Package main GUIDELY API
 //
-// Documentation for Guidely API service
+// # Documentation for Guidely API service
 //
 // Schemes: http
 // Host: localhost:8080
@@ -260,16 +260,22 @@ func contains(s, substr string) bool {
 	return strings.Contains(s, substr)
 }
 
-func (h *Handlers) authenticate(next http.HandlerFunc) http.HandlerFunc {
+func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "http://212.233.96.48")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
+		next.ServeHTTP(w, r)
+	}
+}
 
+func (h *Handlers) authenticate(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("session_token")
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -304,16 +310,6 @@ func (h *Handlers) authenticate(next http.HandlerFunc) http.HandlerFunc {
 // @Failure 401 {object} ErrorResponse
 // @Router /api/login [post]
 func (h *Handlers) loginHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "http://212.233.96.48")
-	w.Header().Set("Access-Control-Allow-Credentials", "true")
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-	if r.Method == "OPTIONS" {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "METHOD_NOT_ALLOWED", Message: "Use POST"})
@@ -394,16 +390,6 @@ func (h *Handlers) loginHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 401 {object} ErrorResponse
 // @Router /api/logout [post]
 func (h *Handlers) logoutHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "http://212.233.96.48")
-	w.Header().Set("Access-Control-Allow-Credentials", "true")
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-	if r.Method == "OPTIONS" {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "METHOD_NOT_ALLOWED", Message: "Use POST"})
@@ -445,16 +431,6 @@ func (h *Handlers) logoutHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure 401 {object} ErrorResponse
 // @Router /api/ [get]
 func (h *Handlers) placesHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "http://212.233.96.48")
-	w.Header().Set("Access-Control-Allow-Credentials", "true")
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-	if r.Method == "OPTIONS" {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "METHOD_NOT_ALLOWED", Message: "Use GET"})
@@ -497,6 +473,38 @@ func (h *Handlers) placesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(response)
+}
+
+// userMeHandler returns current user info based on session cookie
+// @Summary Get current user
+// @Description Returns authenticated user's data
+// @Tags auth
+// @Produce json
+// @Success 200 {object} LoginResponse
+// @Failure 401 {object} ErrorResponse
+// @Router /api/user/me [get]
+func (h *Handlers) userMeHandler(w http.ResponseWriter, r *http.Request) {
+	userIDVal := r.Context().Value("user_id")
+	userID, ok := userIDVal.(uint64)
+	if !ok {
+		http.Error(w, `{"error":"UNAUTHORIZED","message":"Not authenticated"}`, http.StatusUnauthorized)
+		return
+	}
+
+	h.mu.RLock()
+	user, exists := h.users[userID]
+	h.mu.RUnlock()
+	if !exists {
+		http.Error(w, `{"error":"UNAUTHORIZED","message":"User not found"}`, http.StatusUnauthorized)
+		return
+	}
+
+	json.NewEncoder(w).Encode(LoginResponse{
+		UserID:    user.ID,
+		Login:     user.Login,
+		Nickname:  user.Nickname,
+		AvatarURL: user.AvatarURL,
+	})
 }
 
 func initPlaces() {
@@ -633,134 +641,125 @@ func initPlaces() {
 // @Failure 409 {object} ErrorResponse
 // @Router /api/register [post]
 func (h *Handlers) HandleRegister(w http.ResponseWriter, r *http.Request) {
-    log.Println("1. Начало HandleRegister")
-    w.Header().Set("Access-Control-Allow-Origin", "http://212.233.96.48")
-    w.Header().Set("Access-Control-Allow-Credentials", "true")
-    w.Header().Set("Content-Type", "application/json")
-    w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	log.Println("1. Начало HandleRegister")
 
-    if r.Method == "OPTIONS" {
-        w.WriteHeader(http.StatusOK)
-        return
-    }
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "METHOD_NOT_ALLOWED", Message: "Use POST"})
+		return
+	}
 
-    log.Printf("Регистрация: %s", r.RemoteAddr)
+	log.Printf("Регистрация: %s", r.RemoteAddr)
 
-    if r.Method != http.MethodPost {
-        w.WriteHeader(http.StatusMethodNotAllowed)
-        json.NewEncoder(w).Encode(ErrorResponse{Error: "METHOD_NOT_ALLOWED", Message: "Use POST"})
-        return
-    }
+	log.Println("2. Декодирование запроса")
+	var req RegisterRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("3. Ошибка декодирования: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "INVALID_REQUEST", Message: "Invalid JSON"})
+		return
+	}
+	defer r.Body.Close()
+	log.Printf("3. Запрос декодирован: %+v", req)
 
-    log.Println("2. Декодирование запроса")
-    var req RegisterRequest
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        log.Printf("3. Ошибка декодирования: %v", err)
-        w.WriteHeader(http.StatusBadRequest)
-        json.NewEncoder(w).Encode(ErrorResponse{Error: "INVALID_REQUEST", Message: "Invalid JSON"})
-        return
-    }
-    defer r.Body.Close()
-    log.Printf("3. Запрос декодирован: %+v", req)
+	log.Println("4. Валидация запроса")
+	if errResp := h.validateRegisterRequest(req); errResp != nil {
+		log.Printf("5. Ошибка валидации: %+v", errResp)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errResp)
+		return
+	}
+	log.Println("5. Валидация пройдена")
 
-    log.Println("4. Валидация запроса")
-    if errResp := h.validateRegisterRequest(req); errResp != nil {
-        log.Printf("5. Ошибка валидации: %+v", errResp)
-        w.WriteHeader(http.StatusBadRequest)
-        json.NewEncoder(w).Encode(errResp)
-        return
-    }
-    log.Println("5. Валидация пройдена")
+	log.Println("6. Блокировка мьютекса")
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	log.Println("7. Мьютекс захвачен")
 
-    log.Println("6. Блокировка мьютекса")
-    h.mu.Lock()
-    defer h.mu.Unlock()
-    log.Println("7. Мьютекс захвачен")
+	log.Println("8. Проверка существования логина")
+	if _, exists := h.usersByLogin[req.Login]; exists {
+		log.Printf("9. Логин уже существует: %s", req.Login)
+		w.WriteHeader(http.StatusConflict)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "LOGIN_ALREADY_EXISTS",
+			Field:   "login",
+			Message: "Логин уже существует",
+		})
+		return
+	}
+	log.Println("9. Логин свободен")
 
-    log.Println("8. Проверка существования логина")
-    if _, exists := h.usersByLogin[req.Login]; exists {
-        log.Printf("9. Логин уже существует: %s", req.Login)
-        w.WriteHeader(http.StatusConflict)
-        json.NewEncoder(w).Encode(ErrorResponse{
-            Error:   "LOGIN_ALREADY_EXISTS",
-            Field:   "login",
-            Message: "Логин уже существует",
-        })
-        return
-    }
-    log.Println("9. Логин свободен")
+	log.Println("10. Проверка никнейма")
+	_, nicknameExists := h.usersByNickname[req.Nickname]
+	if nicknameExists {
+		log.Printf("11. Никнейм уже занят: %s", req.Nickname)
+		w.WriteHeader(http.StatusConflict)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "NICKNAME_ALREADY_EXISTS",
+			Field:   "nickname",
+			Message: "Никнейм уже занят",
+		})
+		return
+	}
+	log.Println("11. Никнейм свободен")
 
-    log.Println("10. Проверка никнейма")
-    _, nicknameExists := h.usersByNickname[req.Nickname]
-    if nicknameExists {
-        log.Printf("11. Никнейм уже занят: %s", req.Nickname)
-        w.WriteHeader(http.StatusConflict)
-        json.NewEncoder(w).Encode(ErrorResponse{
-            Error:   "NICKNAME_ALREADY_EXISTS",
-            Field:   "nickname",
-            Message: "Никнейм уже занят",
-        })
-        return
-    }
-    log.Println("11. Никнейм свободен")
+	log.Println("12. Хеширование пароля")
+	hash, salt, err := hashPasswordForRegister(req.Password)
+	if err != nil {
+		log.Printf("13. Ошибка хеширования: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "INTERNAL_ERROR",
+			Message: "Внутренняя ошибка сервера",
+		})
+		return
+	}
+	log.Println("13. Пароль захеширован")
 
-    log.Println("12. Хеширование пароля")
-    hash, salt, err := hashPasswordForRegister(req.Password)
-    if err != nil {
-        log.Printf("13. Ошибка хеширования: %v", err)
-        w.WriteHeader(http.StatusInternalServerError)
-        json.NewEncoder(w).Encode(ErrorResponse{
-            Error:   "INTERNAL_ERROR",
-            Message: "Внутренняя ошибка сервера",
-        })
-        return
-    }
-    log.Println("13. Пароль захеширован")
+	log.Println("14. Кодирование хеша")
+	passwordHash := encodeHash(salt, hash)
+	now := time.Now()
+	log.Println("15. Хеш закодирован")
 
-    log.Println("14. Кодирование хеша")
-    passwordHash := encodeHash(salt, hash)
-    now := time.Now()
-    log.Println("15. Хеш закодирован")
+	log.Println("16. Создание пользователя")
+	user := User{
+		ID:           h.nextID,
+		Login:        req.Login,
+		Nickname:     req.Nickname,
+		AvatarURL:    "",
+		PasswordHash: passwordHash,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+	log.Printf("17. Пользователь создан: %+v", user)
 
-    log.Println("16. Создание пользователя")
-    user := User{
-        ID:           h.nextID,
-        Login:        req.Login,
-        Nickname:     req.Nickname,
-        AvatarURL:    "",
-        PasswordHash: passwordHash,
-        CreatedAt:    now,
-        UpdatedAt:    now,
-    }
-    log.Printf("17. Пользователь создан: %+v", user)
+	log.Println("18. Сохранение в мапы")
+	h.users[user.ID] = user
+	h.usersByLogin[user.Login] = user.ID
+	h.usersByNickname[user.Nickname] = user.ID
+	h.nextID++
+	log.Println("19. Пользователь сохранен")
 
-    log.Println("18. Сохранение в мапы")
-    h.users[user.ID] = user
-    h.usersByLogin[user.Login] = user.ID
-    h.usersByNickname[user.Nickname] = user.ID
-    h.nextID++
-    log.Println("19. Пользователь сохранен")
+	log.Println("20. Инициализация лайков")
+	likesMu.Lock()
+	userLikes[user.ID] = make(map[uint64]bool)
+	likesMu.Unlock()
+	log.Println("21. Лайки инициализированы")
 
-    log.Println("20. Инициализация лайков")
-    likesMu.Lock()
-    userLikes[user.ID] = make(map[uint64]bool)
-    likesMu.Unlock()
-    log.Println("21. Лайки инициализированы")
+	log.Println("22. Формирование ответа")
+	response := RegisterResponse{
+		ID:        user.ID,
+		Login:     req.Login,
+		Nickname:  req.Nickname,
+		AvatarURL: user.AvatarURL,
+		CreatedAt: user.CreatedAt,
+		Message:   "Регистрация прошла успешно",
+	}
 
-    log.Println("22. Формирование ответа")
-    response := RegisterResponse{
-        ID:        user.ID,
-        Login:     req.Login,
-        Nickname:  req.Nickname,
-        AvatarURL: user.AvatarURL,
-        CreatedAt: user.CreatedAt,
-        Message:   "Регистрация прошла успешно",
-    }
-
-    log.Println("23. Отправка ответа")
-    w.WriteHeader(http.StatusCreated)
-    json.NewEncoder(w).Encode(response)
-    log.Printf("24. Успешная регистрация: %s (%s)", user.Login, user.Nickname)
+	log.Println("23. Отправка ответа")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response)
+	log.Printf("24. Успешная регистрация: %s (%s)", user.Login, user.Nickname)
 }
 
 func (h *Handlers) validateRegisterRequest(req RegisterRequest) *ErrorResponse {
@@ -830,10 +829,11 @@ func main() {
 	handlers.usersByNickname[john.Nickname] = john.ID
 	nextUserID++
 
-	http.HandleFunc("/api/register", handlers.HandleRegister)
-	http.HandleFunc("/api/login", handlers.loginHandler)
-	http.HandleFunc("/api/logout", handlers.authenticate(handlers.logoutHandler))
-	http.HandleFunc("/api/", handlers.placesHandler)
+	http.HandleFunc("/api/register", corsMiddleware(handlers.HandleRegister))
+	http.HandleFunc("/api/login", corsMiddleware(handlers.loginHandler))
+	http.HandleFunc("/api/logout", corsMiddleware(handlers.authenticate(handlers.logoutHandler)))
+	http.HandleFunc("/api/", corsMiddleware(handlers.placesHandler))
+	http.HandleFunc("/api/user/me", corsMiddleware(handlers.authenticate(handlers.userMeHandler)))
 	http.HandleFunc("/swagger/", httpSwagger.WrapHandler)
 
 	log.Println("Server started on :8080")
