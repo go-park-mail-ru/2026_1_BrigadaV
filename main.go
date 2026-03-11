@@ -216,7 +216,7 @@ func hashPasswordForRegister(password string) ([]byte, []byte, error) {
 	}
 	hash := argon2.IDKey([]byte(password), salt, argon2Time, argon2Memory, argon2Threads, keyLength)
 	return hash, salt, nil
-
+}
 
 func checkPassword(password, encodedHash string) (bool, error) {
 	parts := strings.Split(encodedHash, "$")
