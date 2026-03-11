@@ -1,0 +1,230 @@
+definitions:
+  main.Category:
+    properties:
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  main.ErrorResponse:
+    properties:
+      error:
+        type: string
+      field:
+        type: string
+      message:
+        type: string
+    type: object
+  main.Locality:
+    properties:
+      country:
+        type: string
+      id:
+        type: integer
+      latitude:
+        type: number
+      longitude:
+        type: number
+      name:
+        type: string
+    type: object
+  main.LoginRequest:
+    properties:
+      login:
+        description: |-
+          User login (email)
+          required: true
+          example: john@example.com
+        type: string
+      password:
+        description: |-
+          User password
+          required: true
+          min length: 8
+          example: 12345678
+        type: string
+    type: object
+  main.LoginResponse:
+    properties:
+      avatar_url:
+        type: string
+      login:
+        type: string
+      nickname:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  main.PlacePhoto:
+    properties:
+      file_path:
+        type: string
+      id:
+        type: integer
+      is_main:
+        type: boolean
+      place_id:
+        type: integer
+    type: object
+  main.PlaceResponse:
+    properties:
+      category:
+        $ref: '#/definitions/main.Category'
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      is_liked:
+        type: boolean
+      locality:
+        $ref: '#/definitions/main.Locality'
+      name:
+        type: string
+      photos:
+        items:
+          $ref: '#/definitions/main.PlacePhoto'
+        type: array
+      price:
+        type: integer
+    type: object
+  main.RegisterRequest:
+    properties:
+      login:
+        description: |-
+          User login (email)
+          required: true
+          example: newuser@example.com
+        type: string
+      nickname:
+        description: |-
+          User nickname
+          required: true
+          example: newbie
+        type: string
+      password:
+        description: |-
+          User password (min 8 characters)
+          required: true
+          min length: 8
+          example: password123
+        type: string
+    type: object
+  main.RegisterResponse:
+    properties:
+      avatar_url:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      login:
+        type: string
+      message:
+        type: string
+      nickname:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /api/:
+    get:
+      description: Returns list of tourist places
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/main.PlaceResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: Get places
+      tags:
+      - places
+  /api/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates user and returns session cookie
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: Login user
+      tags:
+      - auth
+  /api/logout:
+    post:
+      description: Invalidates user session
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: Logout user
+      tags:
+      - auth
+  /api/register:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user account
+      parameters:
+      - description: Registration data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/main.RegisterResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: Register new user
+      tags:
+      - auth
+swagger: "2.0"
