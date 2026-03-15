@@ -1,1 +1,0 @@
-TRUNCATE place_photo, place, category, locality, country RESTART IDENTITY CASCADE;

@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS place (
     description TEXT,
     locality_id BIGINT REFERENCES locality(id) ON DELETE SET NULL,
     category_id BIGINT REFERENCES category(id) ON DELETE SET NULL,
+    price BIGINT NOT NULL DEFAULT 0 CHECK (price >= 0),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

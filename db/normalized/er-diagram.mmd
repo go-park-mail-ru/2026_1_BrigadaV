@@ -1,16 +1,26 @@
 erDiagram
     USER ||--o{ SESSION : has
     USER ||--o{ FAVORITE : adds
+    USER ||--o{ REVIEW : writes
+    USER ||--o{ TRIP : creates
+    USER ||--o{ TRIP_MEMBER : participates
     PLACE ||--o{ FAVORITE : added
+    PLACE ||--o{ REVIEW : reviewed
     PLACE ||--o{ PLACE_PHOTO : contains
     CATEGORY ||--o{ PLACE : belongs
     LOCALITY ||--o{ PLACE : located
     COUNTRY ||--o{ LOCALITY : contains
+    TRIP ||--o{ TRIP_MEMBER : has
+    TRIP ||--o{ ALBUM : includes
+    ALBUM ||--o{ ALBUM_PHOTO : contains
+    PHOTO ||--o{ PLACE_PHOTO : used
+    PHOTO ||--o{ ALBUM_PHOTO : used
 
     USER {
         bigint id PK
         text email UK
         text nickname UK
+        text avatar_url
         text password_hash
         timestamptz created_at
         timestamptz updated_at
@@ -30,28 +40,27 @@ erDiagram
         timestamptz created_at
     }
 
-    PLACE {
+    REVIEW {
         bigint id PK
-        text name
-        text description
-        bigint locality_id FK
-        bigint category_id FK
+        bigint user_id FK
+        bigint place_id FK
+        smallint rating
+        text comment
+        date visit_date
         timestamptz created_at
         timestamptz updated_at
-    }
-
-    PLACE_PHOTO {
-        bigint id PK
-        bigint place_id FK
-        text file_path
-        boolean is_main
-        timestamptz created_at
     }
 
     CATEGORY {
         bigint id PK
         text name UK
         text description
+        timestamptz created_at
+    }
+
+    COUNTRY {
+        bigint id PK
+        text name UK
         timestamptz created_at
     }
 
@@ -64,8 +73,63 @@ erDiagram
         timestamptz created_at
     }
 
-    COUNTRY {
+    PLACE {
         bigint id PK
-        text name UK
+        text name
+        text description
+        bigint locality_id FK
+        bigint category_id FK
+        bigint price
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    PLACE_PHOTO {
+        bigint id PK
+        bigint place_id FK
+        bigint photo_id FK
+        boolean is_main
+        timestamptz created_at
+    }
+
+    PHOTO {
+        bigint id PK
+        text file_path
+        timestamptz created_at
+    }
+
+    TRIP {
+        bigint id PK
+        text title
+        text description
+        date start_date
+        date end_date
+        bigint created_by FK
+        boolean is_public
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    TRIP_MEMBER {
+        bigint trip_id FK
+        bigint user_id FK
+        text role
+        timestamptz joined_at
+    }
+
+    ALBUM {
+        bigint id PK
+        bigint trip_id FK
+        text name
+        text description
+        bigint cover_photo_id FK
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    ALBUM_PHOTO {
+        bigint album_id FK
+        bigint photo_id FK
+        smallint order_index
         timestamptz created_at
     }
