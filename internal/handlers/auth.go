@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"guidely-app/internal/dto"
 	"guidely-app/internal/service"
 	"net/http"
 	"time"
@@ -15,19 +16,8 @@ func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }
 
-type registerRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Nickname string `json:"nickname"`
-}
-
-type loginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
-	var req registerRequest
+	var req dto.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
 		return
@@ -49,7 +39,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var req loginRequest
+	var req dto.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
 		return
@@ -71,11 +61,11 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 	})
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"user_id":    user.ID,
-		"email":      user.Email,
-		"nickname":   user.Nickname,
-		"avatar_url": user.AvatarURL,
+	json.NewEncoder(w).Encode(dto.LoginResponse{
+		UserID:    user.ID,
+		Email:     user.Email,
+		Nickname:  user.Nickname,
+		AvatarURL: user.AvatarURL,
 	})
 }
 
@@ -111,10 +101,10 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
 		return
 	}
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"user_id":    user.ID,
-		"email":      user.Email,
-		"nickname":   user.Nickname,
-		"avatar_url": user.AvatarURL,
+	json.NewEncoder(w).Encode(dto.LoginResponse{
+		UserID:    user.ID,
+		Email:     user.Email,
+		Nickname:  user.Nickname,
+		AvatarURL: user.AvatarURL,
 	})
 }

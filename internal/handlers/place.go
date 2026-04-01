@@ -1,17 +1,23 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
+	"guidely-app/internal/dto"
 	"guidely-app/internal/models"
-	"guidely-app/internal/service"
 	"net/http"
 )
 
-type PlaceHandler struct {
-	placeService *service.PlaceService
+type PlaceService interface {
+	GetAll(ctx context.Context) ([]models.Place, error)
+	GetByID(ctx context.Context, id uint64) (*models.Place, error)
 }
 
-func NewPlaceHandler(placeService *service.PlaceService) *PlaceHandler {
+type PlaceHandler struct {
+	placeService PlaceService
+}
+
+func NewPlaceHandler(placeService PlaceService) *PlaceHandler {
 	return &PlaceHandler{placeService: placeService}
 }
 
@@ -31,23 +37,42 @@ func (h *PlaceHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = userID
 
-	response := make([]models.PlaceResponse, 0, len(places))
+	response := make([]dto.PlaceResponse, 0, len(places))
 	for _, p := range places {
 		liked := false
-		pr := models.PlaceResponse{
+		pr := dto.PlaceResponse{
 			ID:          p.ID,
 			Name:        p.Name,
 			Description: p.Description,
 			Price:       p.Price,
 			IsLiked:     liked,
-			Locality:    p.Locality,
-			CreatedAt:   p.CreatedAt,
+			Locality: dto.LocalityDTO{
+				ID:        p.Locality.ID,
+				Name:      p.Locality.Name,
+				Country:   p.Locality.Country,
+				Latitude:  p.Locality.Latitude,
+				Longitude: p.Locality.Longitude,
+			},
+			CreatedAt: p.CreatedAt,
+			UpdatedAt: p.UpdatedAt,
 		}
 		if p.Category.ID != 0 {
-			pr.Category = &p.Category
+			pr.Category = &dto.CategoryDTO{
+				ID:          p.Category.ID,
+				Name:        p.Category.Name,
+				Description: p.Category.Description,
+			}
 		}
 		if len(p.Photos) > 0 {
-			pr.Photos = p.Photos
+			pr.Photos = make([]dto.PlacePhotoDTO, len(p.Photos))
+			for i, ph := range p.Photos {
+				pr.Photos[i] = dto.PlacePhotoDTO{
+					ID:       ph.ID,
+					PlaceID:  ph.PlaceID,
+					FilePath: ph.FilePath,
+					IsMain:   ph.IsMain,
+				}
+			}
 		}
 		response = append(response, pr)
 	}
