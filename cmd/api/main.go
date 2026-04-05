@@ -75,7 +75,7 @@ func initTestData(store *storage.MemoryStore) {
 		Locality:    locGramado,
 		Category:    catHotel,
 		Photos: []models.PlacePhoto{
-			{ID: 1, PlaceID: 1, FilePath: "public/mock/place/rcmd1.png", IsMain: true},
+			{ID: 1, PlaceID: 1, FilePath: "mock/place/rcmd1.png", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -88,7 +88,7 @@ func initTestData(store *storage.MemoryStore) {
 		Locality:    locGramado,
 		Category:    catHotel,
 		Photos: []models.PlacePhoto{
-			{ID: 2, PlaceID: 2, FilePath: "public/mock/place/rcmd2.png", IsMain: true},
+			{ID: 2, PlaceID: 2, FilePath: "mock/place/rcmd2.png", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -101,7 +101,7 @@ func initTestData(store *storage.MemoryStore) {
 		Locality:    locParis,
 		Category:    catMuseum,
 		Photos: []models.PlacePhoto{
-			{ID: 3, PlaceID: 3, FilePath: "public/mock/place/rcmd3.png", IsMain: true},
+			{ID: 3, PlaceID: 3, FilePath: "mock/place/rcmd3.png", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -114,7 +114,7 @@ func initTestData(store *storage.MemoryStore) {
 		Locality:    locRome,
 		Category:    catHistorical,
 		Photos: []models.PlacePhoto{
-			{ID: 4, PlaceID: 4, FilePath: "public/mock/place/rcmd4.png", IsMain: true},
+			{ID: 4, PlaceID: 4, FilePath: "mock/place/rcmd4.png", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -127,7 +127,7 @@ func initTestData(store *storage.MemoryStore) {
 		Locality:    locBarcelona,
 		Category:    catHistorical,
 		Photos: []models.PlacePhoto{
-			{ID: 5, PlaceID: 5, FilePath: "public/mock/place/rcmd5.png", IsMain: true},
+			{ID: 5, PlaceID: 5, FilePath: "mock/place/rcmd5.png", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -140,7 +140,7 @@ func initTestData(store *storage.MemoryStore) {
 		Locality:    locAmsterdam,
 		Category:    catMuseum,
 		Photos: []models.PlacePhoto{
-			{ID: 6, PlaceID: 6, FilePath: "public/mock/place/rcmd6.png", IsMain: true},
+			{ID: 6, PlaceID: 6, FilePath: "mock/place/rcmd6.png", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -153,7 +153,7 @@ func initTestData(store *storage.MemoryStore) {
 		Locality:    locBali,
 		Category:    catResort,
 		Photos: []models.PlacePhoto{
-			{ID: 7, PlaceID: 7, FilePath: "public/mock/place/rcmd7.png", IsMain: true},
+			{ID: 7, PlaceID: 7, FilePath: "mock/place/rcmd7.png", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -166,7 +166,7 @@ func initTestData(store *storage.MemoryStore) {
 		Locality:    locBarcelona,
 		Category:    catSquare,
 		Photos: []models.PlacePhoto{
-			{ID: 8, PlaceID: 8, FilePath: "public/mock/place/rcmd8.png", IsMain: true},
+			{ID: 8, PlaceID: 8, FilePath: "mock/place/rcmd8.png", IsMain: true},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -177,7 +177,7 @@ func initTestData(store *storage.MemoryStore) {
 		ID:           store.NextUserID,
 		Login:        "john@example.com",
 		Nickname:     "johnny",
-		AvatarURL:    "public/mock/user-avatar/john.jpg",
+		AvatarURL:    "mock/user-avatar/john.jpg",
 		PasswordHash: hashed,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
