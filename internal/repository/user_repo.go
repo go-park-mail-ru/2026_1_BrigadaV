@@ -22,7 +22,7 @@ func (r *UserRepo) Create(ctx context.Context, user *models.User) error {
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
 	r.store.Users[user.ID] = *user
-	r.store.UsersByEmail[user.Email] = user.ID
+	r.store.UsersByEmail[user.Login] = user.ID
 	r.store.UsersByNickname[user.Nickname] = user.ID
 	r.store.NextUserID++
 	return nil

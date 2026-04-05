@@ -19,7 +19,7 @@ func NewAuthService(userRepo *repository.UserRepo, sessionRepo *repository.Sessi
 }
 
 type RegisterInput struct {
-	Email    string
+	Login    string
 	Password string
 	Nickname string
 }
@@ -30,13 +30,13 @@ type LoginInput struct {
 }
 
 func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*models.User, error) {
-	if !utils.IsValidEmail(input.Email) {
+	if !utils.IsValidEmail(input.Login) {
 		return nil, errors.New("invalid email format")
 	}
 	if len(input.Password) < 8 {
 		return nil, errors.New("password must be at least 8 characters")
 	}
-	existing, _ := s.userRepo.GetByEmail(ctx, input.Email)
+	existing, _ := s.userRepo.GetByEmail(ctx, input.Login)
 	if existing != nil {
 		return nil, errors.New("user already exists")
 	}
@@ -45,7 +45,7 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*model
 		return nil, err
 	}
 	user := &models.User{
-		Email:        input.Email,
+		Login:        input.Login,
 		Nickname:     input.Nickname,
 		AvatarURL:    "",
 		PasswordHash: hashed,

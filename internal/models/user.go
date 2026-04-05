@@ -4,7 +4,7 @@ import "time"
 
 type User struct {
 	ID           uint64
-	Email        string
+	Login        string
 	Nickname     string
 	AvatarURL    string
 	PasswordHash string

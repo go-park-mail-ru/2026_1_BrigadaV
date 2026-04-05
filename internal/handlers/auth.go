@@ -23,7 +23,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user, err := h.authService.Register(r.Context(), service.RegisterInput{
-		Email:    req.Email,
+		Login:    req.Login,
 		Password: req.Password,
 		Nickname: req.Nickname,
 	})
@@ -45,7 +45,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user, token, err := h.authService.Login(r.Context(), service.LoginInput{
-		Email:    req.Email,
+		Email:    req.Login,
 		Password: req.Password,
 	})
 	if err != nil {
@@ -63,7 +63,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 	json.NewEncoder(w).Encode(dto.LoginResponse{
 		UserID:    user.ID,
-		Email:     user.Email,
+		Login:     user.Login,
 		Nickname:  user.Nickname,
 		AvatarURL: user.AvatarURL,
 	})
@@ -103,7 +103,7 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewEncoder(w).Encode(dto.LoginResponse{
 		UserID:    user.ID,
-		Email:     user.Email,
+		Login:     user.Login,
 		Nickname:  user.Nickname,
 		AvatarURL: user.AvatarURL,
 	})

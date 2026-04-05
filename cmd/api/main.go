@@ -175,7 +175,7 @@ func initTestData(store *storage.MemoryStore) {
 	hashed, _ := utils.HashPassword("123456")
 	john := models.User{
 		ID:           store.NextUserID,
-		Email:        "john@example.com",
+		Login:        "john@example.com",
 		Nickname:     "johnny",
 		AvatarURL:    "public/mock/user-avatar/john.jpg",
 		PasswordHash: hashed,
@@ -183,7 +183,7 @@ func initTestData(store *storage.MemoryStore) {
 		UpdatedAt:    time.Now(),
 	}
 	store.Users[john.ID] = john
-	store.UsersByEmail[john.Email] = john.ID
+	store.UsersByEmail[john.Login] = john.ID
 	store.UsersByNickname[john.Nickname] = john.ID
 	store.NextUserID++
 
