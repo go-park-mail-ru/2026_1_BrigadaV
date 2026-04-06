@@ -10,6 +10,7 @@ import (
 	"guidely-app/internal/service"
 	"guidely-app/internal/storage"
 	"guidely-app/internal/utils"
+	"guidely-app/internal/logger"
 	"log"
 	"net/http"
 	"time"
@@ -18,6 +19,8 @@ import (
 )
 
 func main() {
+	logger.Init()
+	
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatal("config load error:", err)
@@ -47,8 +50,9 @@ func main() {
 	mux.HandleFunc("/api/", middleware.CORS(placeHandler.List))
 	mux.HandleFunc("/swagger/", httpSwagger.WrapHandler)
 
-	log.Printf("Server started on :%s", cfg.Port)
-	log.Fatal(http.ListenAndServe(":"+cfg.Port, mux))
+	handler := logger.AccessLogMiddleware(mux)
+
+	log.Fatal(http.ListenAndServe(":"+cfg.Port, handler))
 }
 
 func initTestData(store *storage.MemoryStore) {
