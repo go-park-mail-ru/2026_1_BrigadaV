@@ -3,6 +3,7 @@ package main
 import (
 	_ "guidely-app/docs"
 	"guidely-app/internal/config"
+	"guidely-app/internal/db"
 	"guidely-app/internal/handlers"
 	"guidely-app/internal/middleware"
 	"guidely-app/internal/models"
@@ -32,19 +33,75 @@ func main() {
 
 	authService := service.NewAuthService(userRepo, sessionRepo)
 	placeService := service.NewPlaceService(placeRepo)
+	profileService := service.NewProfileService(userRepo)
 
 	authHandler := handlers.NewAuthHandler(authService)
 	placeHandler := handlers.NewPlaceHandler(placeService)
+	profileHandler := handlers.NewProfileHandler(profileService)
 
 	authMiddleware := middleware.NewAuthMiddleware(sessionRepo)
+
+	dbPool, err := db.NewPool(cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal("database connection error:", err)
+	}
+	defer dbPool.Close()
+
+	tripRepo := repository.NewTripRepo(dbPool)
+	reviewRepo := repository.NewReviewRepo(dbPool)
+
+	tripService := service.NewTripService(tripRepo)
+	reviewService := service.NewReviewService(reviewRepo)
+
+	tripHandler := handlers.NewTripHandler(tripService)
+	reviewHandler := handlers.NewReviewHandler(reviewService)
 
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/api/register", middleware.CORS(authHandler.Register))
 	mux.HandleFunc("/api/login", middleware.CORS(authHandler.Login))
+	mux.HandleFunc("/api/", middleware.CORS(placeHandler.List))
+	mux.HandleFunc("/api/places/", middleware.CORS(placeHandler.Get))
+	mux.HandleFunc("/api/reviews", middleware.CORS(reviewHandler.List))
+
 	mux.HandleFunc("/api/logout", middleware.CORS(authMiddleware.Authenticate(authHandler.Logout)))
 	mux.HandleFunc("/api/user/me", middleware.CORS(authMiddleware.Authenticate(authHandler.Me)))
-	mux.HandleFunc("/api/", middleware.CORS(placeHandler.List))
+	mux.HandleFunc("/api/profile", middleware.CORS(authMiddleware.Authenticate(profileHandler.GetProfile)))
+	mux.HandleFunc("/api/profile/update", middleware.CORS(authMiddleware.Authenticate(profileHandler.UpdateProfile)))
+	mux.HandleFunc("/api/profile/change-password", middleware.CORS(authMiddleware.Authenticate(profileHandler.ChangePassword)))
+
+	mux.HandleFunc("/api/trips", middleware.CORS(authMiddleware.Authenticate(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			tripHandler.List(w, r)
+		} else if r.Method == http.MethodPost {
+			tripHandler.Create(w, r)
+		} else {
+			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})))
+	mux.HandleFunc("/api/trips/", middleware.CORS(authMiddleware.Authenticate(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			tripHandler.Get(w, r)
+		case http.MethodPut:
+			tripHandler.Update(w, r)
+		case http.MethodDelete:
+			tripHandler.Delete(w, r)
+		default:
+			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})))
+
+	mux.HandleFunc("/api/reviews/", middleware.CORS(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			authMiddleware.Authenticate(reviewHandler.Create)(w, r)
+		} else if r.Method == http.MethodDelete {
+			authMiddleware.Authenticate(reviewHandler.Delete)(w, r)
+		} else {
+			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		}
+	}))
+
 	mux.HandleFunc("/swagger/", httpSwagger.WrapHandler)
 
 	log.Printf("Server started on :%s", cfg.Port)

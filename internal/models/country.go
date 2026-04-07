@@ -3,7 +3,7 @@ package models
 import "time"
 
 type Country struct {
-	ID        uint64    `json:"id"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
+	ID        uint64
+	Name      string
+	CreatedAt time.Time
 }

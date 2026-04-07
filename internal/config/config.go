@@ -7,14 +7,21 @@ import (
 )
 
 type Config struct {
-	Port string
+	Port        string
+	DatabaseURL string
 }
 
 func Load() (*Config, error) {
 	godotenv.Load()
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	return &Config{
+		Port:        getEnv("PORT", "8080"),
+		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/travel_planner?sslmode=disable"),
+	}, nil
+}
+
+func getEnv(key, defaultValue string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
 	}
-	return &Config{Port: port}, nil
+	return defaultValue
 }
