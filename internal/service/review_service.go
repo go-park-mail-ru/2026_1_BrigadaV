@@ -9,10 +9,10 @@ import (
 )
 
 type ReviewService struct {
-	reviewRepo *repository.ReviewRepo
+	reviewRepo repository.ReviewRepository
 }
 
-func NewReviewService(reviewRepo *repository.ReviewRepo) *ReviewService {
+func NewReviewService(reviewRepo repository.ReviewRepository) *ReviewService {
 	return &ReviewService{reviewRepo: reviewRepo}
 }
 

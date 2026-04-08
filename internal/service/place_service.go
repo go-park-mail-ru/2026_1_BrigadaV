@@ -7,10 +7,10 @@ import (
 )
 
 type PlaceService struct {
-	placeRepo *repository.PlaceRepo
+	placeRepo repository.PlaceRepository
 }
 
-func NewPlaceService(placeRepo *repository.PlaceRepo) *PlaceService {
+func NewPlaceService(placeRepo repository.PlaceRepository) *PlaceService {
 	return &PlaceService{placeRepo: placeRepo}
 }
 

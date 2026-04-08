@@ -9,10 +9,10 @@ import (
 )
 
 type TripService struct {
-	tripRepo *repository.TripRepo
+	tripRepo repository.TripRepository
 }
 
-func NewTripService(tripRepo *repository.TripRepo) *TripService {
+func NewTripService(tripRepo repository.TripRepository) *TripService {
 	return &TripService{tripRepo: tripRepo}
 }
 

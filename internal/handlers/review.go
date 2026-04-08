@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"guidely-app/internal/dto"
+	"guidely-app/internal/models"
 	"guidely-app/internal/service"
 	"net/http"
 	"strconv"
@@ -10,11 +12,17 @@ import (
 	"time"
 )
 
-type ReviewHandler struct {
-	reviewService *service.ReviewService
+type ReviewService interface {
+	Create(ctx context.Context, input service.CreateReviewInput) (*models.Review, error)
+	GetByPlace(ctx context.Context, placeID uint64) ([]models.Review, error)
+	Delete(ctx context.Context, userID, reviewID uint64) error
 }
 
-func NewReviewHandler(reviewService *service.ReviewService) *ReviewHandler {
+type ReviewHandler struct {
+	reviewService ReviewService
+}
+
+func NewReviewHandler(reviewService ReviewService) *ReviewHandler {
 	return &ReviewHandler{reviewService: reviewService}
 }
 

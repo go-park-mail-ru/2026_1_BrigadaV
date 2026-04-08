@@ -1,18 +1,27 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"guidely-app/internal/dto"
+	"guidely-app/internal/models"
 	"guidely-app/internal/service"
 	"net/http"
 	"time"
 )
 
-type AuthHandler struct {
-	authService *service.AuthService
+type AuthService interface {
+	Register(ctx context.Context, input service.RegisterInput) (*models.User, error)
+	Login(ctx context.Context, input service.LoginInput) (*models.User, string, error)
+	Logout(ctx context.Context, token string) error
+	GetUserByID(ctx context.Context, id uint64) (*models.User, error)
 }
 
-func NewAuthHandler(authService *service.AuthService) *AuthHandler {
+type AuthHandler struct {
+	authService AuthService
+}
+
+func NewAuthHandler(authService AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }
 

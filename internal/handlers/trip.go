@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"guidely-app/internal/dto"
+	"guidely-app/internal/models"
 	"guidely-app/internal/service"
 	"net/http"
 	"strconv"
@@ -10,11 +12,19 @@ import (
 	"time"
 )
 
-type TripHandler struct {
-	tripService *service.TripService
+type TripService interface {
+	Create(ctx context.Context, input service.CreateTripInput) (*models.Trip, error)
+	GetByID(ctx context.Context, id uint64) (*models.Trip, error)
+	GetUserTrips(ctx context.Context, userID uint64) ([]models.Trip, error)
+	Update(ctx context.Context, id, userID uint64, input service.UpdateTripInput) (*models.Trip, error)
+	Delete(ctx context.Context, id, userID uint64) error
 }
 
-func NewTripHandler(tripService *service.TripService) *TripHandler {
+type TripHandler struct {
+	tripService TripService
+}
+
+func NewTripHandler(tripService TripService) *TripHandler {
 	return &TripHandler{tripService: tripService}
 }
 
