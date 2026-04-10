@@ -1,26 +1,34 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"guidely-app/internal/dto"
+	"guidely-app/internal/models"
 	"guidely-app/internal/service"
-	"guidely-app/internal/utils"
 	"net/http"
 	"time"
 )
 
-type AuthHandler struct {
-	authService *service.AuthService
+type AuthService interface {
+	Register(ctx context.Context, input service.RegisterInput) (*models.User, error)
+	Login(ctx context.Context, input service.LoginInput) (*models.User, string, error)
+	Logout(ctx context.Context, token string) error
+	GetUserByID(ctx context.Context, id uint64) (*models.User, error)
 }
 
-func NewAuthHandler(authService *service.AuthService) *AuthHandler {
+type AuthHandler struct {
+	authService AuthService
+}
+
+func NewAuthHandler(authService AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req dto.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteJSONError(w, utils.ErrBadRequest, http.StatusBadRequest)
+		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
 		return
 	}
 	user, err := h.authService.Register(r.Context(), service.RegisterInput{
@@ -29,26 +37,20 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Nickname: req.Nickname,
 	})
 	if err != nil {
-		switch err {
-		case utils.ErrBadRequest:
-			utils.WriteJSONError(w, err, http.StatusBadRequest)
-		case utils.ErrConflict:
-			utils.WriteJSONError(w, err, http.StatusConflict)
-		default:
-			utils.WriteJSONError(w, utils.ErrInternal, http.StatusInternalServerError)
-		}
+		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
 		return
 	}
-	utils.WriteJSON(w, map[string]interface{}{
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "user created",
 		"user_id": user.ID,
-	}, http.StatusCreated)
+	})
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req dto.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteJSONError(w, utils.ErrBadRequest, http.StatusBadRequest)
+		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
 		return
 	}
 	user, token, err := h.authService.Login(r.Context(), service.LoginInput{
@@ -56,34 +58,34 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Password: req.Password,
 	})
 	if err != nil {
-		utils.WriteJSONError(w, utils.ErrInvalidCredentials, http.StatusUnauthorized)
+		http.Error(w, `{"error":"invalid credentials"}`, http.StatusUnauthorized)
 		return
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
 		Value:    token,
-		Expires:  time.Now().Add(utils.SessionCookieExpiry),
+		Expires:  time.Now().Add(7 * 24 * time.Hour),
 		HttpOnly: true,
 		Secure:   false,
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 	})
-	utils.WriteJSON(w, dto.LoginResponse{
+	json.NewEncoder(w).Encode(dto.LoginResponse{
 		UserID:    user.ID,
 		Login:     user.Login,
 		Nickname:  user.Nickname,
 		AvatarURL: user.AvatarURL,
-	}, http.StatusOK)
+	})
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("session_token")
 	if err != nil {
-		utils.WriteJSONError(w, utils.ErrUnauthorized, http.StatusUnauthorized)
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 		return
 	}
 	if err := h.authService.Logout(r.Context(), cookie.Value); err != nil {
-		utils.WriteJSONError(w, utils.ErrInternal, http.StatusInternalServerError)
+		http.Error(w, `{"error":"logout failed"}`, http.StatusInternalServerError)
 		return
 	}
 	http.SetCookie(w, &http.Cookie{
@@ -93,24 +95,25 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		Path:     "/",
 	})
-	utils.WriteJSON(w, map[string]string{"message": "logged out"}, http.StatusOK)
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "logged out"})
 }
 
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
-	userID, err := utils.GetUserIDFromContext(r)
-	if err != nil {
-		utils.WriteJSONError(w, err, http.StatusUnauthorized)
+	userID, ok := r.Context().Value("user_id").(uint64)
+	if !ok {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 		return
 	}
 	user, err := h.authService.GetUserByID(r.Context(), userID)
 	if err != nil {
-		utils.WriteJSONError(w, utils.ErrNotFound, http.StatusNotFound)
+		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
 		return
 	}
-	utils.WriteJSON(w, dto.LoginResponse{
+	json.NewEncoder(w).Encode(dto.LoginResponse{
 		UserID:    user.ID,
 		Login:     user.Login,
 		Nickname:  user.Nickname,
 		AvatarURL: user.AvatarURL,
-	}, http.StatusOK)
+	})
 }

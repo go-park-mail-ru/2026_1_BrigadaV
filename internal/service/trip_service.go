@@ -2,9 +2,9 @@ package service
 
 import (
 	"context"
+	"errors"
 	"guidely-app/internal/models"
 	"guidely-app/internal/repository"
-	"guidely-app/internal/utils"
 	"time"
 )
 
@@ -26,16 +26,16 @@ type CreateTripInput struct {
 }
 
 type UpdateTripInput struct {
-	Title       *string
-	Description *string
+	Title       string
+	Description string
 	StartDate   *time.Time
 	EndDate     *time.Time
-	IsPublic    *bool
+	IsPublic    bool
 }
 
 func (s *TripService) Create(ctx context.Context, input CreateTripInput) (*models.Trip, error) {
-	if !utils.IsValidTitle(input.Title) {
-		return nil, utils.ErrBadRequest
+	if input.Title == "" {
+		return nil, errors.New("title is required")
 	}
 	trip := &models.Trip{
 		Title:       input.Title,
@@ -46,17 +46,13 @@ func (s *TripService) Create(ctx context.Context, input CreateTripInput) (*model
 		IsPublic:    input.IsPublic,
 	}
 	if err := s.tripRepo.Create(ctx, trip); err != nil {
-		return nil, utils.ErrInternal
+		return nil, err
 	}
 	return trip, nil
 }
 
 func (s *TripService) GetByID(ctx context.Context, id uint64) (*models.Trip, error) {
-	trip, err := s.tripRepo.GetByID(ctx, id)
-	if err != nil || trip == nil {
-		return nil, utils.ErrNotFound
-	}
-	return trip, nil
+	return s.tripRepo.GetByID(ctx, id)
 }
 
 func (s *TripService) GetUserTrips(ctx context.Context, userID uint64) ([]models.Trip, error) {
@@ -66,31 +62,22 @@ func (s *TripService) GetUserTrips(ctx context.Context, userID uint64) ([]models
 func (s *TripService) Update(ctx context.Context, id, userID uint64, input UpdateTripInput) (*models.Trip, error) {
 	trip, err := s.tripRepo.GetByID(ctx, id)
 	if err != nil || trip == nil {
-		return nil, utils.ErrNotFound
+		return nil, errors.New("trip not found")
 	}
 	if trip.CreatedBy != userID {
-		return nil, utils.ErrUnauthorized
+		return nil, errors.New("not authorized to update this trip")
 	}
-	if input.Title != nil {
-		if !utils.IsValidTitle(*input.Title) {
-			return nil, utils.ErrBadRequest
-		}
-		trip.Title = *input.Title
+	if input.Title != "" {
+		trip.Title = input.Title
 	}
-	if input.Description != nil {
-		trip.Description = *input.Description
+	if input.Description != "" {
+		trip.Description = input.Description
 	}
-	if input.StartDate != nil {
-		trip.StartDate = input.StartDate
-	}
-	if input.EndDate != nil {
-		trip.EndDate = input.EndDate
-	}
-	if input.IsPublic != nil {
-		trip.IsPublic = *input.IsPublic
-	}
+	trip.StartDate = input.StartDate
+	trip.EndDate = input.EndDate
+	trip.IsPublic = input.IsPublic
 	if err := s.tripRepo.Update(ctx, trip); err != nil {
-		return nil, utils.ErrInternal
+		return nil, err
 	}
 	return trip, nil
 }
@@ -98,10 +85,10 @@ func (s *TripService) Update(ctx context.Context, id, userID uint64, input Updat
 func (s *TripService) Delete(ctx context.Context, id, userID uint64) error {
 	trip, err := s.tripRepo.GetByID(ctx, id)
 	if err != nil || trip == nil {
-		return utils.ErrNotFound
+		return errors.New("trip not found")
 	}
 	if trip.CreatedBy != userID {
-		return utils.ErrUnauthorized
+		return errors.New("not authorized to delete this trip")
 	}
 	return s.tripRepo.Delete(ctx, id)
 }

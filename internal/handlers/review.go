@@ -1,40 +1,45 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"guidely-app/internal/dto"
+	"guidely-app/internal/models"
 	"guidely-app/internal/service"
-	"guidely-app/internal/utils"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
-
-	"github.com/gorilla/mux"
 )
 
-type ReviewHandler struct {
-	reviewService *service.ReviewService
+type ReviewService interface {
+	Create(ctx context.Context, input service.CreateReviewInput) (*models.Review, error)
+	GetByPlace(ctx context.Context, placeID uint64) ([]models.Review, error)
+	Delete(ctx context.Context, userID, reviewID uint64) error
 }
 
-func NewReviewHandler(reviewService *service.ReviewService) *ReviewHandler {
+type ReviewHandler struct {
+	reviewService ReviewService
+}
+
+func NewReviewHandler(reviewService ReviewService) *ReviewHandler {
 	return &ReviewHandler{reviewService: reviewService}
 }
 
 func (h *ReviewHandler) Create(w http.ResponseWriter, r *http.Request) {
-	userID, err := utils.GetUserIDFromContext(r)
-	if err != nil {
-		utils.WriteJSONError(w, err, http.StatusUnauthorized)
+	userID, ok := r.Context().Value("user_id").(uint64)
+	if !ok {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 		return
 	}
 	var req dto.CreateReviewRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteJSONError(w, utils.ErrBadRequest, http.StatusBadRequest)
+		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
 		return
 	}
 	var visitDate *time.Time
 	if req.VisitDate != nil && *req.VisitDate != "" {
-		t, err := time.Parse(time.DateOnly, *req.VisitDate)
-		if err == nil {
+		if t, err := time.Parse("2006-01-02", *req.VisitDate); err == nil {
 			visitDate = &t
 		}
 	}
@@ -47,15 +52,11 @@ func (h *ReviewHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	review, err := h.reviewService.Create(r.Context(), input)
 	if err != nil {
-		switch err {
-		case utils.ErrBadRequest:
-			utils.WriteJSONError(w, err, http.StatusBadRequest)
-		default:
-			utils.WriteJSONError(w, utils.ErrInternal, http.StatusInternalServerError)
-		}
+		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
 		return
 	}
-	utils.WriteJSON(w, dto.ReviewResponse{
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(dto.ReviewResponse{
 		ID:        review.ID,
 		UserID:    review.UserID,
 		PlaceID:   review.PlaceID,
@@ -64,28 +65,28 @@ func (h *ReviewHandler) Create(w http.ResponseWriter, r *http.Request) {
 		VisitDate: review.VisitDate,
 		CreatedAt: review.CreatedAt,
 		UpdatedAt: review.UpdatedAt,
-	}, http.StatusCreated)
+	})
 }
 
 func (h *ReviewHandler) List(w http.ResponseWriter, r *http.Request) {
 	placeIDStr := r.URL.Query().Get("place_id")
 	if placeIDStr == "" {
-		utils.WriteJSONError(w, utils.ErrBadRequest, http.StatusBadRequest)
+		http.Error(w, `{"error":"place_id required"}`, http.StatusBadRequest)
 		return
 	}
 	placeID, err := strconv.ParseUint(placeIDStr, 10, 64)
 	if err != nil {
-		utils.WriteJSONError(w, utils.ErrBadRequest, http.StatusBadRequest)
+		http.Error(w, `{"error":"invalid place_id"}`, http.StatusBadRequest)
 		return
 	}
 	reviews, err := h.reviewService.GetByPlace(r.Context(), placeID)
 	if err != nil {
-		utils.WriteJSONError(w, utils.ErrInternal, http.StatusInternalServerError)
+		http.Error(w, `{"error":"failed to fetch reviews"}`, http.StatusInternalServerError)
 		return
 	}
-	response := make([]dto.ReviewResponse, len(reviews))
+	resp := make([]dto.ReviewResponse, len(reviews))
 	for i, rv := range reviews {
-		response[i] = dto.ReviewResponse{
+		resp[i] = dto.ReviewResponse{
 			ID:        rv.ID,
 			UserID:    rv.UserID,
 			PlaceID:   rv.PlaceID,
@@ -96,31 +97,27 @@ func (h *ReviewHandler) List(w http.ResponseWriter, r *http.Request) {
 			UpdatedAt: rv.UpdatedAt,
 		}
 	}
-	utils.WriteJSON(w, response, http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
 }
 
 func (h *ReviewHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	userID, err := utils.GetUserIDFromContext(r)
-	if err != nil {
-		utils.WriteJSONError(w, err, http.StatusUnauthorized)
+	userID, ok := r.Context().Value("user_id").(uint64)
+	if !ok {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 		return
 	}
-	vars := mux.Vars(r)
-	idStr := vars["id"]
-	id, err := strconv.ParseUint(idStr, 10, 64)
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) != 4 {
+		http.Error(w, `{"error":"not found"}`, http.StatusNotFound)
+		return
+	}
+	id, err := strconv.ParseUint(parts[3], 10, 64)
 	if err != nil {
-		utils.WriteJSONError(w, utils.ErrBadRequest, http.StatusBadRequest)
+		http.Error(w, `{"error":"invalid review id"}`, http.StatusBadRequest)
 		return
 	}
 	if err := h.reviewService.Delete(r.Context(), userID, id); err != nil {
-		switch err {
-		case utils.ErrNotFound:
-			utils.WriteJSONError(w, err, http.StatusNotFound)
-		case utils.ErrUnauthorized:
-			utils.WriteJSONError(w, err, http.StatusForbidden)
-		default:
-			utils.WriteJSONError(w, utils.ErrInternal, http.StatusInternalServerError)
-		}
+		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusForbidden)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

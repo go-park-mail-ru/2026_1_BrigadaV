@@ -2,9 +2,9 @@ package service
 
 import (
 	"context"
+	"errors"
 	"guidely-app/internal/models"
 	"guidely-app/internal/repository"
-	"guidely-app/internal/utils"
 	"time"
 )
 
@@ -26,7 +26,7 @@ type CreateReviewInput struct {
 
 func (s *ReviewService) Create(ctx context.Context, input CreateReviewInput) (*models.Review, error) {
 	if input.Rating < 1 || input.Rating > 5 {
-		return nil, utils.ErrBadRequest
+		return nil, errors.New("rating must be between 1 and 5")
 	}
 	review := &models.Review{
 		UserID:    input.UserID,
@@ -36,7 +36,7 @@ func (s *ReviewService) Create(ctx context.Context, input CreateReviewInput) (*m
 		VisitDate: input.VisitDate,
 	}
 	if err := s.reviewRepo.Create(ctx, review); err != nil {
-		return nil, utils.ErrInternal
+		return nil, err
 	}
 	return review, nil
 }
@@ -48,10 +48,10 @@ func (s *ReviewService) GetByPlace(ctx context.Context, placeID uint64) ([]model
 func (s *ReviewService) Delete(ctx context.Context, userID, reviewID uint64) error {
 	review, err := s.reviewRepo.GetByID(ctx, reviewID)
 	if err != nil || review == nil {
-		return utils.ErrNotFound
+		return errors.New("review not found")
 	}
 	if review.UserID != userID {
-		return utils.ErrUnauthorized
+		return errors.New("not authorized to delete this review")
 	}
 	return s.reviewRepo.Delete(ctx, reviewID)
 }

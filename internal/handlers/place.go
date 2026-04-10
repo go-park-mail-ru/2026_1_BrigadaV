@@ -1,38 +1,53 @@
 package handlers
 
 import (
+	"context"
+	"encoding/json"
 	"guidely-app/internal/dto"
-	"guidely-app/internal/service"
-	"guidely-app/internal/utils"
+	"guidely-app/internal/models"
 	"net/http"
 	"strconv"
-
-	"github.com/gorilla/mux"
+	"strings"
 )
 
-type PlaceHandler struct {
-	placeService *service.PlaceService
+type PlaceService interface {
+	GetAll(ctx context.Context) ([]models.Place, error)
+	GetByID(ctx context.Context, id uint64) (*models.Place, error)
 }
 
-func NewPlaceHandler(placeService *service.PlaceService) *PlaceHandler {
+type PlaceHandler struct {
+	placeService PlaceService
+}
+
+func NewPlaceHandler(placeService PlaceService) *PlaceHandler {
 	return &PlaceHandler{placeService: placeService}
 }
 
 func (h *PlaceHandler) List(w http.ResponseWriter, r *http.Request) {
 	places, err := h.placeService.GetAll(r.Context())
 	if err != nil {
-		utils.WriteJSONError(w, utils.ErrInternal, http.StatusInternalServerError)
+		http.Error(w, `{"error":"failed to fetch places"}`, http.StatusInternalServerError)
 		return
 	}
+
+	userIDVal := r.Context().Value("user_id")
+	var userID uint64
+	if userIDVal != nil {
+		if id, ok := userIDVal.(uint64); ok {
+			userID = id
+		}
+	}
+	_ = userID
+
 	response := make([]dto.PlaceResponse, 0, len(places))
 	for _, p := range places {
-		// упрощённое преобразование (полное опущено для краткости)
-		resp := dto.PlaceResponse{
+		liked := false
+		pr := dto.PlaceResponse{
 			ID:          p.ID,
 			Name:        p.Name,
 			Description: p.Description,
 			Price:       p.Price,
-			IsLiked:     false,
+			IsLiked:     liked,
 			Locality: dto.LocalityDTO{
 				ID:        p.Locality.ID,
 				Name:      p.Locality.Name,
@@ -44,16 +59,16 @@ func (h *PlaceHandler) List(w http.ResponseWriter, r *http.Request) {
 			UpdatedAt: p.UpdatedAt,
 		}
 		if p.Category.ID != 0 {
-			resp.Category = &dto.CategoryDTO{
+			pr.Category = &dto.CategoryDTO{
 				ID:          p.Category.ID,
 				Name:        p.Category.Name,
 				Description: p.Category.Description,
 			}
 		}
 		if len(p.Photos) > 0 {
-			resp.Photos = make([]dto.PlacePhotoDTO, len(p.Photos))
+			pr.Photos = make([]dto.PlacePhotoDTO, len(p.Photos))
 			for i, ph := range p.Photos {
-				resp.Photos[i] = dto.PlacePhotoDTO{
+				pr.Photos[i] = dto.PlacePhotoDTO{
 					ID:       ph.ID,
 					PlaceID:  ph.PlaceID,
 					FilePath: ph.FilePath,
@@ -61,22 +76,27 @@ func (h *PlaceHandler) List(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		response = append(response, resp)
+		response = append(response, pr)
 	}
-	utils.WriteJSON(w, response, http.StatusOK)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *PlaceHandler) Get(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	idStr := vars["id"]
-	id, err := strconv.ParseUint(idStr, 10, 64)
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) != 4 {
+		http.Error(w, `{"error":"not found"}`, http.StatusNotFound)
+		return
+	}
+	id, err := strconv.ParseUint(parts[3], 10, 64)
 	if err != nil {
-		utils.WriteJSONError(w, utils.ErrBadRequest, http.StatusBadRequest)
+		http.Error(w, `{"error":"invalid place id"}`, http.StatusBadRequest)
 		return
 	}
 	place, err := h.placeService.GetByID(r.Context(), id)
 	if err != nil || place == nil {
-		utils.WriteJSONError(w, utils.ErrNotFound, http.StatusNotFound)
+		http.Error(w, `{"error":"place not found"}`, http.StatusNotFound)
 		return
 	}
 	response := dto.PlaceResponse{
@@ -113,5 +133,6 @@ func (h *PlaceHandler) Get(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	utils.WriteJSON(w, response, http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
