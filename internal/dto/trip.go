@@ -11,8 +11,8 @@ type CreateTripRequest struct {
 }
 
 type UpdateTripRequest struct {
-	Title       string  `json:"title,omitempty"`
-	Description string  `json:"description,omitempty"`
+	Title       *string `json:"title,omitempty"`
+	Description *string `json:"description,omitempty"`
 	StartDate   *string `json:"start_date,omitempty"`
 	EndDate     *string `json:"end_date,omitempty"`
 	IsPublic    *bool   `json:"is_public,omitempty"`

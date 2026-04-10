@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"guidely-app/internal/models"
 	"guidely-app/internal/repository"
 	"guidely-app/internal/utils"
@@ -31,18 +30,18 @@ type LoginInput struct {
 
 func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*models.User, error) {
 	if !utils.IsValidEmail(input.Login) {
-		return nil, errors.New("invalid email format")
+		return nil, utils.ErrBadRequest
 	}
-	if len(input.Password) < 8 {
-		return nil, errors.New("password must be at least 8 characters")
+	if !utils.IsValidPassword(input.Password) {
+		return nil, utils.ErrBadRequest
 	}
 	existing, _ := s.userRepo.GetByEmail(ctx, input.Login)
 	if existing != nil {
-		return nil, errors.New("user already exists")
+		return nil, utils.ErrConflict
 	}
 	hashed, err := utils.HashPassword(input.Password)
 	if err != nil {
-		return nil, err
+		return nil, utils.ErrInternal
 	}
 	user := &models.User{
 		Login:        input.Login,
@@ -51,7 +50,7 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*model
 		PasswordHash: hashed,
 	}
 	if err := s.userRepo.Create(ctx, user); err != nil {
-		return nil, err
+		return nil, utils.ErrInternal
 	}
 	return user, nil
 }
@@ -59,22 +58,22 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*model
 func (s *AuthService) Login(ctx context.Context, input LoginInput) (*models.User, string, error) {
 	user, err := s.userRepo.GetByEmail(ctx, input.Email)
 	if err != nil || user == nil {
-		return nil, "", errors.New("invalid credentials")
+		return nil, "", utils.ErrInvalidCredentials
 	}
 	if !utils.CheckPasswordHash(input.Password, user.PasswordHash) {
-		return nil, "", errors.New("invalid credentials")
+		return nil, "", utils.ErrInvalidCredentials
 	}
 	token, err := utils.GenerateSessionToken()
 	if err != nil {
-		return nil, "", err
+		return nil, "", utils.ErrInternal
 	}
 	session := &models.Session{
 		UserID:       user.ID,
 		SessionToken: token,
-		ExpiresAt:    time.Now().Add(7 * 24 * time.Hour),
+		ExpiresAt:    time.Now().Add(utils.SessionCookieExpiry),
 	}
 	if err := s.sessionRepo.Create(ctx, session); err != nil {
-		return nil, "", err
+		return nil, "", utils.ErrInternal
 	}
 	return user, token, nil
 }
