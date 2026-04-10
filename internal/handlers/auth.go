@@ -11,7 +11,7 @@ import (
 )
 
 type AuthService interface {
-	Register(ctx context.Context, input service.RegisterInput) (*models.User, error)
+	Register(ctx context.Context, input service.RegisterInput) (*models.User, string, error)
 	Login(ctx context.Context, input service.LoginInput) (*models.User, string, error)
 	Logout(ctx context.Context, token string) error
 	GetUserByID(ctx context.Context, id uint64) (*models.User, error)
@@ -31,7 +31,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
 		return
 	}
-	user, err := h.authService.Register(r.Context(), service.RegisterInput{
+	user, token, err := h.authService.Register(r.Context(), service.RegisterInput{
 		Login:    req.Login,
 		Password: req.Password,
 		Nickname: req.Nickname,
@@ -40,6 +40,17 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
 		return
 	}
+	
+	http.SetCookie(w, &http.Cookie{
+        Name:     "session_token",
+        Value:    token,
+        Expires:  time.Now().Add(7 * 24 * time.Hour),
+        HttpOnly: true,
+        Secure:   false,
+        SameSite: http.SameSiteLaxMode,
+        Path:     "/",
+    })
+	
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "user created",
