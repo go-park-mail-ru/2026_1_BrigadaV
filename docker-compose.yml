@@ -55,6 +55,23 @@ services:
       - guidely-network
     restart: unless-stopped
 
+  migrations:
+    image: golang:1.25-alpine
+    container_name: guidely-migrations
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      - GOOSE_DRIVER=postgres
+      - GOOSE_DBSTRING=postgres://postgres:1111@postgres:5432/texnopark?sslmode=disable
+    command: sh -c "go install github.com/pressly/goose/v3/cmd/goose@latest && goose -dir ./migrations up"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - guidely-network
+    restart: "no
+
 networks:
   guidely-network:
     driver: bridge
