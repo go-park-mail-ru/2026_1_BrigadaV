@@ -9,6 +9,7 @@ import (
 type Config struct {
 	Port        string
 	DatabaseURL string
+	JWTSecret   string
 }
 
 func Load() (*Config, error) {
@@ -16,6 +17,7 @@ func Load() (*Config, error) {
 	return &Config{
 		Port:        getEnv("PORT", "8080"),
 		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/travel_planner?sslmode=disable"),
+		JWTSecret:   getEnv("JWT_SECRET", "your-secret-key"),
 	}, nil
 }
 

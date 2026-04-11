@@ -19,10 +19,7 @@ func NewSessionRepo(db *pgxpool.Pool) *SessionRepo {
 }
 
 func (r *SessionRepo) Create(ctx context.Context, session *models.Session) error {
-	hashedToken, err := utils.HashPassword(session.SessionToken)
-	if err != nil {
-		return err
-	}
+	hashedToken := utils.HashToken(session.SessionToken) // используем детерминированный хеш
 	query := `INSERT INTO session (user_id, session_token_hash, expires_at) 
               VALUES ($1, $2, $3) RETURNING id, created_at`
 	return r.db.QueryRow(ctx, query, session.UserID, hashedToken, session.ExpiresAt).
@@ -30,15 +27,12 @@ func (r *SessionRepo) Create(ctx context.Context, session *models.Session) error
 }
 
 func (r *SessionRepo) GetByToken(ctx context.Context, token string) (*models.Session, error) {
-	hashedToken, err := utils.HashPassword(token)
-	if err != nil {
-		return nil, err
-	}
+	hashedToken := utils.HashToken(token)
 	query := `SELECT id, user_id, session_token_hash, expires_at, created_at 
               FROM session WHERE session_token_hash = $1`
 	var session models.Session
 	var tokenHash string
-	err = r.db.QueryRow(ctx, query, hashedToken).Scan(
+	err := r.db.QueryRow(ctx, query, hashedToken).Scan(
 		&session.ID, &session.UserID, &tokenHash, &session.ExpiresAt, &session.CreatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -48,10 +42,7 @@ func (r *SessionRepo) GetByToken(ctx context.Context, token string) (*models.Ses
 }
 
 func (r *SessionRepo) DeleteByToken(ctx context.Context, token string) error {
-	hashedToken, err := utils.HashPassword(token)
-	if err != nil {
-		return err
-	}
-	_, err = r.db.Exec(ctx, `DELETE FROM session WHERE session_token_hash = $1`, hashedToken)
+	hashedToken := utils.HashToken(token)
+	_, err := r.db.Exec(ctx, `DELETE FROM session WHERE session_token_hash = $1`, hashedToken)
 	return err
 }
