@@ -57,9 +57,25 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.profileService.UpdateProfile(r.Context(), userID, req.Nickname, req.AvatarURL)
+	if req.Nickname != "" || req.AvatarURL != "" {
+		_, err := h.profileService.UpdateProfile(r.Context(), userID, req.Nickname, req.AvatarURL)
+		if err != nil {
+			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+			return
+		}
+	}
+
+	if req.OldPassword != "" && req.NewPassword != "" {
+		err := h.profileService.ChangePassword(r.Context(), userID, req.OldPassword, req.NewPassword)
+		if err != nil {
+			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+			return
+		}
+	}
+
+	user, err := h.profileService.GetProfile(r.Context(), userID)
 	if err != nil {
-		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
 		return
 	}
 
@@ -70,25 +86,4 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		AvatarURL: user.AvatarURL,
 		CreatedAt: user.CreatedAt,
 	})
-}
-
-func (h *ProfileHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("user_id").(uint64)
-	if !ok {
-		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
-		return
-	}
-
-	var req dto.ChangePasswordRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
-		return
-	}
-
-	if err := h.profileService.ChangePassword(r.Context(), userID, req.OldPassword, req.NewPassword); err != nil {
-		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
-		return
-	}
-
-	json.NewEncoder(w).Encode(map[string]string{"message": "password changed successfully"})
 }
