@@ -24,7 +24,7 @@ services:
 
   frontend:
     build:
-      context: ../2026_1_BrigadaV
+      context: ../frontend
       dockerfile: Dockerfile
     container_name: guidely-frontend
     depends_on:
