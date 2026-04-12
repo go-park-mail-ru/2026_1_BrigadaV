@@ -8,7 +8,7 @@ import (
 	"guidely-app/internal/middleware"
 	"guidely-app/internal/repository"
 	"guidely-app/internal/service"
-	"github.com/gorilla/csrf"
+	// "github.com/gorilla/csrf"
 	"log"
 	"net/http"
 
@@ -72,14 +72,14 @@ func main() {
 
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
-		csrfMiddleware := csrf.Protect(
-			[]byte(cfg.JWTSecret),
-			csrf.Secure(false),
-			csrf.HttpOnly(true),
-			csrf.Path("/"),
-		)
+		// csrfMiddleware := csrf.Protect(
+		// 	[]byte(cfg.JWTSecret),
+		// 	csrf.Secure(false),
+		// 	csrf.HttpOnly(true),
+		// 	csrf.Path("/"),
+		// )
 		r.Use(middleware.CORS)
-		r.Use(csrfMiddleware)
+		// r.Use(csrfMiddleware)
 
 	log.Printf("Server started on :%s", cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, r))
