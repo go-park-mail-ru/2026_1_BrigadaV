@@ -20,7 +20,7 @@ func NewPlaceRepo(db *pgxpool.Pool) *PlaceRepo {
 func (r *PlaceRepo) GetAll(ctx context.Context) ([]models.Place, error) {
 	query := `
     SELECT p.id, p.name, p.description, p.price, p.created_at, p.updated_at,
-           l.id, l.name, ctry.id, ctry.name, l.latitude, l.longitude,
+           l.id, l.name, ctry.name, l.latitude, l.longitude,
            cat.id, cat.name, cat.description
     FROM place p
     LEFT JOIN locality l ON p.locality_id = l.id
@@ -73,7 +73,7 @@ func (r *PlaceRepo) GetAll(ctx context.Context) ([]models.Place, error) {
 func (r *PlaceRepo) GetByID(ctx context.Context, id uint64) (*models.Place, error) {
 	query := `
         SELECT p.id, p.name, p.description, p.price, p.created_at, p.updated_at,
-               l.id, l.name, ctry.id, ctry.name, l.latitude, l.longitude,
+               l.id, l.name, ctry.name, l.latitude, l.longitude,
                cat.id, cat.name, cat.description
         FROM place p
         LEFT JOIN locality l ON p.locality_id = l.id
