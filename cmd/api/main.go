@@ -78,8 +78,8 @@ func main() {
 			csrf.HttpOnly(true),
 			csrf.Path("/"),
 		)
+		r.Use(middleware.CORS)
 		r.Use(csrfMiddleware)
-	r.Use(middleware.CORS)
 
 	log.Printf("Server started on :%s", cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, r))
