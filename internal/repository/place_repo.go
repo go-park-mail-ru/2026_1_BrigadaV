@@ -73,11 +73,12 @@ func (r *PlaceRepo) GetAll(ctx context.Context) ([]models.Place, error) {
 func (r *PlaceRepo) GetByID(ctx context.Context, id uint64) (*models.Place, error) {
 	query := `
         SELECT p.id, p.name, p.description, p.price, p.created_at, p.updated_at,
-               l.id, l.name, l.country, l.latitude, l.longitude,
-               c.id, c.name, c.description
+               l.id, l.name, ctry.id, ctry.name, l.latitude, l.longitude,
+               cat.id, cat.name, cat.description
         FROM place p
         LEFT JOIN locality l ON p.locality_id = l.id
-        LEFT JOIN category c ON p.category_id = c.id
+        LEFT JOIN country ctry ON l.country_id = ctry.id
+        LEFT JOIN category cat ON p.category_id = cat.id
         WHERE p.id = $1`
 	var p models.Place
 	var loc models.Locality
