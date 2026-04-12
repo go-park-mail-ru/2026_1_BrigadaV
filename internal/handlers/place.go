@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"log"
 )
 
 type PlaceService interface {
@@ -24,8 +25,11 @@ func NewPlaceHandler(placeService PlaceService) *PlaceHandler {
 }
 
 func (h *PlaceHandler) List(w http.ResponseWriter, r *http.Request) {
+	log.Println("PlaceHandler.List called")
+	
 	places, err := h.placeService.GetAll(r.Context())
 	if err != nil {
+		log.Printf("Error fetching places: %v", err)
 		http.Error(w, `{"error":"failed to fetch places"}`, http.StatusInternalServerError)
 		return
 	}
