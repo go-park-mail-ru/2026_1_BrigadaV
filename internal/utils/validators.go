@@ -1,9 +1,11 @@
 package utils
 
-import "strings"
+import "regexp"
 
 func IsValidEmail(email string) bool {
-	return strings.Contains(email, "@") && strings.Contains(email, ".")
+	pattern := `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
+	matched, _ := regexp.MatchString(pattern, email)
+	return matched
 }
 
 func IsValidNickname(nickname string) bool {
