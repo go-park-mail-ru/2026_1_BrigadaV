@@ -1,36 +1,27 @@
 package handlers
 
 import (
-	"context"
-	"encoding/json"
 	"guidely-app/internal/dto"
-	"guidely-app/internal/models"
+	"guidely-app/internal/service"
+	"guidely-app/internal/utils"
 	"net/http"
 	"strconv"
-	"strings"
-	"log"
+
+	"github.com/gorilla/mux"
 )
 
-type PlaceService interface {
-	GetAll(ctx context.Context) ([]models.Place, error)
-	GetByID(ctx context.Context, id uint64) (*models.Place, error)
-}
-
 type PlaceHandler struct {
-	placeService PlaceService
+	placeService *service.PlaceService
 }
 
-func NewPlaceHandler(placeService PlaceService) *PlaceHandler {
+func NewPlaceHandler(placeService *service.PlaceService) *PlaceHandler {
 	return &PlaceHandler{placeService: placeService}
 }
 
 func (h *PlaceHandler) List(w http.ResponseWriter, r *http.Request) {
-	log.Println("PlaceHandler.List called")
-	
 	places, err := h.placeService.GetAll(r.Context())
 	if err != nil {
-		log.Printf("Error fetching places: %v", err)
-		http.Error(w, `{"error":"failed to fetch places"}`, http.StatusInternalServerError)
+		utils.WriteJSONError(w, utils.ErrInternal, http.StatusInternalServerError)
 		return
 	}
 
@@ -83,60 +74,36 @@ func (h *PlaceHandler) List(w http.ResponseWriter, r *http.Request) {
 		response = append(response, pr)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	utils.WriteJSON(w, response, http.StatusOK)
 }
 
-func (h *PlaceHandler) Get(w http.ResponseWriter, r *http.Request) {
-	parts := strings.Split(r.URL.Path, "/")
-	if len(parts) != 4 {
-		http.Error(w, `{"error":"not found"}`, http.StatusNotFound)
-		return
-	}
-	id, err := strconv.ParseUint(parts[3], 10, 64)
+func (h *PlaceHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
-		http.Error(w, `{"error":"invalid place id"}`, http.StatusBadRequest)
+		utils.WriteJSONError(w, utils.ErrBadRequest, http.StatusBadRequest)
 		return
 	}
-	place, err := h.placeService.GetByID(r.Context(), id)
-	if err != nil || place == nil {
-		http.Error(w, `{"error":"place not found"}`, http.StatusNotFound)
+	userID, _ := utils.GetUserIDFromContext(r)
+	place, err := h.placeService.GetDetails(r.Context(), id, userID)
+	if err != nil {
+		utils.WriteJSONError(w, utils.ErrNotFound, http.StatusNotFound)
 		return
 	}
-	response := dto.PlaceResponse{
-		ID:          place.ID,
-		Name:        place.Name,
-		Description: place.Description,
-		Price:       place.Price,
-		IsLiked:     false,
-		Locality: dto.LocalityDTO{
-			ID:        place.Locality.ID,
-			Name:      place.Locality.Name,
-			Country:   place.Locality.Country,
-			Latitude:  place.Locality.Latitude,
-			Longitude: place.Locality.Longitude,
-		},
-		CreatedAt: place.CreatedAt,
-		UpdatedAt: place.UpdatedAt,
+	utils.WriteJSON(w, place, http.StatusOK)
+}
+
+func (h *PlaceHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.ParseUint(vars["id"], 10, 64)
+	if err != nil {
+		utils.WriteJSONError(w, utils.ErrBadRequest, http.StatusBadRequest)
+		return
 	}
-	if place.Category.ID != 0 {
-		response.Category = &dto.CategoryDTO{
-			ID:          place.Category.ID,
-			Name:        place.Category.Name,
-			Description: place.Category.Description,
-		}
+	reviews, err := h.placeService.GetReviews(r.Context(), id)
+	if err != nil {
+		utils.WriteJSONError(w, utils.ErrInternal, http.StatusInternalServerError)
+		return
 	}
-	if len(place.Photos) > 0 {
-		response.Photos = make([]dto.PlacePhotoDTO, len(place.Photos))
-		for i, ph := range place.Photos {
-			response.Photos[i] = dto.PlacePhotoDTO{
-				ID:       ph.ID,
-				PlaceID:  ph.PlaceID,
-				FilePath: ph.FilePath,
-				IsMain:   ph.IsMain,
-			}
-		}
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	utils.WriteJSON(w, reviews, http.StatusOK)
 }

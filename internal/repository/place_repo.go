@@ -19,20 +19,18 @@ func NewPlaceRepo(db *pgxpool.Pool) *PlaceRepo {
 
 func (r *PlaceRepo) GetAll(ctx context.Context) ([]models.Place, error) {
 	query := `
-    SELECT p.id, p.name, p.description, p.price, p.created_at, p.updated_at,
-           l.id, l.name, ctry.name, l.latitude, l.longitude,
-           cat.id, cat.name, cat.description
-    FROM place p
-    LEFT JOIN locality l ON p.locality_id = l.id
-    LEFT JOIN country ctry ON l.country_id = ctry.id
-    LEFT JOIN category cat ON p.category_id = cat.id
-    ORDER BY p.id`
+        SELECT p.id, p.name, p.description, p.price, p.created_at, p.updated_at,
+               l.id, l.name, l.country, l.latitude, l.longitude,
+               c.id, c.name, c.description
+        FROM place p
+        LEFT JOIN locality l ON p.locality_id = l.id
+        LEFT JOIN category c ON p.category_id = c.id
+        ORDER BY p.id`
 	rows, err := r.db.Query(ctx, query)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-
 	var places []models.Place
 	for rows.Next() {
 		var p models.Place
@@ -42,7 +40,6 @@ func (r *PlaceRepo) GetAll(ctx context.Context) ([]models.Place, error) {
 		var locName, locCountry *string
 		var locLat, locLng *float64
 		var catName, catDesc *string
-
 		err := rows.Scan(
 			&p.ID, &p.Name, &p.Description, &p.Price, &p.CreatedAt, &p.UpdatedAt,
 			&locID, &locName, &locCountry, &locLat, &locLng,
@@ -73,12 +70,11 @@ func (r *PlaceRepo) GetAll(ctx context.Context) ([]models.Place, error) {
 func (r *PlaceRepo) GetByID(ctx context.Context, id uint64) (*models.Place, error) {
 	query := `
         SELECT p.id, p.name, p.description, p.price, p.created_at, p.updated_at,
-               l.id, l.name, ctry.name, l.latitude, l.longitude,
-               cat.id, cat.name, cat.description
+               l.id, l.name, l.country, l.latitude, l.longitude,
+               c.id, c.name, c.description
         FROM place p
         LEFT JOIN locality l ON p.locality_id = l.id
-        LEFT JOIN country ctry ON l.country_id = ctry.id
-        LEFT JOIN category cat ON p.category_id = cat.id
+        LEFT JOIN category c ON p.category_id = c.id
         WHERE p.id = $1`
 	var p models.Place
 	var loc models.Locality
@@ -87,7 +83,6 @@ func (r *PlaceRepo) GetByID(ctx context.Context, id uint64) (*models.Place, erro
 	var locName, locCountry *string
 	var locLat, locLng *float64
 	var catName, catDesc *string
-
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&p.ID, &p.Name, &p.Description, &p.Price, &p.CreatedAt, &p.UpdatedAt,
 		&locID, &locName, &locCountry, &locLat, &locLng,
@@ -114,4 +109,35 @@ func (r *PlaceRepo) GetByID(ctx context.Context, id uint64) (*models.Place, erro
 		p.Category = cat
 	}
 	return &p, nil
+}
+
+func (r *PlaceRepo) GetWithRatingAndLike(ctx context.Context, placeID, userID uint64) (*models.PlaceWithRating, error) {
+	var rating float64
+	var reviewCount int64
+	err := r.db.QueryRow(ctx, `
+        SELECT COALESCE(AVG(rating), 0), COUNT(*) FROM review WHERE place_id = $1
+    `, placeID).Scan(&rating, &reviewCount)
+	if err != nil {
+		return nil, err
+	}
+	var isLiked bool
+	if userID != 0 {
+		err = r.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM favorite WHERE user_id = $1 AND place_id = $2)`, userID, placeID).Scan(&isLiked)
+		if err != nil {
+			isLiked = false
+		}
+	}
+	place, err := r.GetByID(ctx, placeID)
+	if err != nil || place == nil {
+		return nil, err
+	}
+	return &models.PlaceWithRating{
+		ID:          place.ID,
+		Name:        place.Name,
+		Description: place.Description,
+		Price:       place.Price,
+		Rating:      rating,
+		ReviewCount: reviewCount,
+		IsLiked:     isLiked,
+	}, nil
 }

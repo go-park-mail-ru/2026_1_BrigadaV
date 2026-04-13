@@ -19,7 +19,7 @@ func NewSessionRepo(db *pgxpool.Pool) *SessionRepo {
 }
 
 func (r *SessionRepo) Create(ctx context.Context, session *models.Session) error {
-	hashedToken := utils.HashToken(session.SessionToken) // используем детерминированный хеш
+	hashedToken := utils.HashToken(session.SessionToken)
 	query := `INSERT INTO session (user_id, session_token_hash, expires_at) 
               VALUES ($1, $2, $3) RETURNING id, created_at`
 	return r.db.QueryRow(ctx, query, session.UserID, hashedToken, session.ExpiresAt).

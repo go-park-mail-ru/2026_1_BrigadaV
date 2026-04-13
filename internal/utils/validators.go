@@ -2,10 +2,10 @@ package utils
 
 import "strings"
 
-func IsValidEmail(email string) bool {
-	return strings.Contains(email, "@") && strings.Contains(email, ".")
+func IsValidNickname(nickname string) bool {
+	return len(nickname) >= 3 && len(nickname) <= 50
 }
 
-func Contains(s, substr string) bool {
-	return strings.Contains(s, substr)
+func IsValidEmail(email string) bool {
+	return strings.Contains(email, "@") && strings.Contains(email, ".")
 }

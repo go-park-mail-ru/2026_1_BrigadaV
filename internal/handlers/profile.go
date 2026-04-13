@@ -1,89 +1,77 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"guidely-app/internal/dto"
-	"guidely-app/internal/models"
+	"guidely-app/internal/service"
+	"guidely-app/internal/utils"
 	"net/http"
 )
 
-type ProfileService interface {
-	GetProfile(ctx context.Context, userID uint64) (*models.User, error)
-	UpdateProfile(ctx context.Context, userID uint64, nickname, avatarURL string) (*models.User, error)
-	ChangePassword(ctx context.Context, userID uint64, oldPassword, newPassword string) error
-}
-
 type ProfileHandler struct {
-	profileService ProfileService
+	profileService *service.ProfileService
 }
 
-func NewProfileHandler(profileService ProfileService) *ProfileHandler {
+func NewProfileHandler(profileService *service.ProfileService) *ProfileHandler {
 	return &ProfileHandler{profileService: profileService}
 }
 
 func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("user_id").(uint64)
-	if !ok {
-		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+	userID, err := utils.GetUserIDFromContext(r)
+	if err != nil {
+		utils.WriteJSONError(w, err, http.StatusUnauthorized)
 		return
 	}
-
 	user, err := h.profileService.GetProfile(r.Context(), userID)
 	if err != nil {
-		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
+		utils.WriteJSONError(w, utils.ErrNotFound, http.StatusNotFound)
 		return
 	}
-
-	json.NewEncoder(w).Encode(dto.ProfileResponse{
-		ID:        user.ID,
-		Login:     user.Login,
-		Nickname:  user.Nickname,
-		AvatarURL: user.AvatarURL,
-		CreatedAt: user.CreatedAt,
-	})
+	response := dto.ProfileResponse{
+		ID:         user.ID,
+		Nickname:   user.Nickname,
+		AvatarURL:  user.AvatarURL,
+		Country:    user.Country,
+		City:       user.City,
+		About:      user.About,
+		HasReviews: user.HasReviews,
+		CreatedAt:  user.CreatedAt,
+	}
+	utils.WriteJSON(w, response, http.StatusOK)
 }
 
 func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("user_id").(uint64)
-	if !ok {
-		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+	userID, err := utils.GetUserIDFromContext(r)
+	if err != nil {
+		utils.WriteJSONError(w, err, http.StatusUnauthorized)
 		return
 	}
-
 	var req dto.UpdateProfileRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		utils.WriteJSONError(w, utils.ErrBadRequest, http.StatusBadRequest)
 		return
 	}
-
-	if req.Nickname != "" || req.AvatarURL != "" {
-		_, err := h.profileService.UpdateProfile(r.Context(), userID, req.Nickname, req.AvatarURL)
-		if err != nil {
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
-			return
-		}
+	input := service.UpdateProfileInput{
+		Nickname:  req.Nickname,
+		AvatarURL: req.AvatarURL,
+		Country:   req.Country,
+		City:      req.City,
+		About:     req.About,
 	}
-
-	if req.OldPassword != "" && req.NewPassword != "" {
-		err := h.profileService.ChangePassword(r.Context(), userID, req.OldPassword, req.NewPassword)
-		if err != nil {
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
-			return
-		}
-	}
-
-	user, err := h.profileService.GetProfile(r.Context(), userID)
+	user, err := h.profileService.UpdateProfile(r.Context(), userID, input)
 	if err != nil {
-		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
+		utils.WriteJSONError(w, err, http.StatusBadRequest)
 		return
 	}
-
-	json.NewEncoder(w).Encode(dto.ProfileResponse{
-		ID:        user.ID,
-		Login:     user.Login,
-		Nickname:  user.Nickname,
-		AvatarURL: user.AvatarURL,
-		CreatedAt: user.CreatedAt,
-	})
+	response := dto.ProfileResponse{
+		ID:         user.ID,
+		Nickname:   user.Nickname,
+		AvatarURL:  user.AvatarURL,
+		Country:    user.Country,
+		City:       user.City,
+		About:      user.About,
+		HasReviews: user.HasReviews,
+		CreatedAt:  user.CreatedAt,
+	}
+	utils.WriteJSON(w, response, http.StatusOK)
 }

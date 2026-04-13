@@ -8,10 +8,10 @@ import (
 	"guidely-app/internal/middleware"
 	"guidely-app/internal/repository"
 	"guidely-app/internal/service"
-	// "github.com/gorilla/csrf"
 	"log"
 	"net/http"
 
+	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
@@ -35,7 +35,7 @@ func main() {
 	reviewRepo := repository.NewReviewRepo(dbPool)
 
 	authService := service.NewAuthService(userRepo, sessionRepo)
-	placeService := service.NewPlaceService(placeRepo)
+	placeService := service.NewPlaceService(placeRepo, reviewRepo)
 	profileService := service.NewProfileService(userRepo)
 	tripService := service.NewTripService(tripRepo)
 	reviewService := service.NewReviewService(reviewRepo)
@@ -50,36 +50,36 @@ func main() {
 
 	r := mux.NewRouter()
 
-	r.HandleFunc("/api/register", authHandler.Register).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/login", authHandler.Login).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/places", placeHandler.List).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/places/{id:[0-9]+}", placeHandler.Get).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/reviews", reviewHandler.List).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/register", authHandler.Register).Methods("POST")
+	r.HandleFunc("/api/login", authHandler.Login).Methods("POST")
+	r.HandleFunc("/api/logout", authMiddleware.Authenticate(authHandler.Logout)).Methods("POST")
+	r.HandleFunc("/api/user/me", authMiddleware.Authenticate(authHandler.Me)).Methods("GET")
+	r.HandleFunc("/api/profile", authMiddleware.Authenticate(profileHandler.GetProfile)).Methods("GET")
+	r.HandleFunc("/api/profile", authMiddleware.Authenticate(profileHandler.UpdateProfile)).Methods("PUT")
 
-	r.HandleFunc("/api/logout", authMiddleware.Authenticate(authHandler.Logout)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/user/me", authMiddleware.Authenticate(authHandler.Me)).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/profile", authMiddleware.Authenticate(profileHandler.GetProfile)).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/profile", authMiddleware.Authenticate(profileHandler.UpdateProfile)).Methods("PUT", "OPTIONS")
+	r.HandleFunc("/api/places", placeHandler.List).Methods("GET")
+	r.HandleFunc("/api/places/{id:[0-9]+}", placeHandler.GetDetails).Methods("GET")
+	r.HandleFunc("/api/places/{id:[0-9]+}/reviews", placeHandler.GetReviews).Methods("GET")
 
-	r.HandleFunc("/api/trips", authMiddleware.Authenticate(tripHandler.List)).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/trips", authMiddleware.Authenticate(tripHandler.Create)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/trips/{id:[0-9]+}", authMiddleware.Authenticate(tripHandler.Get)).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/trips/{id:[0-9]+}", authMiddleware.Authenticate(tripHandler.Update)).Methods("PUT", "OPTIONS")
-	r.HandleFunc("/api/trips/{id:[0-9]+}", authMiddleware.Authenticate(tripHandler.Delete)).Methods("DELETE", "OPTIONS")
+	r.HandleFunc("/api/trips", authMiddleware.Authenticate(tripHandler.List)).Methods("GET")
+	r.HandleFunc("/api/trips", authMiddleware.Authenticate(tripHandler.Create)).Methods("POST")
+	r.HandleFunc("/api/trips/{id:[0-9]+}", authMiddleware.Authenticate(tripHandler.GetDetails)).Methods("GET")
+	r.HandleFunc("/api/trips/{id:[0-9]+}", authMiddleware.Authenticate(tripHandler.Update)).Methods("PUT")
+	r.HandleFunc("/api/trips/{id:[0-9]+}", authMiddleware.Authenticate(tripHandler.Delete)).Methods("DELETE")
 
-	r.HandleFunc("/api/reviews", authMiddleware.Authenticate(reviewHandler.Create)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/reviews/{id:[0-9]+}", authMiddleware.Authenticate(reviewHandler.Delete)).Methods("DELETE", "OPTIONS")
+	r.HandleFunc("/api/reviews", authMiddleware.Authenticate(reviewHandler.Create)).Methods("POST")
+	r.HandleFunc("/api/reviews/{id:[0-9]+}", authMiddleware.Authenticate(reviewHandler.Delete)).Methods("DELETE")
 
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
-		// csrfMiddleware := csrf.Protect(
-		// 	[]byte(cfg.JWTSecret),
-		// 	csrf.Secure(false),
-		// 	csrf.HttpOnly(true),
-		// 	csrf.Path("/"),
-		// )
-		r.Use(middleware.CORS)
-		// r.Use(csrfMiddleware)
+	csrfMiddleware := csrf.Protect(
+		[]byte(cfg.JWTSecret),
+		csrf.Secure(false),
+		csrf.HttpOnly(true),
+		csrf.Path("/"),
+	)
+	r.Use(csrfMiddleware)
+	r.Use(middleware.CORS(cfg.FrontendURL))
 
 	log.Printf("Server started on :%s", cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, r))

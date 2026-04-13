@@ -2,10 +2,8 @@ package service
 
 import (
 	"context"
-	"errors"
 	"guidely-app/internal/models"
 	"guidely-app/internal/repository"
-	"guidely-app/internal/utils"
 )
 
 type ProfileService struct {
@@ -16,46 +14,40 @@ func NewProfileService(userRepo repository.UserRepository) *ProfileService {
 	return &ProfileService{userRepo: userRepo}
 }
 
-func (s *ProfileService) GetProfile(ctx context.Context, userID uint64) (*models.User, error) {
-	user, err := s.userRepo.GetByID(ctx, userID)
-	if err != nil {
-		return nil, errors.New("user not found")
-	}
-	return user, nil
+type UpdateProfileInput struct {
+	Nickname  *string
+	AvatarURL *string
+	Country   *string
+	City      *string
+	About     *string
 }
 
-func (s *ProfileService) UpdateProfile(ctx context.Context, userID uint64, nickname, avatarURL string) (*models.User, error) {
+func (s *ProfileService) GetProfile(ctx context.Context, userID uint64) (*models.User, error) {
+	return s.userRepo.GetByID(ctx, userID)
+}
+
+func (s *ProfileService) UpdateProfile(ctx context.Context, userID uint64, input UpdateProfileInput) (*models.User, error) {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		return nil, errors.New("user not found")
+		return nil, err
 	}
-	if nickname != "" {
-		user.Nickname = nickname
+	if input.Nickname != nil {
+		user.Nickname = *input.Nickname
 	}
-	if avatarURL != "" {
-		user.AvatarURL = avatarURL
+	if input.AvatarURL != nil {
+		user.AvatarURL = *input.AvatarURL
+	}
+	if input.Country != nil {
+		user.Country = input.Country
+	}
+	if input.City != nil {
+		user.City = input.City
+	}
+	if input.About != nil {
+		user.About = input.About
 	}
 	if err := s.userRepo.Update(ctx, user); err != nil {
-		return nil, errors.New("failed to update profile")
+		return nil, err
 	}
 	return user, nil
-}
-
-func (s *ProfileService) ChangePassword(ctx context.Context, userID uint64, oldPassword, newPassword string) error {
-	user, err := s.userRepo.GetByID(ctx, userID)
-	if err != nil {
-		return errors.New("user not found")
-	}
-	if !utils.CheckPasswordHash(oldPassword, user.PasswordHash) {
-		return errors.New("invalid old password")
-	}
-	if len(newPassword) < 8 {
-		return errors.New("password must be at least 8 characters")
-	}
-	hashedPassword, err := utils.HashPassword(newPassword)
-	if err != nil {
-		return errors.New("failed to hash password")
-	}
-	user.PasswordHash = hashedPassword
-	return s.userRepo.Update(ctx, user)
 }

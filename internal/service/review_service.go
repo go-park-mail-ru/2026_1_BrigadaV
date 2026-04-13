@@ -9,16 +9,17 @@ import (
 )
 
 type ReviewService struct {
-	reviewRepo repository.ReviewRepository
+	reviewRepo *repository.ReviewRepo
 }
 
-func NewReviewService(reviewRepo repository.ReviewRepository) *ReviewService {
+func NewReviewService(reviewRepo *repository.ReviewRepo) *ReviewService {
 	return &ReviewService{reviewRepo: reviewRepo}
 }
 
 type CreateReviewInput struct {
 	UserID    uint64
 	PlaceID   uint64
+	Title     *string
 	Rating    int16
 	Comment   string
 	VisitDate *time.Time
@@ -31,6 +32,7 @@ func (s *ReviewService) Create(ctx context.Context, input CreateReviewInput) (*m
 	review := &models.Review{
 		UserID:    input.UserID,
 		PlaceID:   input.PlaceID,
+		Title:     input.Title,
 		Rating:    input.Rating,
 		Comment:   input.Comment,
 		VisitDate: input.VisitDate,
@@ -41,17 +43,13 @@ func (s *ReviewService) Create(ctx context.Context, input CreateReviewInput) (*m
 	return review, nil
 }
 
-func (s *ReviewService) GetByPlace(ctx context.Context, placeID uint64) ([]models.Review, error) {
-	return s.reviewRepo.GetByPlaceID(ctx, placeID)
-}
-
 func (s *ReviewService) Delete(ctx context.Context, userID, reviewID uint64) error {
 	review, err := s.reviewRepo.GetByID(ctx, reviewID)
 	if err != nil || review == nil {
 		return errors.New("review not found")
 	}
 	if review.UserID != userID {
-		return errors.New("not authorized to delete this review")
+		return errors.New("not authorized")
 	}
 	return s.reviewRepo.Delete(ctx, reviewID)
 }

@@ -1,19 +1,17 @@
 package dto
 
 type RegisterRequest struct {
-	Login    string `json:"login"`
-	Password string `json:"password"`
 	Nickname string `json:"nickname"`
+	Password string `json:"password"`
 }
 
 type LoginRequest struct {
-	Login    string `json:"login"`
+	Nickname string `json:"nickname"`
 	Password string `json:"password"`
 }
 
 type LoginResponse struct {
 	UserID    uint64 `json:"user_id"`
-	Login   	string `json:"login"`
 	Nickname  string `json:"nickname"`
 	AvatarURL string `json:"avatar_url"`
 }
