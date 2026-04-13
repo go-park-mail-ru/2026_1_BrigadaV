@@ -11,6 +11,10 @@ type Place struct {
 	Price       int64
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+
+	Locality   Locality   `json:"locality,omitempty"`
+  Category   Category   `json:"category,omitempty"`
+  Photos     []PlacePhoto `json:"photos,omitempty"`
 }
 
 type PlaceWithRating struct {

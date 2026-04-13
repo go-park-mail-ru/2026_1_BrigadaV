@@ -8,4 +8,5 @@ type PlacePhoto struct {
 	PhotoID   uint64
 	IsMain    bool
 	CreatedAt time.Time
+	Photo     Photo
 }

@@ -66,7 +66,7 @@ func (h *PlaceHandler) List(w http.ResponseWriter, r *http.Request) {
 				pr.Photos[i] = dto.PlacePhotoDTO{
 					ID:       ph.ID,
 					PlaceID:  ph.PlaceID,
-					FilePath: ph.FilePath,
+					FilePath: ph.Photo.FilePath,
 					IsMain:   ph.IsMain,
 				}
 			}
