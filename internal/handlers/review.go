@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"guidely-app/internal/dto"
 	"guidely-app/internal/service"
-	"guidely-app/internal/utils"
 	"net/http"
 	"strconv"
 
@@ -20,14 +19,17 @@ func NewReviewHandler(reviewService *service.ReviewService) *ReviewHandler {
 }
 
 func (h *ReviewHandler) Create(w http.ResponseWriter, r *http.Request) {
-	userID, err := utils.GetUserIDFromContext(r)
-	if err != nil {
-		utils.WriteJSONError(w, err, http.StatusUnauthorized)
+	userIDVal := r.Context().Value("user_id")
+	userID, ok := userIDVal.(uint64)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
 	var req dto.CreateReviewRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteJSONError(w, utils.ErrBadRequest, http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
 	}
 	input := service.CreateReviewInput{
@@ -36,30 +38,36 @@ func (h *ReviewHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Title:     req.Title,
 		Rating:    req.Rating,
 		Comment:   req.Content,
-		VisitDate: utils.ParseDatePtr(req.VisitDate),
+		VisitDate: parseDatePtr(req.VisitDate),
 	}
-	_, err = h.reviewService.Create(r.Context(), input)
+	_, err := h.reviewService.Create(r.Context(), input)
 	if err != nil {
-		utils.WriteJSONError(w, err, http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
-	utils.WriteJSON(w, map[string]string{"message": "ok"}, http.StatusCreated)
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]string{"message": "ok"})
 }
 
 func (h *ReviewHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	userID, err := utils.GetUserIDFromContext(r)
-	if err != nil {
-		utils.WriteJSONError(w, err, http.StatusUnauthorized)
+	userIDVal := r.Context().Value("user_id")
+	userID, ok := userIDVal.(uint64)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
-		utils.WriteJSONError(w, utils.ErrBadRequest, http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid review id"})
 		return
 	}
 	if err := h.reviewService.Delete(r.Context(), userID, id); err != nil {
-		utils.WriteJSONError(w, err, http.StatusForbidden)
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

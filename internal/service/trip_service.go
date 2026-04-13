@@ -61,7 +61,10 @@ func (s *TripService) GetUserTrips(ctx context.Context, userID uint64) ([]models
 
 func (s *TripService) GetTripDetails(ctx context.Context, tripID uint64) (*models.Trip, []models.PlaceInTrip, error) {
 	trip, err := s.tripRepo.GetByID(ctx, tripID)
-	if err != nil || trip == nil {
+	if err != nil {
+		return nil, nil, err
+	}
+	if trip == nil {
 		return nil, nil, errors.New("trip not found")
 	}
 	places, err := s.tripRepo.GetAttractions(ctx, tripID)

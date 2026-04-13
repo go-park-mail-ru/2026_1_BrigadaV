@@ -19,24 +19,32 @@ func NewAuthService(userRepo *repository.UserRepo, sessionRepo *repository.Sessi
 }
 
 type RegisterInput struct {
-	Nickname string
+	Email    string
 	Password string
+	Nickname string
 }
 
 type LoginInput struct {
-	Nickname string
+	Email    string
 	Password string
 }
 
 func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*models.User, string, error) {
+	if !utils.IsValidEmail(input.Email) {
+		return nil, "", errors.New("invalid email format")
+	}
 	if !utils.IsValidNickname(input.Nickname) {
 		return nil, "", errors.New("nickname must be at least 3 characters and max 50")
 	}
 	if len(input.Password) < 8 {
 		return nil, "", errors.New("password must be at least 8 characters")
 	}
-	existing, _ := s.userRepo.GetByNickname(ctx, input.Nickname)
+	existing, _ := s.userRepo.GetByEmail(ctx, input.Email)
 	if existing != nil {
+		return nil, "", errors.New("email already exists")
+	}
+	existingNick, _ := s.userRepo.GetByNickname(ctx, input.Nickname)
+	if existingNick != nil {
 		return nil, "", errors.New("nickname already exists")
 	}
 	hashed, err := utils.HashPassword(input.Password)
@@ -44,6 +52,7 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*model
 		return nil, "", err
 	}
 	user := &models.User{
+		Email:        input.Email,
 		Nickname:     input.Nickname,
 		AvatarURL:    "",
 		PasswordHash: hashed,
@@ -67,7 +76,7 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*model
 }
 
 func (s *AuthService) Login(ctx context.Context, input LoginInput) (*models.User, string, error) {
-	user, err := s.userRepo.GetByNickname(ctx, input.Nickname)
+	user, err := s.userRepo.GetByEmail(ctx, input.Email)
 	if err != nil || user == nil {
 		return nil, "", errors.New("invalid credentials")
 	}

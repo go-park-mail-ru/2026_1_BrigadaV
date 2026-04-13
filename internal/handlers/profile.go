@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"guidely-app/internal/dto"
 	"guidely-app/internal/service"
-	"guidely-app/internal/utils"
 	"net/http"
 )
 
@@ -17,14 +16,17 @@ func NewProfileHandler(profileService *service.ProfileService) *ProfileHandler {
 }
 
 func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
-	userID, err := utils.GetUserIDFromContext(r)
-	if err != nil {
-		utils.WriteJSONError(w, err, http.StatusUnauthorized)
+	userIDVal := r.Context().Value("user_id")
+	userID, ok := userIDVal.(uint64)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
 	user, err := h.profileService.GetProfile(r.Context(), userID)
 	if err != nil {
-		utils.WriteJSONError(w, utils.ErrNotFound, http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
 		return
 	}
 	response := dto.ProfileResponse{
@@ -37,18 +39,22 @@ func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		HasReviews: user.HasReviews,
 		CreatedAt:  user.CreatedAt,
 	}
-	utils.WriteJSON(w, response, http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
-	userID, err := utils.GetUserIDFromContext(r)
-	if err != nil {
-		utils.WriteJSONError(w, err, http.StatusUnauthorized)
+	userIDVal := r.Context().Value("user_id")
+	userID, ok := userIDVal.(uint64)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
 	var req dto.UpdateProfileRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteJSONError(w, utils.ErrBadRequest, http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
 	}
 	input := service.UpdateProfileInput{
@@ -60,7 +66,8 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := h.profileService.UpdateProfile(r.Context(), userID, input)
 	if err != nil {
-		utils.WriteJSONError(w, err, http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 	response := dto.ProfileResponse{
@@ -73,5 +80,6 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		HasReviews: user.HasReviews,
 		CreatedAt:  user.CreatedAt,
 	}
-	utils.WriteJSON(w, response, http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"guidely-app/internal/dto"
 	"guidely-app/internal/service"
-	"guidely-app/internal/utils"
 	"net/http"
 	"time"
 )
@@ -20,27 +19,22 @@ func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req dto.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteJSONError(w, utils.ErrBadRequest, http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
 	}
 	user, token, err := h.authService.Register(r.Context(), service.RegisterInput{
-		Nickname: req.Nickname,
+		Email:    req.Email,
 		Password: req.Password,
+		Nickname: req.Nickname,
 	})
 	if err != nil {
-		if err.Error() == "nickname already exists" {
-			utils.WriteJSONErrorWithField(w, err, "nickname", http.StatusConflict)
-			return
+		status := http.StatusBadRequest
+		if err.Error() == "email already exists" || err.Error() == "nickname already exists" {
+			status = http.StatusConflict
 		}
-		if err.Error() == "nickname must be at least 3 characters and max 50" {
-			utils.WriteJSONErrorWithField(w, err, "nickname", http.StatusBadRequest)
-			return
-		}
-		if err.Error() == "password must be at least 8 characters" {
-			utils.WriteJSONErrorWithField(w, err, "password", http.StatusBadRequest)
-			return
-		}
-		utils.WriteJSONError(w, err, http.StatusBadRequest)
+		w.WriteHeader(status)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 	http.SetCookie(w, &http.Cookie{
@@ -62,15 +56,17 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req dto.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteJSONError(w, utils.ErrBadRequest, http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
 	}
 	user, token, err := h.authService.Login(r.Context(), service.LoginInput{
-		Nickname: req.Nickname,
+		Email:    req.Email,
 		Password: req.Password,
 	})
 	if err != nil {
-		utils.WriteJSONError(w, utils.ErrInvalidCredentials, http.StatusUnauthorized)
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid credentials"})
 		return
 	}
 	http.SetCookie(w, &http.Cookie{
@@ -92,11 +88,13 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("session_token")
 	if err != nil {
-		utils.WriteJSONError(w, utils.ErrUnauthorized, http.StatusUnauthorized)
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
 	if err := h.authService.Logout(r.Context(), cookie.Value); err != nil {
-		utils.WriteJSONError(w, utils.ErrInternal, http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "logout failed"})
 		return
 	}
 	http.SetCookie(w, &http.Cookie{
@@ -111,14 +109,17 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
-	userID, err := utils.GetUserIDFromContext(r)
-	if err != nil {
-		utils.WriteJSONError(w, err, http.StatusUnauthorized)
+	userIDVal := r.Context().Value("user_id")
+	userID, ok := userIDVal.(uint64)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
 	user, err := h.authService.GetUserByID(r.Context(), userID)
 	if err != nil {
-		utils.WriteJSONError(w, utils.ErrNotFound, http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
 		return
 	}
 	json.NewEncoder(w).Encode(dto.LoginResponse{

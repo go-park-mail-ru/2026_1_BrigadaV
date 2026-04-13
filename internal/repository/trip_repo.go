@@ -37,6 +37,9 @@ func (r *TripRepo) GetByID(ctx context.Context, id uint64) (*models.Trip, error)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
+	if err != nil {
+		return nil, err
+	}
 	return &trip, err
 }
 
@@ -85,12 +88,12 @@ func (r *TripRepo) AddAttraction(ctx context.Context, tripID, placeID uint64, or
 func (r *TripRepo) GetAttractions(ctx context.Context, tripID uint64) ([]models.PlaceInTrip, error) {
 	query := `
         SELECT p.id, p.name, p.description, COALESCE(AVG(r.rating), 0) as rating,
-               (SELECT photo_id FROM place_photo WHERE place_id = p.id AND is_main = true LIMIT 1) as image_photo_id
+       (SELECT photo_id FROM place_photo WHERE place_id = p.id AND is_main = true LIMIT 1) as image_photo_id
         FROM trip_attractions ta
         JOIN place p ON ta.place_id = p.id
         LEFT JOIN review r ON r.place_id = p.id
         WHERE ta.trip_id = $1
-        GROUP BY p.id
+        GROUP BY p.id, p.name, p.description, p.photo_url
         ORDER BY ta.order_index
     `
 	rows, err := r.db.Query(ctx, query, tripID)
@@ -101,16 +104,8 @@ func (r *TripRepo) GetAttractions(ctx context.Context, tripID uint64) ([]models.
 	var places []models.PlaceInTrip
 	for rows.Next() {
 		var pl models.PlaceInTrip
-		var imagePhotoID *uint64
-		if err := rows.Scan(&pl.ID, &pl.Name, &pl.Description, &pl.Rating, &imagePhotoID); err != nil {
+		if err := rows.Scan(&pl.ID, &pl.Name, &pl.Description, &pl.PhotoURL, &pl.Rating); err != nil {
 			return nil, err
-		}
-		if imagePhotoID != nil {
-			var filePath string
-			err = r.db.QueryRow(ctx, `SELECT file_path FROM photo WHERE id = $1`, *imagePhotoID).Scan(&filePath)
-			if err == nil {
-				pl.Image = &filePath
-			}
 		}
 		places = append(places, pl)
 	}

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"guidely-app/internal/dto"
 	"guidely-app/internal/service"
-	"guidely-app/internal/utils"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -24,7 +24,7 @@ func parseDatePtr(s *string) *time.Time {
 	if s == nil || *s == "" {
 		return nil
 	}
-	t, err := time.Parse(time.DateOnly, *s)
+	t, err := time.Parse("2006-01-02", *s)
 	if err != nil {
 		return nil
 	}
@@ -32,14 +32,17 @@ func parseDatePtr(s *string) *time.Time {
 }
 
 func (h *TripHandler) List(w http.ResponseWriter, r *http.Request) {
-	userID, err := utils.GetUserIDFromContext(r)
-	if err != nil {
-		utils.WriteJSONError(w, err, http.StatusUnauthorized)
+	userIDVal := r.Context().Value("user_id")
+	userID, ok := userIDVal.(uint64)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
 	trips, err := h.tripService.GetUserTrips(r.Context(), userID)
 	if err != nil {
-		utils.WriteJSONError(w, utils.ErrInternal, http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch trips"})
 		return
 	}
 	response := make([]dto.TripResponse, len(trips))
@@ -53,18 +56,22 @@ func (h *TripHandler) List(w http.ResponseWriter, r *http.Request) {
 			Preview:   t.PreviewURL,
 		}
 	}
-	utils.WriteJSON(w, response, http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *TripHandler) Create(w http.ResponseWriter, r *http.Request) {
-	userID, err := utils.GetUserIDFromContext(r)
-	if err != nil {
-		utils.WriteJSONError(w, err, http.StatusUnauthorized)
+	userIDVal := r.Context().Value("user_id")
+	userID, ok := userIDVal.(uint64)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
 	var req dto.CreateTripRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteJSONError(w, utils.ErrBadRequest, http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
 	}
 	input := service.CreateTripInput{
@@ -78,25 +85,41 @@ func (h *TripHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	trip, err := h.tripService.Create(r.Context(), input)
 	if err != nil {
-		utils.WriteJSONError(w, err, http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
-	utils.WriteJSON(w, dto.CreateTripResponse{
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(dto.CreateTripResponse{
 		ID:      trip.ID,
 		Preview: trip.PreviewURL,
-	}, http.StatusCreated)
+	})
 }
 
 func (h *TripHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, err := strconv.ParseUint(vars["id"], 10, 64)
+	idStr, ok := vars["id"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "missing trip id"})
+		return
+	}
+	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		utils.WriteJSONError(w, utils.ErrBadRequest, http.StatusBadRequest)
+		log.Printf("GetTripDetails error: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip id"})
 		return
 	}
 	trip, places, err := h.tripService.GetTripDetails(r.Context(), id)
 	if err != nil {
-		utils.WriteJSONError(w, utils.ErrNotFound, http.StatusNotFound)
+		if err.Error() == "trip not found" {
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{"error": "trip not found"})
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "internal server error"})
 		return
 	}
 	response := dto.TripDetailsResponse{
@@ -108,24 +131,29 @@ func (h *TripHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
 		Preview:     trip.PreviewURL,
 		Attractions: places,
 	}
-	utils.WriteJSON(w, response, http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *TripHandler) Update(w http.ResponseWriter, r *http.Request) {
-	userID, err := utils.GetUserIDFromContext(r)
-	if err != nil {
-		utils.WriteJSONError(w, err, http.StatusUnauthorized)
+	userIDVal := r.Context().Value("user_id")
+	userID, ok := userIDVal.(uint64)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
-		utils.WriteJSONError(w, utils.ErrBadRequest, http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip id"})
 		return
 	}
 	var req dto.UpdateTripRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteJSONError(w, utils.ErrBadRequest, http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
 	}
 	input := service.UpdateTripInput{
@@ -139,26 +167,32 @@ func (h *TripHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	_, err = h.tripService.Update(r.Context(), id, userID, input)
 	if err != nil {
-		utils.WriteJSONError(w, err, http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
-	utils.WriteJSON(w, map[string]string{"message": "ok"}, http.StatusOK)
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "ok"})
 }
 
 func (h *TripHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	userID, err := utils.GetUserIDFromContext(r)
-	if err != nil {
-		utils.WriteJSONError(w, err, http.StatusUnauthorized)
+	userIDVal := r.Context().Value("user_id")
+	userID, ok := userIDVal.(uint64)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
-		utils.WriteJSONError(w, utils.ErrBadRequest, http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip id"})
 		return
 	}
 	if err := h.tripService.Delete(r.Context(), id, userID); err != nil {
-		utils.WriteJSONError(w, err, http.StatusForbidden)
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

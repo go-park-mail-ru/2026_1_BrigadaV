@@ -1,9 +1,9 @@
 package handlers
 
 import (
+	"encoding/json"
 	"guidely-app/internal/dto"
 	"guidely-app/internal/service"
-	"guidely-app/internal/utils"
 	"net/http"
 	"strconv"
 
@@ -21,10 +21,10 @@ func NewPlaceHandler(placeService *service.PlaceService) *PlaceHandler {
 func (h *PlaceHandler) List(w http.ResponseWriter, r *http.Request) {
 	places, err := h.placeService.GetAll(r.Context())
 	if err != nil {
-		utils.WriteJSONError(w, utils.ErrInternal, http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch places"})
 		return
 	}
-
 	userIDVal := r.Context().Value("user_id")
 	var userID uint64
 	if userIDVal != nil {
@@ -33,7 +33,6 @@ func (h *PlaceHandler) List(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	_ = userID
-
 	response := make([]dto.PlaceResponse, 0, len(places))
 	for _, p := range places {
 		liked := false
@@ -73,37 +72,49 @@ func (h *PlaceHandler) List(w http.ResponseWriter, r *http.Request) {
 		}
 		response = append(response, pr)
 	}
-
-	utils.WriteJSON(w, response, http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *PlaceHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
-		utils.WriteJSONError(w, utils.ErrBadRequest, http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid place id"})
 		return
 	}
-	userID, _ := utils.GetUserIDFromContext(r)
+	userIDVal := r.Context().Value("user_id")
+	var userID uint64
+	if userIDVal != nil {
+		if id, ok := userIDVal.(uint64); ok {
+			userID = id
+		}
+	}
 	place, err := h.placeService.GetDetails(r.Context(), id, userID)
 	if err != nil {
-		utils.WriteJSONError(w, utils.ErrNotFound, http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "place not found"})
 		return
 	}
-	utils.WriteJSON(w, place, http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(place)
 }
 
 func (h *PlaceHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
-		utils.WriteJSONError(w, utils.ErrBadRequest, http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid place id"})
 		return
 	}
 	reviews, err := h.placeService.GetReviews(r.Context(), id)
 	if err != nil {
-		utils.WriteJSONError(w, utils.ErrInternal, http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch reviews"})
 		return
 	}
-	utils.WriteJSON(w, reviews, http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(reviews)
 }
