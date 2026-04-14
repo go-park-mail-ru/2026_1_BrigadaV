@@ -86,14 +86,18 @@ func (r *PlaceRepo) GetAll(ctx context.Context) ([]models.Place, error) {
         }
 
         if placePhotoID != nil && photoFilePath != nil {
-            photo := models.PlacePhoto{
-                ID:       *placePhotoID,
-                PlaceID:  p.ID,
-                PhotoID:  *placePhotoID,
-                IsMain:   isMain != nil && *isMain,
-            }
-            placesMap[p.ID].Photos = append(placesMap[p.ID].Photos, photo)
-        }
+    photo := models.PlacePhoto{
+        ID:       *placePhotoID,
+        PlaceID:  p.ID,
+        PhotoID:  *placePhotoID,
+        Photo: models.Photo{
+            ID:       *placePhotoID,
+            FilePath: *photoFilePath,
+        },
+        IsMain:   isMain != nil && *isMain,
+    }
+    placesMap[p.ID].Photos = append(placesMap[p.ID].Photos, photo)
+}
     }
 
     var places []models.Place
