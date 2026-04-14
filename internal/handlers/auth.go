@@ -6,6 +6,7 @@ import (
 	"guidely-app/internal/service"
 	"net/http"
 	"time"
+	"log"
 )
 
 type AuthHandler struct {
@@ -17,18 +18,24 @@ func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
+	log.Println("Register called")
+	
 	var req dto.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("Failed to decode request: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
 	}
+	
+	log.Printf("Register request: email=%s, nickname=%s", req.Email, req.Nickname)
 	user, token, err := h.authService.Register(r.Context(), service.RegisterInput{
 		Email:    req.Email,
 		Password: req.Password,
 		Nickname: req.Nickname,
 	})
 	if err != nil {
+		log.Printf("Registration failed: %v", err)
 		status := http.StatusBadRequest
 		if err.Error() == "email already exists" || err.Error() == "nickname already exists" {
 			status = http.StatusConflict
@@ -37,6 +44,9 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
+	log.Printf("User registered: id=%d, email=%s", user.ID, user.Email)
+
+	
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
 		Value:    token,
