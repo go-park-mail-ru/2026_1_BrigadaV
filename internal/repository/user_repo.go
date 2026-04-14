@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"log"
 )
 
 type UserRepo struct {
@@ -25,6 +26,7 @@ func (r *UserRepo) Create(ctx context.Context, user *models.User) error {
 }
 
 func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*models.User, error) {
+	log.Println("GetByEmail called with email:", email)
 	query := `SELECT id, email, nickname, avatar_url, password_hash, country, city, about, has_reviews, created_at, updated_at 
               FROM "user" WHERE email = $1`
 	var user models.User
@@ -36,6 +38,11 @@ func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*models.User, 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
+	if err != nil {
+        log.Println("Database error:", err)
+        return nil, err
+	}
+	log.Println("User found:", user.Email) 
 	return &user, err
 }
 
