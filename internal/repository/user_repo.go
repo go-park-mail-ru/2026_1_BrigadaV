@@ -25,12 +25,12 @@ func (r *UserRepo) Create(ctx context.Context, user *models.User) error {
 		user.Country, user.City, user.About).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
 }
 
-func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*models.User, error) {
-	log.Println("GetByEmail called with email:", email)
+func (r *UserRepo) GetByEmail(ctx context.Context, login string) (*models.User, error) {
+	log.Println("GetByEmail called with email:", login)
 	query := `SELECT id, login, nickname, avatar_url, password_hash, country, city, about, has_reviews, created_at, updated_at 
-              FROM "user" WHERE email = $1`
+              FROM "user" WHERE login = $1`
 	var user models.User
-	err := r.db.QueryRow(ctx, query, email).Scan(
+	err := r.db.QueryRow(ctx, query, login).Scan(
 		&user.ID, &user.Login, &user.Nickname, &user.AvatarURL, &user.PasswordHash,
 		&user.Country, &user.City, &user.About, &user.HasReviews,
 		&user.CreatedAt, &user.UpdatedAt,
