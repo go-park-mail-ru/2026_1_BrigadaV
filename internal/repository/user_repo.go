@@ -6,14 +6,13 @@ import (
 	"guidely-app/internal/models"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type UserRepo struct {
-	db *pgxpool.Pool
+	db DB
 }
 
-func NewUserRepo(db *pgxpool.Pool) *UserRepo {
+func NewUserRepo(db DB) *UserRepo {
 	return &UserRepo{db: db}
 }
 

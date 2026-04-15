@@ -17,12 +17,12 @@ func TestProfileService_GetProfile(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockUserRepo := mocks.NewMockUserRepository(ctrl)
-	service := NewProfileService(mockUserRepo)
+	svc := NewProfileService(mockUserRepo)
 
 	expectedUser := &models.User{ID: 1, Nickname: "johnny"}
 	mockUserRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(expectedUser, nil)
 
-	user, err := service.GetProfile(context.Background(), 1)
+	user, err := svc.GetProfile(context.Background(), 1)
 	assert.NoError(t, err)
 	assert.Equal(t, "johnny", user.Nickname)
 }
@@ -32,7 +32,7 @@ func TestProfileService_UpdateProfile(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockUserRepo := mocks.NewMockUserRepository(ctrl)
-	service := NewProfileService(mockUserRepo)
+	svc := NewProfileService(mockUserRepo)
 
 	existingUser := &models.User{ID: 1, Nickname: "old", AvatarURL: "/old.jpg"}
 	mockUserRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(existingUser, nil)
@@ -46,7 +46,7 @@ func TestProfileService_UpdateProfile(t *testing.T) {
 		Nickname:  testutil.PtrString("new"),
 		AvatarURL: testutil.PtrString("/new.jpg"),
 	}
-	user, err := service.UpdateProfile(context.Background(), 1, input)
+	user, err := svc.UpdateProfile(context.Background(), 1, input)
 	assert.NoError(t, err)
 	assert.Equal(t, "new", user.Nickname)
 }

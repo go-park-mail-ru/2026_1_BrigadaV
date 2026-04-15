@@ -28,11 +28,13 @@ func main() {
 	}
 	defer dbPool.Close()
 
-	userRepo := repository.NewUserRepo(dbPool)
-	sessionRepo := repository.NewSessionRepo(dbPool)
-	placeRepo := repository.NewPlaceRepo(dbPool)
-	tripRepo := repository.NewTripRepo(dbPool)
-	reviewRepo := repository.NewReviewRepo(dbPool)
+	dbAdapter := &repository.PgxPoolAdapter{Pool: dbPool}
+
+	userRepo := repository.NewUserRepo(dbAdapter)
+	sessionRepo := repository.NewSessionRepo(dbAdapter)
+	placeRepo := repository.NewPlaceRepo(dbAdapter)
+	tripRepo := repository.NewTripRepo(dbAdapter)
+	reviewRepo := repository.NewReviewRepo(dbAdapter)
 
 	authService := service.NewAuthService(userRepo, sessionRepo)
 	placeService := service.NewPlaceService(placeRepo, reviewRepo)

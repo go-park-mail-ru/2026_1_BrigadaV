@@ -29,7 +29,7 @@ func TestTripRepo_Create(t *testing.T) {
 		IsPublic:   true,
 	}
 
-	rows := mockPool.NewRows([]string{"id", "created_at", "updated_at"}).AddRow(1, time.Now(), time.Now())
+	rows := mockPool.NewRows([]string{"id", "created_at", "updated_at"}).AddRow(uint64(1), time.Now(), time.Now())
 
 	mockPool.ExpectQuery(`INSERT INTO trip \(title, description, location, start_date, end_date, preview_url, created_by, is_public\)`).
 		WithArgs(trip.Title, trip.Description, trip.Location, trip.StartDate, trip.EndDate, trip.PreviewURL, trip.CreatedBy, trip.IsPublic).
@@ -49,8 +49,11 @@ func TestTripRepo_GetByID(t *testing.T) {
 
 	repo := NewTripRepo(mockPool)
 
+	location := "Paris"
+	previewURL := "/preview.jpg"
+
 	rows := mockPool.NewRows([]string{"id", "title", "description", "location", "start_date", "end_date", "preview_url", "created_by", "is_public", "created_at", "updated_at"}).
-		AddRow(1, "My Trip", nil, "Paris", nil, nil, "/preview.jpg", 1, true, time.Now(), time.Now())
+		AddRow(uint64(1), "My Trip", nil, &location, nil, nil, &previewURL, uint64(1), true, time.Now(), time.Now())
 
 	mockPool.ExpectQuery(`SELECT id, title, description, location, start_date, end_date, preview_url, created_by, is_public, created_at, updated_at FROM trip WHERE id = \$1`).
 		WithArgs(uint64(1)).
@@ -71,9 +74,14 @@ func TestTripRepo_GetByUser(t *testing.T) {
 
 	repo := NewTripRepo(mockPool)
 
+	location1 := "Paris"
+	preview1 := "/preview1.jpg"
+	location2 := "London"
+	preview2 := "/preview2.jpg"
+
 	rows := mockPool.NewRows([]string{"id", "title", "description", "location", "start_date", "end_date", "preview_url", "created_by", "is_public", "created_at", "updated_at"}).
-		AddRow(1, "Trip1", nil, "Paris", nil, nil, "/preview1.jpg", 1, true, time.Now(), time.Now()).
-		AddRow(2, "Trip2", nil, "London", nil, nil, "/preview2.jpg", 1, false, time.Now(), time.Now())
+		AddRow(uint64(1), "Trip1", nil, &location1, nil, nil, &preview1, uint64(1), true, time.Now(), time.Now()).
+		AddRow(uint64(2), "Trip2", nil, &location2, nil, nil, &preview2, uint64(1), false, time.Now(), time.Now())
 
 	mockPool.ExpectQuery(`SELECT id, title, description, location, start_date, end_date, preview_url, created_by, is_public, created_at, updated_at FROM trip WHERE created_by = \$1 ORDER BY created_at DESC`).
 		WithArgs(uint64(1)).
@@ -104,7 +112,7 @@ func TestTripRepo_Update(t *testing.T) {
 	rows := mockPool.NewRows([]string{"updated_at"}).AddRow(time.Now())
 
 	mockPool.ExpectQuery(`UPDATE trip SET title = \$1, description = \$2, location = \$3, start_date = \$4, end_date = \$5, preview_url = \$6, is_public = \$7, updated_at = NOW\(\) WHERE id = \$8 RETURNING updated_at`).
-		WithArgs(trip.Title, trip.Description, trip.Location, trip.StartDate, trip.EndDate, trip.PreviewURL, trip.IsPublic, trip.ID).
+		WithArgs(trip.Title, trip.Description, trip.Location, trip.StartDate, trip.EndDate, trip.PreviewURL, trip.IsPublic, uint64(1)).
 		WillReturnRows(rows)
 
 	err = repo.Update(context.Background(), trip)
@@ -154,10 +162,12 @@ func TestTripRepo_GetAttractions(t *testing.T) {
 
 	repo := NewTripRepo(mockPool)
 
-	rows := mockPool.NewRows([]string{"id", "name", "description", "rating", "image_photo_id"}).
-		AddRow(1, "Eiffel Tower", "Famous tower", 4.5, nil)
+	photoURL := "/photos/eiffel.jpg"
+	// В коде GetAttractions сканирование: &pl.ID, &pl.Name, &pl.Description, &pl.PhotoURL, &pl.Rating.
+	// PhotoURL — string, не указатель, поэтому в AddRow передаём саму строку (не &photoURL).
+	rows := mockPool.NewRows([]string{"id", "name", "description", "photo_url", "rating"}).
+		AddRow(uint64(1), "Eiffel Tower", "Famous tower", photoURL, 4.5)
 
-	// В запросе есть COALESCE(AVG(r.rating),0) - pgxmock проверяет только начало запроса
 	mockPool.ExpectQuery(`SELECT p\.id, p\.name, p\.description, COALESCE\(AVG\(r\.rating\), 0\) as rating,`).
 		WithArgs(uint64(1)).
 		WillReturnRows(rows)
@@ -166,6 +176,7 @@ func TestTripRepo_GetAttractions(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, places, 1)
 	assert.Equal(t, "Eiffel Tower", places[0].Name)
+	assert.Equal(t, 4.5, places[0].Rating)
 
 	assert.NoError(t, mockPool.ExpectationsWereMet())
 }

@@ -8,12 +8,12 @@ import (
 	"time"
 )
 
-type TripService struct {
-	tripRepo *repository.TripRepo
+type tripService struct {
+	tripRepo repository.TripRepository
 }
 
-func NewTripService(tripRepo *repository.TripRepo) *TripService {
-	return &TripService{tripRepo: tripRepo}
+func NewTripService(tripRepo repository.TripRepository) TripService {
+	return &tripService{tripRepo: tripRepo}
 }
 
 type CreateTripInput struct {
@@ -36,7 +36,7 @@ type UpdateTripInput struct {
 	IsPublic    *bool
 }
 
-func (s *TripService) Create(ctx context.Context, input CreateTripInput) (*models.Trip, error) {
+func (s *tripService) Create(ctx context.Context, input CreateTripInput) (*models.Trip, error) {
 	if input.Title == "" {
 		return nil, errors.New("title is required")
 	}
@@ -55,11 +55,11 @@ func (s *TripService) Create(ctx context.Context, input CreateTripInput) (*model
 	return trip, nil
 }
 
-func (s *TripService) GetUserTrips(ctx context.Context, userID uint64) ([]models.Trip, error) {
+func (s *tripService) GetUserTrips(ctx context.Context, userID uint64) ([]models.Trip, error) {
 	return s.tripRepo.GetByUser(ctx, userID)
 }
 
-func (s *TripService) GetTripDetails(ctx context.Context, tripID uint64) (*models.Trip, []models.PlaceInTrip, error) {
+func (s *tripService) GetTripDetails(ctx context.Context, tripID uint64) (*models.Trip, []models.PlaceInTrip, error) {
 	trip, err := s.tripRepo.GetByID(ctx, tripID)
 	if err != nil {
 		return nil, nil, err
@@ -74,7 +74,7 @@ func (s *TripService) GetTripDetails(ctx context.Context, tripID uint64) (*model
 	return trip, places, nil
 }
 
-func (s *TripService) Update(ctx context.Context, id, userID uint64, input UpdateTripInput) (*models.Trip, error) {
+func (s *tripService) Update(ctx context.Context, id, userID uint64, input UpdateTripInput) (*models.Trip, error) {
 	trip, err := s.tripRepo.GetByID(ctx, id)
 	if err != nil || trip == nil {
 		return nil, errors.New("trip not found")
@@ -109,7 +109,7 @@ func (s *TripService) Update(ctx context.Context, id, userID uint64, input Updat
 	return trip, nil
 }
 
-func (s *TripService) Delete(ctx context.Context, id, userID uint64) error {
+func (s *tripService) Delete(ctx context.Context, id, userID uint64) error {
 	trip, err := s.tripRepo.GetByID(ctx, id)
 	if err != nil || trip == nil {
 		return errors.New("trip not found")

@@ -8,12 +8,12 @@ import (
 	"time"
 )
 
-type ReviewService struct {
-	reviewRepo *repository.ReviewRepo
+type reviewService struct {
+	reviewRepo repository.ReviewRepository
 }
 
-func NewReviewService(reviewRepo *repository.ReviewRepo) *ReviewService {
-	return &ReviewService{reviewRepo: reviewRepo}
+func NewReviewService(reviewRepo repository.ReviewRepository) ReviewService {
+	return &reviewService{reviewRepo: reviewRepo}
 }
 
 type CreateReviewInput struct {
@@ -25,7 +25,7 @@ type CreateReviewInput struct {
 	VisitDate *time.Time
 }
 
-func (s *ReviewService) Create(ctx context.Context, input CreateReviewInput) (*models.Review, error) {
+func (s *reviewService) Create(ctx context.Context, input CreateReviewInput) (*models.Review, error) {
 	if input.Rating < 1 || input.Rating > 5 {
 		return nil, errors.New("rating must be between 1 and 5")
 	}
@@ -43,7 +43,7 @@ func (s *ReviewService) Create(ctx context.Context, input CreateReviewInput) (*m
 	return review, nil
 }
 
-func (s *ReviewService) Delete(ctx context.Context, userID, reviewID uint64) error {
+func (s *reviewService) Delete(ctx context.Context, userID, reviewID uint64) error {
 	review, err := s.reviewRepo.GetByID(ctx, reviewID)
 	if err != nil || review == nil {
 		return errors.New("review not found")

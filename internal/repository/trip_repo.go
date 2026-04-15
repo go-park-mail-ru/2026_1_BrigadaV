@@ -6,14 +6,13 @@ import (
 	"guidely-app/internal/models"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type TripRepo struct {
-	db *pgxpool.Pool
+	db DB
 }
 
-func NewTripRepo(db *pgxpool.Pool) *TripRepo {
+func NewTripRepo(db DB) *TripRepo {
 	return &TripRepo{db: db}
 }
 

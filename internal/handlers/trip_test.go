@@ -4,14 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"guidely-app/internal/dto"
 	"guidely-app/internal/models"
-	"guidely-app/internal/service/mocks"
+	"guidely-app/internal/repository/mocks"
+	"guidely-app/internal/service"
 	"guidely-app/internal/testutil"
 
 	"github.com/golang/mock/gomock"
@@ -23,8 +23,9 @@ func TestTripHandler_List_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockTripService := mocks.NewMockTripService(ctrl)
-	handler := NewTripHandler(mockTripService)
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo)
+	handler := NewTripHandler(tripService)
 
 	trips := []models.Trip{
 		{ID: 1, Title: "Trip 1", Location: testutil.PtrString("Paris")},
@@ -36,7 +37,7 @@ func TestTripHandler_List_Success(t *testing.T) {
 	req = req.WithContext(ctx)
 	w := httptest.NewRecorder()
 
-	mockTripService.EXPECT().GetUserTrips(gomock.Any(), uint64(1)).Return(trips, nil)
+	mockTripRepo.EXPECT().GetByUser(gomock.Any(), uint64(1)).Return(trips, nil)
 
 	handler.List(w, req)
 
@@ -52,8 +53,9 @@ func TestTripHandler_List_Unauthorized(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockTripService := mocks.NewMockTripService(ctrl)
-	handler := NewTripHandler(mockTripService)
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo)
+	handler := NewTripHandler(tripService)
 
 	req := httptest.NewRequest("GET", "/api/trips", nil)
 	w := httptest.NewRecorder()
@@ -67,8 +69,9 @@ func TestTripHandler_Create_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockTripService := mocks.NewMockTripService(ctrl)
-	handler := NewTripHandler(mockTripService)
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo)
+	handler := NewTripHandler(tripService)
 
 	reqBody := dto.CreateTripRequest{
 		Title:    "My Trip",
@@ -82,8 +85,10 @@ func TestTripHandler_Create_Success(t *testing.T) {
 	req = req.WithContext(ctx)
 	w := httptest.NewRecorder()
 
-	trip := &models.Trip{ID: 1, Title: "My Trip", PreviewURL: testutil.PtrString("/preview.jpg")}
-	mockTripService.EXPECT().Create(gomock.Any(), gomock.Any()).Return(trip, nil)
+	mockTripRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).DoAndReturn(func(_ context.Context, tr *models.Trip) error {
+		tr.ID = 1
+		return nil
+	})
 
 	handler.Create(w, req)
 
@@ -98,8 +103,9 @@ func TestTripHandler_Create_Unauthorized(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockTripService := mocks.NewMockTripService(ctrl)
-	handler := NewTripHandler(mockTripService)
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo)
+	handler := NewTripHandler(tripService)
 
 	reqBody := dto.CreateTripRequest{Title: "My Trip"}
 	body, _ := json.Marshal(reqBody)
@@ -116,8 +122,9 @@ func TestTripHandler_GetDetails_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockTripService := mocks.NewMockTripService(ctrl)
-	handler := NewTripHandler(mockTripService)
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo)
+	handler := NewTripHandler(tripService)
 
 	trip := &models.Trip{ID: 1, Title: "My Trip", Location: testutil.PtrString("Paris")}
 	places := []models.PlaceInTrip{{ID: 1, Name: "Eiffel Tower", Rating: 4.5}}
@@ -126,7 +133,8 @@ func TestTripHandler_GetDetails_Success(t *testing.T) {
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()
 
-	mockTripService.EXPECT().GetTripDetails(gomock.Any(), uint64(1)).Return(trip, places, nil)
+	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(trip, nil)
+	mockTripRepo.EXPECT().GetAttractions(gomock.Any(), uint64(1)).Return(places, nil)
 
 	handler.GetDetails(w, req)
 
@@ -143,14 +151,15 @@ func TestTripHandler_GetDetails_NotFound(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockTripService := mocks.NewMockTripService(ctrl)
-	handler := NewTripHandler(mockTripService)
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo)
+	handler := NewTripHandler(tripService)
 
 	req := httptest.NewRequest("GET", "/api/trips/999", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "999"})
 	w := httptest.NewRecorder()
 
-	mockTripService.EXPECT().GetTripDetails(gomock.Any(), uint64(999)).Return(nil, nil, errors.New("not found"))
+	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(999)).Return(nil, nil)
 
 	handler.GetDetails(w, req)
 
@@ -161,8 +170,9 @@ func TestTripHandler_Update_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockTripService := mocks.NewMockTripService(ctrl)
-	handler := NewTripHandler(mockTripService)
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo)
+	handler := NewTripHandler(tripService)
 
 	reqBody := dto.UpdateTripRequest{Title: testutil.PtrString("Updated Title")}
 	body, _ := json.Marshal(reqBody)
@@ -173,7 +183,9 @@ func TestTripHandler_Update_Success(t *testing.T) {
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()
 
-	mockTripService.EXPECT().Update(gomock.Any(), uint64(1), uint64(1), gomock.Any()).Return(&models.Trip{ID: 1, Title: "Updated Title"}, nil)
+	trip := &models.Trip{ID: 1, Title: "Old Title", CreatedBy: 1}
+	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(trip, nil)
+	mockTripRepo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
 
 	handler.Update(w, req)
 
@@ -188,8 +200,9 @@ func TestTripHandler_Update_Unauthorized(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockTripService := mocks.NewMockTripService(ctrl)
-	handler := NewTripHandler(mockTripService)
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo)
+	handler := NewTripHandler(tripService)
 
 	reqBody := dto.UpdateTripRequest{Title: testutil.PtrString("Updated")}
 	body, _ := json.Marshal(reqBody)
@@ -206,8 +219,9 @@ func TestTripHandler_Delete_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockTripService := mocks.NewMockTripService(ctrl)
-	handler := NewTripHandler(mockTripService)
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo)
+	handler := NewTripHandler(tripService)
 
 	req := httptest.NewRequest("DELETE", "/api/trips/1", nil)
 	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
@@ -215,7 +229,9 @@ func TestTripHandler_Delete_Success(t *testing.T) {
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()
 
-	mockTripService.EXPECT().Delete(gomock.Any(), uint64(1), uint64(1)).Return(nil)
+	trip := &models.Trip{ID: 1, CreatedBy: 1}
+	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(trip, nil)
+	mockTripRepo.EXPECT().Delete(gomock.Any(), uint64(1)).Return(nil)
 
 	handler.Delete(w, req)
 
@@ -226,8 +242,9 @@ func TestTripHandler_Delete_Unauthorized(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockTripService := mocks.NewMockTripService(ctrl)
-	handler := NewTripHandler(mockTripService)
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo)
+	handler := NewTripHandler(tripService)
 
 	req := httptest.NewRequest("DELETE", "/api/trips/1", nil)
 	w := httptest.NewRecorder()

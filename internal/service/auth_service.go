@@ -9,13 +9,16 @@ import (
 	"time"
 )
 
-type AuthService struct {
-	userRepo    *repository.UserRepo
-	sessionRepo *repository.SessionRepo
+type authService struct {
+	userRepo    repository.UserRepository
+	sessionRepo repository.SessionRepository
 }
 
-func NewAuthService(userRepo *repository.UserRepo, sessionRepo *repository.SessionRepo) *AuthService {
-	return &AuthService{userRepo: userRepo, sessionRepo: sessionRepo}
+func NewAuthService(userRepo repository.UserRepository, sessionRepo repository.SessionRepository) AuthService {
+	return &authService{
+		userRepo:    userRepo,
+		sessionRepo: sessionRepo,
+	}
 }
 
 type RegisterInput struct {
@@ -29,7 +32,7 @@ type LoginInput struct {
 	Password string
 }
 
-func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*models.User, string, error) {
+func (s *authService) Register(ctx context.Context, input RegisterInput) (*models.User, string, error) {
 	if !utils.IsValidEmail(input.Email) {
 		return nil, "", errors.New("invalid email format")
 	}
@@ -75,7 +78,7 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*model
 	return user, token, nil
 }
 
-func (s *AuthService) Login(ctx context.Context, input LoginInput) (*models.User, string, error) {
+func (s *authService) Login(ctx context.Context, input LoginInput) (*models.User, string, error) {
 	user, err := s.userRepo.GetByEmail(ctx, input.Email)
 	if err != nil || user == nil {
 		return nil, "", errors.New("invalid credentials")
@@ -98,10 +101,10 @@ func (s *AuthService) Login(ctx context.Context, input LoginInput) (*models.User
 	return user, token, nil
 }
 
-func (s *AuthService) Logout(ctx context.Context, token string) error {
+func (s *authService) Logout(ctx context.Context, token string) error {
 	return s.sessionRepo.DeleteByToken(ctx, token)
 }
 
-func (s *AuthService) GetUserByID(ctx context.Context, id uint64) (*models.User, error) {
+func (s *authService) GetUserByID(ctx context.Context, id uint64) (*models.User, error) {
 	return s.userRepo.GetByID(ctx, id)
 }

@@ -30,9 +30,9 @@ func TestUserRepo_Create(t *testing.T) {
 	}
 
 	rows := mockPool.NewRows([]string{"id", "created_at", "updated_at"}).
-		AddRow(1, time.Now(), time.Now())
+		AddRow(uint64(1), time.Now(), time.Now())
 
-	mockPool.ExpectQuery(`INSERT INTO "user" \(email, nickname, avatar_url, password_hash, country, city, about\)`).
+	mockPool.ExpectQuery(`INSERT INTO "user"`).
 		WithArgs(user.Email, user.Nickname, user.AvatarURL, user.PasswordHash, user.Country, user.City, user.About).
 		WillReturnRows(rows)
 
@@ -50,8 +50,12 @@ func TestUserRepo_GetByEmail_Found(t *testing.T) {
 
 	repo := NewUserRepo(mockPool)
 
+	country := "USA"
+	city := "NYC"
+	about := "About me"
+
 	rows := mockPool.NewRows([]string{"id", "email", "nickname", "avatar_url", "password_hash", "country", "city", "about", "has_reviews", "created_at", "updated_at"}).
-		AddRow(1, "test@example.com", "tester", "/avatar.jpg", "hash123", "USA", "NYC", "About me", false, time.Now(), time.Now())
+		AddRow(uint64(1), "test@example.com", "tester", "/avatar.jpg", "hash123", &country, &city, &about, false, time.Now(), time.Now())
 
 	mockPool.ExpectQuery(`SELECT id, email, nickname, avatar_url, password_hash, country, city, about, has_reviews, created_at, updated_at FROM "user" WHERE email = \$1`).
 		WithArgs("test@example.com").
@@ -90,8 +94,12 @@ func TestUserRepo_GetByNickname_Found(t *testing.T) {
 
 	repo := NewUserRepo(mockPool)
 
+	country := "USA"
+	city := "NYC"
+	about := "About me"
+
 	rows := mockPool.NewRows([]string{"id", "email", "nickname", "avatar_url", "password_hash", "country", "city", "about", "has_reviews", "created_at", "updated_at"}).
-		AddRow(1, "test@example.com", "tester", "/avatar.jpg", "hash123", "USA", "NYC", "About me", false, time.Now(), time.Now())
+		AddRow(uint64(1), "test@example.com", "tester", "/avatar.jpg", "hash123", &country, &city, &about, false, time.Now(), time.Now())
 
 	mockPool.ExpectQuery(`SELECT id, email, nickname, avatar_url, password_hash, country, city, about, has_reviews, created_at, updated_at FROM "user" WHERE nickname = \$1`).
 		WithArgs("tester").
@@ -112,8 +120,12 @@ func TestUserRepo_GetByID_Found(t *testing.T) {
 
 	repo := NewUserRepo(mockPool)
 
+	country := "USA"
+	city := "NYC"
+	about := "About me"
+
 	rows := mockPool.NewRows([]string{"id", "email", "nickname", "avatar_url", "password_hash", "country", "city", "about", "has_reviews", "created_at", "updated_at"}).
-		AddRow(1, "test@example.com", "tester", "/avatar.jpg", "hash123", "USA", "NYC", "About me", false, time.Now(), time.Now())
+		AddRow(uint64(1), "test@example.com", "tester", "/avatar.jpg", "hash123", &country, &city, &about, false, time.Now(), time.Now())
 
 	mockPool.ExpectQuery(`SELECT id, email, nickname, avatar_url, password_hash, country, city, about, has_reviews, created_at, updated_at FROM "user" WHERE id = \$1`).
 		WithArgs(uint64(1)).
@@ -148,7 +160,7 @@ func TestUserRepo_Update(t *testing.T) {
 	rows := mockPool.NewRows([]string{"updated_at"}).AddRow(time.Now())
 
 	mockPool.ExpectQuery(`UPDATE "user" SET email = \$1, nickname = \$2, avatar_url = \$3, country = \$4, city = \$5, about = \$6, has_reviews = \$7, updated_at = NOW\(\) WHERE id = \$8 RETURNING updated_at`).
-		WithArgs(user.Email, user.Nickname, user.AvatarURL, user.Country, user.City, user.About, user.HasReviews, user.ID).
+		WithArgs(user.Email, user.Nickname, user.AvatarURL, user.Country, user.City, user.About, user.HasReviews, uint64(1)).
 		WillReturnRows(rows)
 
 	err = repo.Update(context.Background(), user)

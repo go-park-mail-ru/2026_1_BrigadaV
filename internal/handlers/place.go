@@ -11,10 +11,10 @@ import (
 )
 
 type PlaceHandler struct {
-	placeService *service.PlaceService
+	placeService service.PlaceService
 }
 
-func NewPlaceHandler(placeService *service.PlaceService) *PlaceHandler {
+func NewPlaceHandler(placeService service.PlaceService) *PlaceHandler {
 	return &PlaceHandler{placeService: placeService}
 }
 

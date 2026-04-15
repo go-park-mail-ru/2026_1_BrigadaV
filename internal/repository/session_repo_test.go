@@ -28,7 +28,7 @@ func TestSessionRepo_Create(t *testing.T) {
 		ExpiresAt:    time.Now().Add(7 * 24 * time.Hour),
 	}
 
-	rows := mockPool.NewRows([]string{"id", "created_at"}).AddRow(1, time.Now())
+	rows := mockPool.NewRows([]string{"id", "created_at"}).AddRow(uint64(1), time.Now())
 
 	mockPool.ExpectQuery(`INSERT INTO session \(user_id, session_token_hash, expires_at\)`).
 		WithArgs(session.UserID, hashedToken, session.ExpiresAt).
@@ -52,7 +52,7 @@ func TestSessionRepo_GetByToken_Found(t *testing.T) {
 	hashedToken := utils.HashToken(token)
 
 	rows := mockPool.NewRows([]string{"id", "user_id", "session_token_hash", "expires_at", "created_at"}).
-		AddRow(1, 1, hashedToken, time.Now().Add(7*24*time.Hour), time.Now())
+		AddRow(uint64(1), uint64(1), hashedToken, time.Now().Add(7*24*time.Hour), time.Now())
 
 	mockPool.ExpectQuery(`SELECT id, user_id, session_token_hash, expires_at, created_at FROM session WHERE session_token_hash = \$1`).
 		WithArgs(hashedToken).

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -36,10 +37,10 @@ func TestIsValidNickname(t *testing.T) {
 	}{
 		{"valid", "johnny", true},
 		{"too short", "ab", false},
-		{"too long", "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz", false},
+		{"too long", strings.Repeat("a", 51), false},
 		{"empty", "", false},
 		{"exactly 3 chars", "abc", true},
-		{"exactly 50 chars", "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxy", true},
+		{"exactly 50 chars", strings.Repeat("a", 50), true},
 	}
 
 	for _, tt := range tests {

@@ -8,10 +8,10 @@ import (
 )
 
 type ProfileHandler struct {
-	profileService *service.ProfileService
+	profileService service.ProfileService
 }
 
-func NewProfileHandler(profileService *service.ProfileService) *ProfileHandler {
+func NewProfileHandler(profileService service.ProfileService) *ProfileHandler {
 	return &ProfileHandler{profileService: profileService}
 }
 

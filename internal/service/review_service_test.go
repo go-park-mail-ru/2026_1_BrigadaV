@@ -16,7 +16,7 @@ func TestReviewService_Create(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockReviewRepo := mocks.NewMockReviewRepository(ctrl)
-	service := NewReviewService(mockReviewRepo)
+	svc := NewReviewService(mockReviewRepo)
 
 	input := CreateReviewInput{
 		UserID:  1,
@@ -25,9 +25,12 @@ func TestReviewService_Create(t *testing.T) {
 		Comment: "Great!",
 	}
 
-	mockReviewRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil)
+	mockReviewRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, r *models.Review) error {
+		r.ID = 1
+		return nil
+	})
 
-	review, err := service.Create(context.Background(), input)
+	review, err := svc.Create(context.Background(), input)
 	assert.NoError(t, err)
 	assert.NotNil(t, review)
 	assert.Equal(t, int16(5), review.Rating)
@@ -38,7 +41,7 @@ func TestReviewService_Create_InvalidRating(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockReviewRepo := mocks.NewMockReviewRepository(ctrl)
-	service := NewReviewService(mockReviewRepo)
+	svc := NewReviewService(mockReviewRepo)
 
 	input := CreateReviewInput{
 		UserID:  1,
@@ -47,7 +50,7 @@ func TestReviewService_Create_InvalidRating(t *testing.T) {
 		Comment: "Great!",
 	}
 
-	review, err := service.Create(context.Background(), input)
+	review, err := svc.Create(context.Background(), input)
 	assert.Error(t, err)
 	assert.Nil(t, review)
 	assert.Equal(t, "rating must be between 1 and 5", err.Error())
@@ -58,13 +61,13 @@ func TestReviewService_Delete_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockReviewRepo := mocks.NewMockReviewRepository(ctrl)
-	service := NewReviewService(mockReviewRepo)
+	svc := NewReviewService(mockReviewRepo)
 
 	review := &models.Review{ID: 1, UserID: 1}
 	mockReviewRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(review, nil)
 	mockReviewRepo.EXPECT().Delete(gomock.Any(), uint64(1)).Return(nil)
 
-	err := service.Delete(context.Background(), 1, 1)
+	err := svc.Delete(context.Background(), 1, 1)
 	assert.NoError(t, err)
 }
 
@@ -73,12 +76,12 @@ func TestReviewService_Delete_NotAuthorized(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockReviewRepo := mocks.NewMockReviewRepository(ctrl)
-	service := NewReviewService(mockReviewRepo)
+	svc := NewReviewService(mockReviewRepo)
 
 	review := &models.Review{ID: 1, UserID: 2}
 	mockReviewRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(review, nil)
 
-	err := service.Delete(context.Background(), 1, 1)
+	err := svc.Delete(context.Background(), 1, 1)
 	assert.Error(t, err)
 	assert.Equal(t, "not authorized", err.Error())
 }
@@ -88,11 +91,11 @@ func TestReviewService_Delete_NotFound(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockReviewRepo := mocks.NewMockReviewRepository(ctrl)
-	service := NewReviewService(mockReviewRepo)
+	svc := NewReviewService(mockReviewRepo)
 
 	mockReviewRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(nil, nil)
 
-	err := service.Delete(context.Background(), 1, 1)
+	err := svc.Delete(context.Background(), 1, 1)
 	assert.Error(t, err)
 	assert.Equal(t, "review not found", err.Error())
 }
