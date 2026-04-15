@@ -5,6 +5,7 @@ import (
 	"guidely-app/internal/config"
 	"guidely-app/internal/db"
 	"guidely-app/internal/handlers"
+	"guidely-app/internal/logger"
 	"guidely-app/internal/middleware"
 	"guidely-app/internal/repository"
 	"guidely-app/internal/service"
@@ -21,6 +22,8 @@ func main() {
 	if err != nil {
 		log.Fatal("config load error:", err)
 	}
+
+	logger.Init("info")
 
 	dbPool, err := db.NewPool(cfg.DatabaseURL)
 	if err != nil {
@@ -47,10 +50,14 @@ func main() {
 	profileHandler := handlers.NewProfileHandler(profileService)
 	tripHandler := handlers.NewTripHandler(tripService)
 	reviewHandler := handlers.NewReviewHandler(reviewService)
+	csrfHandler := handlers.NewCSRFHandler()
 
 	authMiddleware := middleware.NewAuthMiddleware(sessionRepo)
 
 	r := mux.NewRouter()
+
+	r.Use(logger.Middleware)
+	r.Use(middleware.CORS(cfg.FrontendURL))
 
 	r.HandleFunc("/api/register", authHandler.Register).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/login", authHandler.Login).Methods("POST", "OPTIONS")
@@ -72,6 +79,8 @@ func main() {
 	r.HandleFunc("/api/reviews", authMiddleware.Authenticate(reviewHandler.Create)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/reviews/{id:[0-9]+}", authMiddleware.Authenticate(reviewHandler.Delete)).Methods("DELETE", "OPTIONS")
 
+	r.HandleFunc("/api/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
+
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	// csrfMiddleware := csrf.Protect(
@@ -81,8 +90,7 @@ func main() {
 	// 	csrf.Path("/"),
 	// )
 	// r.Use(csrfMiddleware)
-	r.Use(middleware.CORS(cfg.FrontendURL))
 
-	log.Printf("Server started on :%s", cfg.Port)
+	logger.Log.Info("Server started on :" + cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, r))
 }

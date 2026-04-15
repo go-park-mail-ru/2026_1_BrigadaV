@@ -70,6 +70,7 @@ func (h *ReviewHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
+
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
@@ -77,10 +78,20 @@ func (h *ReviewHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid review id"})
 		return
 	}
-	if err := h.reviewService.Delete(r.Context(), userID, id); err != nil {
-		w.WriteHeader(http.StatusForbidden)
+
+	err = h.reviewService.Delete(r.Context(), userID, id)
+	if err != nil {
+		switch err.Error() {
+		case "review not found":
+			w.WriteHeader(http.StatusNotFound)
+		case "not authorized":
+			w.WriteHeader(http.StatusForbidden)
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
+
 	w.WriteHeader(http.StatusNoContent)
 }

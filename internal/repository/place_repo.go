@@ -4,21 +4,24 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"guidely-app/internal/logger"
 	"guidely-app/internal/models"
-	"log"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/sirupsen/logrus"
 )
 
 type PlaceRepo struct {
-	db DB
+	db *pgxpool.Pool
 }
 
-func NewPlaceRepo(db DB) *PlaceRepo {
+func NewPlaceRepo(db *pgxpool.Pool) *PlaceRepo {
 	return &PlaceRepo{db: db}
 }
 
 func (r *PlaceRepo) GetAll(ctx context.Context) ([]models.Place, error) {
+	logger.Debug(ctx, "getting all places")
 	query := `
         SELECT p.id, p.name, p.description, p.photo_url, p.price, p.created_at, p.updated_at,
                l.id, l.name, c.name as country_name, l.latitude, l.longitude,
@@ -30,6 +33,7 @@ func (r *PlaceRepo) GetAll(ctx context.Context) ([]models.Place, error) {
         ORDER BY p.id`
 	rows, err := r.db.Query(ctx, query)
 	if err != nil {
+		logger.Error(ctx, "failed to get all places", logrus.Fields{"error": err})
 		return nil, err
 	}
 	defer rows.Close()
@@ -46,6 +50,7 @@ func (r *PlaceRepo) GetAll(ctx context.Context) ([]models.Place, error) {
 			&catID, &catName, &catDesc,
 		)
 		if err != nil {
+			logger.Error(ctx, "failed to scan place row", logrus.Fields{"error": err})
 			return nil, err
 		}
 		if locID != nil {
@@ -66,10 +71,12 @@ func (r *PlaceRepo) GetAll(ctx context.Context) ([]models.Place, error) {
 		}
 		places = append(places, p)
 	}
+	logger.Debug(ctx, "places retrieved", logrus.Fields{"count": len(places)})
 	return places, nil
 }
 
 func (r *PlaceRepo) GetByID(ctx context.Context, id uint64) (*models.Place, error) {
+	logger.Debug(ctx, "getting place by id", logrus.Fields{"place_id": id})
 	query := `
         SELECT p.id, p.name, p.description, p.photo_url, p.price, p.created_at, p.updated_at,
                l.id, l.name, c.name as country_name, l.latitude, l.longitude,
@@ -90,9 +97,11 @@ func (r *PlaceRepo) GetByID(ctx context.Context, id uint64) (*models.Place, erro
 		&catID, &catName, &catDesc,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
+		logger.Debug(ctx, "place not found", logrus.Fields{"place_id": id})
 		return nil, nil
 	}
 	if err != nil {
+		logger.Error(ctx, "failed to get place by id", logrus.Fields{"error": err})
 		return nil, err
 	}
 	if locID != nil {
@@ -115,19 +124,21 @@ func (r *PlaceRepo) GetByID(ctx context.Context, id uint64) (*models.Place, erro
 }
 
 func (r *PlaceRepo) GetWithRatingAndLike(ctx context.Context, placeID, userID uint64) (*models.PlaceWithRating, error) {
+	logger.Debug(ctx, "getting place with rating and like", logrus.Fields{"place_id": placeID, "user_id": userID})
 	var rating float64
 	var reviewCount int64
 	err := r.db.QueryRow(ctx, `
         SELECT COALESCE(AVG(rating), 0), COUNT(*) FROM review WHERE place_id = $1
     `, placeID).Scan(&rating, &reviewCount)
 	if err != nil {
+		logger.Error(ctx, "failed to get rating", logrus.Fields{"error": err})
 		return nil, fmt.Errorf("failed to get rating: %w", err)
 	}
 	var isLiked bool
 	if userID != 0 {
 		err = r.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM favorite WHERE user_id = $1 AND place_id = $2)`, userID, placeID).Scan(&isLiked)
 		if err != nil {
-			log.Printf("[WARN] GetWithRatingAndLike: ошибка проверки лайка - %v", err)
+			logger.Warn(ctx, "failed to check like", logrus.Fields{"error": err})
 			isLiked = false
 		}
 	}

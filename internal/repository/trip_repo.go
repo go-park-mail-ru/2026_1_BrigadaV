@@ -3,29 +3,40 @@ package repository
 import (
 	"context"
 	"errors"
+	"guidely-app/internal/logger"
 	"guidely-app/internal/models"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/sirupsen/logrus"
 )
 
 type TripRepo struct {
-	db DB
+	db *pgxpool.Pool
 }
 
-func NewTripRepo(db DB) *TripRepo {
+func NewTripRepo(db *pgxpool.Pool) *TripRepo {
 	return &TripRepo{db: db}
 }
 
 func (r *TripRepo) Create(ctx context.Context, trip *models.Trip) error {
+	logger.Debug(ctx, "creating trip", logrus.Fields{"title": trip.Title})
 	query := `INSERT INTO trip (title, description, location, start_date, end_date, preview_url, created_by, is_public)
               VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, created_at, updated_at`
-	return r.db.QueryRow(ctx, query,
+	err := r.db.QueryRow(ctx, query,
 		trip.Title, trip.Description, trip.Location, trip.StartDate, trip.EndDate, trip.PreviewURL,
 		trip.CreatedBy, trip.IsPublic,
 	).Scan(&trip.ID, &trip.CreatedAt, &trip.UpdatedAt)
+	if err != nil {
+		logger.Error(ctx, "failed to create trip", logrus.Fields{"error": err})
+		return err
+	}
+	logger.Debug(ctx, "trip created", logrus.Fields{"trip_id": trip.ID})
+	return nil
 }
 
 func (r *TripRepo) GetByID(ctx context.Context, id uint64) (*models.Trip, error) {
+	logger.Debug(ctx, "getting trip by id", logrus.Fields{"trip_id": id})
 	query := `SELECT id, title, description, location, start_date, end_date, preview_url, created_by, is_public, created_at, updated_at
               FROM trip WHERE id = $1`
 	var trip models.Trip
@@ -34,19 +45,23 @@ func (r *TripRepo) GetByID(ctx context.Context, id uint64) (*models.Trip, error)
 		&trip.CreatedBy, &trip.IsPublic, &trip.CreatedAt, &trip.UpdatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
+		logger.Debug(ctx, "trip not found", logrus.Fields{"trip_id": id})
 		return nil, nil
 	}
 	if err != nil {
+		logger.Error(ctx, "failed to get trip by id", logrus.Fields{"error": err})
 		return nil, err
 	}
 	return &trip, err
 }
 
 func (r *TripRepo) GetByUser(ctx context.Context, userID uint64) ([]models.Trip, error) {
+	logger.Debug(ctx, "getting trips by user", logrus.Fields{"user_id": userID})
 	query := `SELECT id, title, description, location, start_date, end_date, preview_url, created_by, is_public, created_at, updated_at
               FROM trip WHERE created_by = $1 ORDER BY created_at DESC`
 	rows, err := r.db.Query(ctx, query, userID)
 	if err != nil {
+		logger.Error(ctx, "failed to get trips by user", logrus.Fields{"error": err})
 		return nil, err
 	}
 	defer rows.Close()
@@ -56,35 +71,56 @@ func (r *TripRepo) GetByUser(ctx context.Context, userID uint64) ([]models.Trip,
 		err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Location, &t.StartDate, &t.EndDate, &t.PreviewURL,
 			&t.CreatedBy, &t.IsPublic, &t.CreatedAt, &t.UpdatedAt)
 		if err != nil {
+			logger.Error(ctx, "failed to scan trip row", logrus.Fields{"error": err})
 			return nil, err
 		}
 		trips = append(trips, t)
 	}
+	logger.Debug(ctx, "trips retrieved", logrus.Fields{"count": len(trips)})
 	return trips, nil
 }
 
 func (r *TripRepo) Update(ctx context.Context, trip *models.Trip) error {
+	logger.Debug(ctx, "updating trip", logrus.Fields{"trip_id": trip.ID})
 	query := `UPDATE trip SET 
         title = $1, description = $2, location = $3, start_date = $4, end_date = $5, preview_url = $6, 
         is_public = $7, updated_at = NOW() 
         WHERE id = $8 RETURNING updated_at`
-	return r.db.QueryRow(ctx, query,
+	err := r.db.QueryRow(ctx, query,
 		trip.Title, trip.Description, trip.Location, trip.StartDate, trip.EndDate, trip.PreviewURL,
 		trip.IsPublic, trip.ID,
 	).Scan(&trip.UpdatedAt)
+	if err != nil {
+		logger.Error(ctx, "failed to update trip", logrus.Fields{"error": err})
+		return err
+	}
+	logger.Debug(ctx, "trip updated", logrus.Fields{"trip_id": trip.ID})
+	return nil
 }
 
 func (r *TripRepo) Delete(ctx context.Context, id uint64) error {
+	logger.Debug(ctx, "deleting trip", logrus.Fields{"trip_id": id})
 	_, err := r.db.Exec(ctx, `DELETE FROM trip WHERE id = $1`, id)
-	return err
+	if err != nil {
+		logger.Error(ctx, "failed to delete trip", logrus.Fields{"error": err})
+		return err
+	}
+	logger.Debug(ctx, "trip deleted", logrus.Fields{"trip_id": id})
+	return nil
 }
 
 func (r *TripRepo) AddAttraction(ctx context.Context, tripID, placeID uint64, order int16) error {
+	logger.Debug(ctx, "adding attraction to trip", logrus.Fields{"trip_id": tripID, "place_id": placeID})
 	_, err := r.db.Exec(ctx, `INSERT INTO trip_attractions (trip_id, place_id, order_index) VALUES ($1, $2, $3)`, tripID, placeID, order)
-	return err
+	if err != nil {
+		logger.Error(ctx, "failed to add attraction", logrus.Fields{"error": err})
+		return err
+	}
+	return nil
 }
 
 func (r *TripRepo) GetAttractions(ctx context.Context, tripID uint64) ([]models.PlaceInTrip, error) {
+	logger.Debug(ctx, "getting attractions for trip", logrus.Fields{"trip_id": tripID})
 	query := `
         SELECT p.id, p.name, p.description, COALESCE(AVG(r.rating), 0) as rating,
        (SELECT photo_id FROM place_photo WHERE place_id = p.id AND is_main = true LIMIT 1) as image_photo_id
@@ -97,6 +133,7 @@ func (r *TripRepo) GetAttractions(ctx context.Context, tripID uint64) ([]models.
     `
 	rows, err := r.db.Query(ctx, query, tripID)
 	if err != nil {
+		logger.Error(ctx, "failed to get attractions", logrus.Fields{"error": err})
 		return nil, err
 	}
 	defer rows.Close()
@@ -104,9 +141,11 @@ func (r *TripRepo) GetAttractions(ctx context.Context, tripID uint64) ([]models.
 	for rows.Next() {
 		var pl models.PlaceInTrip
 		if err := rows.Scan(&pl.ID, &pl.Name, &pl.Description, &pl.PhotoURL, &pl.Rating); err != nil {
+			logger.Error(ctx, "failed to scan attraction", logrus.Fields{"error": err})
 			return nil, err
 		}
 		places = append(places, pl)
 	}
+	logger.Debug(ctx, "attractions retrieved", logrus.Fields{"count": len(places)})
 	return places, nil
 }
