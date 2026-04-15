@@ -2,9 +2,9 @@ package utils
 
 import "regexp"
 
-func IsValidEmail(email string) bool {
+func IsValidLogin(login string) bool {
 	pattern := `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
-	matched, _ := regexp.MatchString(pattern, email)
+	matched, _ := regexp.MatchString(pattern, login)
 	return matched
 }
 

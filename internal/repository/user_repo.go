@@ -20,10 +20,10 @@ func NewUserRepo(db *pgxpool.Pool) *UserRepo {
 }
 
 func (r *UserRepo) Create(ctx context.Context, user *models.User) error {
-	logger.Debug(ctx, "creating user", logrus.Fields{"email": user.Email})
-	query := `INSERT INTO "user" (email, nickname, avatar_url, password_hash, country, city, about) 
+	logger.Debug(ctx, "creating user", logrus.Fields{"login": user.Login})
+	query := `INSERT INTO "user" (login, nickname, avatar_url, password_hash, country, city, about) 
               VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, created_at, updated_at`
-	err := r.db.QueryRow(ctx, query, user.Email, user.Nickname, user.AvatarURL, user.PasswordHash,
+	err := r.db.QueryRow(ctx, query, user.Login, user.Nickname, user.AvatarURL, user.PasswordHash,
 		user.Country, user.City, user.About).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		logger.Error(ctx, "failed to create user", logrus.Fields{"error": err})
@@ -33,22 +33,22 @@ func (r *UserRepo) Create(ctx context.Context, user *models.User) error {
 	return nil
 }
 
-func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*models.User, error) {
-	logger.Debug(ctx, "getting user by email", logrus.Fields{"email": email})
-	query := `SELECT id, email, nickname, avatar_url, password_hash, country, city, about, has_reviews, created_at, updated_at 
-              FROM "user" WHERE email = $1`
+func (r *UserRepo) GetByLogin(ctx context.Context, login string) (*models.User, error) {
+	logger.Debug(ctx, "getting user by login", logrus.Fields{"login": login})
+	query := `SELECT id, login, nickname, avatar_url, password_hash, country, city, about, has_reviews, created_at, updated_at 
+              FROM "user" WHERE login = $1`
 	var user models.User
-	err := r.db.QueryRow(ctx, query, email).Scan(
-		&user.ID, &user.Email, &user.Nickname, &user.AvatarURL, &user.PasswordHash,
+	err := r.db.QueryRow(ctx, query, login).Scan(
+		&user.ID, &user.Login, &user.Nickname, &user.AvatarURL, &user.PasswordHash,
 		&user.Country, &user.City, &user.About, &user.HasReviews,
 		&user.CreatedAt, &user.UpdatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
-		logger.Debug(ctx, "user not found by email", logrus.Fields{"email": email})
+		logger.Debug(ctx, "user not found by login", logrus.Fields{"login": login})
 		return nil, nil
 	}
 	if err != nil {
-		logger.Error(ctx, "failed to get user by email", logrus.Fields{"error": err})
+		logger.Error(ctx, "failed to get user by login", logrus.Fields{"error": err})
 		return nil, err
 	}
 	return &user, nil
@@ -56,11 +56,11 @@ func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*models.User, 
 
 func (r *UserRepo) GetByNickname(ctx context.Context, nickname string) (*models.User, error) {
 	logger.Debug(ctx, "getting user by nickname", logrus.Fields{"nickname": nickname})
-	query := `SELECT id, email, nickname, avatar_url, password_hash, country, city, about, has_reviews, created_at, updated_at 
+	query := `SELECT id, login, nickname, avatar_url, password_hash, country, city, about, has_reviews, created_at, updated_at 
               FROM "user" WHERE nickname = $1`
 	var user models.User
 	err := r.db.QueryRow(ctx, query, nickname).Scan(
-		&user.ID, &user.Email, &user.Nickname, &user.AvatarURL, &user.PasswordHash,
+		&user.ID, &user.Login, &user.Nickname, &user.AvatarURL, &user.PasswordHash,
 		&user.Country, &user.City, &user.About, &user.HasReviews,
 		&user.CreatedAt, &user.UpdatedAt,
 	)
@@ -77,11 +77,11 @@ func (r *UserRepo) GetByNickname(ctx context.Context, nickname string) (*models.
 
 func (r *UserRepo) GetByID(ctx context.Context, id uint64) (*models.User, error) {
 	logger.Debug(ctx, "getting user by id", logrus.Fields{"user_id": id})
-	query := `SELECT id, email, nickname, avatar_url, password_hash, country, city, about, has_reviews, created_at, updated_at 
+	query := `SELECT id, login, nickname, avatar_url, password_hash, country, city, about, has_reviews, created_at, updated_at 
               FROM "user" WHERE id = $1`
 	var user models.User
 	err := r.db.QueryRow(ctx, query, id).Scan(
-		&user.ID, &user.Email, &user.Nickname, &user.AvatarURL, &user.PasswordHash,
+		&user.ID, &user.Login, &user.Nickname, &user.AvatarURL, &user.PasswordHash,
 		&user.Country, &user.City, &user.About, &user.HasReviews,
 		&user.CreatedAt, &user.UpdatedAt,
 	)
@@ -99,7 +99,7 @@ func (r *UserRepo) GetByID(ctx context.Context, id uint64) (*models.User, error)
 func (r *UserRepo) Update(ctx context.Context, user *models.User) error {
 	logger.Debug(ctx, "updating user", logrus.Fields{"user_id": user.ID})
 	query := `UPDATE "user" SET 
-        email = $1,
+        login = $1,
         nickname = $2, 
         avatar_url = $3, 
         country = $4, 
@@ -109,7 +109,7 @@ func (r *UserRepo) Update(ctx context.Context, user *models.User) error {
         updated_at = NOW() 
     WHERE id = $8 RETURNING updated_at`
 	err := r.db.QueryRow(ctx, query,
-		user.Email, user.Nickname, user.AvatarURL, user.Country, user.City, user.About, user.HasReviews, user.ID,
+		user.Login, user.Nickname, user.AvatarURL, user.Country, user.City, user.About, user.HasReviews, user.ID,
 	).Scan(&user.UpdatedAt)
 	if err != nil {
 		logger.Error(ctx, "failed to update user", logrus.Fields{"error": err})

@@ -25,7 +25,7 @@ func TestAuthHandler_Register_Success(t *testing.T) {
 	handler := NewAuthHandler(mockAuthService)
 
 	reqBody := dto.RegisterRequest{
-		Email:    "test@example.com",
+		Login:    "test@example.com",
 		Password: "12345678",
 		Nickname: "tester",
 	}
@@ -69,7 +69,7 @@ func TestAuthHandler_Login_Success(t *testing.T) {
 	handler := NewAuthHandler(mockAuthService)
 
 	reqBody := dto.LoginRequest{
-		Email:    "test@example.com",
+		Login:    "test@example.com",
 		Password: "12345678",
 	}
 	body, _ := json.Marshal(reqBody)
@@ -97,7 +97,7 @@ func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
 	handler := NewAuthHandler(mockAuthService)
 
 	reqBody := dto.LoginRequest{
-		Email:    "test@example.com",
+		Login:    "test@example.com",
 		Password: "wrong",
 	}
 	body, _ := json.Marshal(reqBody)

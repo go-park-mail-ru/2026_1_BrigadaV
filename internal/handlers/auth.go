@@ -24,13 +24,13 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user, token, err := h.authService.Register(r.Context(), service.RegisterInput{
-		Email:    req.Email,
+		Login:    req.Login,
 		Password: req.Password,
 		Nickname: req.Nickname,
 	})
 	if err != nil {
 		status := http.StatusBadRequest
-		if err.Error() == "email already exists" || err.Error() == "nickname already exists" {
+		if err.Error() == "login already exists" || err.Error() == "nickname already exists" {
 			status = http.StatusConflict
 		}
 		w.WriteHeader(status)
@@ -61,7 +61,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user, token, err := h.authService.Login(r.Context(), service.LoginInput{
-		Email:    req.Email,
+		Login:    req.Login,
 		Password: req.Password,
 	})
 	if err != nil {

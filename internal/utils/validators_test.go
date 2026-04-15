@@ -7,13 +7,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestIsValidEmail(t *testing.T) {
+func TestIsValidLogin(t *testing.T) {
 	tests := []struct {
 		name     string
-		email    string
+		login    string
 		expected bool
 	}{
-		{"valid email", "user@example.com", true},
+		{"valid email as login", "user@example.com", true},
 		{"valid with dots", "user.name@example.co.uk", true},
 		{"no @", "userexample.com", false},
 		{"no domain", "user@", false},
@@ -23,7 +23,7 @@ func TestIsValidEmail(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := IsValidEmail(tt.email)
+			result := IsValidLogin(tt.login)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

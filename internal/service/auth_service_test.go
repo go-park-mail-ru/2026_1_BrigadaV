@@ -21,7 +21,7 @@ func TestAuthService_Register_Success(t *testing.T) {
 
 	svc := NewAuthService(mockUserRepo, mockSessionRepo)
 
-	mockUserRepo.EXPECT().GetByEmail(gomock.Any(), "test@example.com").Return(nil, nil)
+	mockUserRepo.EXPECT().GetByLogin(gomock.Any(), "test@example.com").Return(nil, nil)
 	mockUserRepo.EXPECT().GetByNickname(gomock.Any(), "tester").Return(nil, nil)
 	mockUserRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, u *models.User) error {
 		u.ID = 1
@@ -30,7 +30,7 @@ func TestAuthService_Register_Success(t *testing.T) {
 	mockSessionRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil)
 
 	user, token, err := svc.Register(context.Background(), RegisterInput{
-		Email:    "test@example.com",
+		Login:    "test@example.com",
 		Password: "12345678",
 		Nickname: "tester",
 	})
@@ -41,7 +41,7 @@ func TestAuthService_Register_Success(t *testing.T) {
 	assert.Equal(t, uint64(1), user.ID)
 }
 
-func TestAuthService_Register_EmailAlreadyExists(t *testing.T) {
+func TestAuthService_Register_LoginAlreadyExists(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -50,22 +50,22 @@ func TestAuthService_Register_EmailAlreadyExists(t *testing.T) {
 
 	svc := NewAuthService(mockUserRepo, mockSessionRepo)
 
-	existingUser := &models.User{ID: 1, Email: "test@example.com"}
-	mockUserRepo.EXPECT().GetByEmail(gomock.Any(), "test@example.com").Return(existingUser, nil)
+	existingUser := &models.User{ID: 1, Login: "test@example.com"}
+	mockUserRepo.EXPECT().GetByLogin(gomock.Any(), "test@example.com").Return(existingUser, nil)
 
 	user, token, err := svc.Register(context.Background(), RegisterInput{
-		Email:    "test@example.com",
+		Login:    "test@example.com",
 		Password: "12345678",
 		Nickname: "tester",
 	})
 
 	assert.Error(t, err)
-	assert.Equal(t, "email already exists", err.Error())
+	assert.Equal(t, "login already exists", err.Error())
 	assert.Nil(t, user)
 	assert.Empty(t, token)
 }
 
-func TestAuthService_Register_InvalidEmail(t *testing.T) {
+func TestAuthService_Register_InvalidLogin(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -75,13 +75,13 @@ func TestAuthService_Register_InvalidEmail(t *testing.T) {
 	svc := NewAuthService(mockUserRepo, mockSessionRepo)
 
 	user, token, err := svc.Register(context.Background(), RegisterInput{
-		Email:    "invalid",
+		Login:    "invalid",
 		Password: "12345678",
 		Nickname: "tester",
 	})
 
 	assert.Error(t, err)
-	assert.Equal(t, "invalid email format", err.Error())
+	assert.Equal(t, "invalid login format", err.Error())
 	assert.Nil(t, user)
 	assert.Empty(t, token)
 }
@@ -96,7 +96,7 @@ func TestAuthService_Register_ShortPassword(t *testing.T) {
 	svc := NewAuthService(mockUserRepo, mockSessionRepo)
 
 	user, token, err := svc.Register(context.Background(), RegisterInput{
-		Email:    "test@example.com",
+		Login:    "test@example.com",
 		Password: "123",
 		Nickname: "tester",
 	})
@@ -119,16 +119,16 @@ func TestAuthService_Login_Success(t *testing.T) {
 	hashedPassword, _ := utils.HashPassword("12345678")
 	user := &models.User{
 		ID:           1,
-		Email:        "test@example.com",
+		Login:        "test@example.com",
 		Nickname:     "tester",
 		PasswordHash: hashedPassword,
 	}
 
-	mockUserRepo.EXPECT().GetByEmail(gomock.Any(), "test@example.com").Return(user, nil)
+	mockUserRepo.EXPECT().GetByLogin(gomock.Any(), "test@example.com").Return(user, nil)
 	mockSessionRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil)
 
 	result, token, err := svc.Login(context.Background(), LoginInput{
-		Email:    "test@example.com",
+		Login:    "test@example.com",
 		Password: "12345678",
 	})
 
@@ -146,10 +146,10 @@ func TestAuthService_Login_InvalidCredentials(t *testing.T) {
 
 	svc := NewAuthService(mockUserRepo, mockSessionRepo)
 
-	mockUserRepo.EXPECT().GetByEmail(gomock.Any(), "test@example.com").Return(nil, nil)
+	mockUserRepo.EXPECT().GetByLogin(gomock.Any(), "test@example.com").Return(nil, nil)
 
 	result, token, err := svc.Login(context.Background(), LoginInput{
-		Email:    "test@example.com",
+		Login:    "test@example.com",
 		Password: "wrong",
 	})
 

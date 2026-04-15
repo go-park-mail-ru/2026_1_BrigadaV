@@ -36,7 +36,7 @@ func (r *SessionRepo) Create(ctx context.Context, session *models.Session) error
 }
 
 func (r *SessionRepo) GetByToken(ctx context.Context, token string) (*models.Session, error) {
-	logger.Debug(ctx, "getting session by token")
+	logger.Debug(ctx, "getting session by token", nil)
 	hashedToken := utils.HashToken(token)
 	query := `SELECT id, user_id, session_token_hash, expires_at, created_at 
               FROM session WHERE session_token_hash = $1`
@@ -46,7 +46,7 @@ func (r *SessionRepo) GetByToken(ctx context.Context, token string) (*models.Ses
 		&session.ID, &session.UserID, &tokenHash, &session.ExpiresAt, &session.CreatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
-		logger.Debug(ctx, "session not found by token")
+		logger.Debug(ctx, "session not found by token", nil)
 		return nil, nil
 	}
 	if err != nil {
@@ -57,13 +57,13 @@ func (r *SessionRepo) GetByToken(ctx context.Context, token string) (*models.Ses
 }
 
 func (r *SessionRepo) DeleteByToken(ctx context.Context, token string) error {
-	logger.Debug(ctx, "deleting session by token")
+	logger.Debug(ctx, "deleting session by token", nil)
 	hashedToken := utils.HashToken(token)
 	_, err := r.db.Exec(ctx, `DELETE FROM session WHERE session_token_hash = $1`, hashedToken)
 	if err != nil {
 		logger.Error(ctx, "failed to delete session by token", logrus.Fields{"error": err})
 		return err
 	}
-	logger.Debug(ctx, "session deleted")
+	logger.Debug(ctx, "session deleted", nil)
 	return nil
 }

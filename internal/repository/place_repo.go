@@ -21,7 +21,7 @@ func NewPlaceRepo(db *pgxpool.Pool) *PlaceRepo {
 }
 
 func (r *PlaceRepo) GetAll(ctx context.Context) ([]models.Place, error) {
-	logger.Debug(ctx, "getting all places")
+	logger.Debug(ctx, "getting all places", nil)
 	query := `
         SELECT p.id, p.name, p.description, p.photo_url, p.price, p.created_at, p.updated_at,
                l.id, l.name, c.name as country_name, l.latitude, l.longitude,
