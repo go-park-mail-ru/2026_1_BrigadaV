@@ -86,28 +86,30 @@ func (r *TripRepo) AddAttraction(ctx context.Context, tripID, placeID uint64, or
 }
 
 func (r *TripRepo) GetAttractions(ctx context.Context, tripID uint64) ([]models.PlaceInTrip, error) {
-	query := `
-        SELECT p.id, p.name, p.description, COALESCE(AVG(r.rating), 0) as rating,
-       (SELECT photo_id FROM place_photo WHERE place_id = p.id AND is_main = true LIMIT 1) as image_photo_id
+    query := `
+        SELECT p.id, p.name, p.description, 
+               COALESCE(AVG(r.rating), 0) as rating,
+               p.photo_url
         FROM trip_attractions ta
         JOIN place p ON ta.place_id = p.id
         LEFT JOIN review r ON r.place_id = p.id
         WHERE ta.trip_id = $1
-        GROUP BY p.id, p.name, p.description, p.photo_url
+        GROUP BY p.id, p.name, p.description, p.photo_url, ta.order_index
         ORDER BY ta.order_index
     `
-	rows, err := r.db.Query(ctx, query, tripID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var places []models.PlaceInTrip
-	for rows.Next() {
-		var pl models.PlaceInTrip
-		if err := rows.Scan(&pl.ID, &pl.Name, &pl.Description, &pl.PhotoURL, &pl.Rating); err != nil {
-			return nil, err
-		}
-		places = append(places, pl)
-	}
-	return places, nil
+    rows, err := r.db.Query(ctx, query, tripID)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+    
+    var places []models.PlaceInTrip
+    for rows.Next() {
+        var pl models.PlaceInTrip
+        if err := rows.Scan(&pl.ID, &pl.Name, &pl.Description, &pl.Rating, &pl.PhotoURL); err != nil {
+            return nil, err
+        }
+        places = append(places, pl)
+    }
+    return places, nil
 }
