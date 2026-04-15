@@ -20,64 +20,93 @@ func NewPlaceRepo(db *pgxpool.Pool) *PlaceRepo {
 }
 
 func (r *PlaceRepo) GetAll(ctx context.Context) ([]models.Place, error) {
-	log.Println("[DEBUG] GetAll: начал выполнение")
+    log.Println("[DEBUG] GetAll: начал выполнение")
 
-	query := `
+    query := `
         SELECT p.id, p.name, p.description, p.photo_url, p.price, p.created_at, p.updated_at,
                l.id, l.name, c.name as country_name, l.latitude, l.longitude,
-               cat.id, cat.name, cat.description
+               cat.id, cat.name, cat.description,
+               pp.id as place_photo_id, ph.file_path, pp.is_main
         FROM place p
         LEFT JOIN locality l ON p.locality_id = l.id
         LEFT JOIN country c ON l.country_id = c.id
         LEFT JOIN category cat ON p.category_id = cat.id
+        LEFT JOIN place_photo pp ON p.id = pp.place_id
+        LEFT JOIN photo ph ON pp.photo_id = ph.id
         ORDER BY p.id`
 
-	rows, err := r.db.Query(ctx, query)
-	if err != nil {
-		log.Printf("[ERROR] GetAll: ошибка запроса - %v", err)
-		return nil, err
-	}
-	defer rows.Close()
+    rows, err := r.db.Query(ctx, query)
+    if err != nil {
+        log.Printf("[ERROR] GetAll: ошибка запроса - %v", err)
+        return nil, err
+    }
+    defer rows.Close()
 
-	var places []models.Place
-	for rows.Next() {
-		var p models.Place
-		var locID, catID *uint64
-		var locName, countryName *string
-		var locLat, locLng *float64
-		var catName, catDesc *string
+    placesMap := make(map[uint64]*models.Place)
 
-		err := rows.Scan(
-			&p.ID, &p.Name, &p.Description, &p.PhotoURL, &p.Price, &p.CreatedAt, &p.UpdatedAt,
-			&locID, &locName, &countryName, &locLat, &locLng,
-			&catID, &catName, &catDesc,
-		)
-		if err != nil {
-			log.Printf("[ERROR] GetAll: ошибка сканирования - %v", err)
-			return nil, err
-		}
+    for rows.Next() {
+        var p models.Place
+        var locID, catID *uint64
+        var locName, countryName *string
+        var locLat, locLng *float64
+        var catName, catDesc *string
+        var placePhotoID *uint64
+        var photoFilePath *string
+        var isMain *bool
 
-		if locID != nil {
-			p.Locality = models.Locality{
-				ID:        *locID,
-				Name:      *locName,
-				Country:   *countryName,
-				Latitude:  locLat,
-				Longitude: locLng,
-			}
-		}
-		if catID != nil {
-			p.Category = models.Category{
-				ID:          *catID,
-				Name:        *catName,
-				Description: *catDesc,
-			}
-		}
-		places = append(places, p)
-	}
+        err := rows.Scan(
+            &p.ID, &p.Name, &p.Description, &p.PhotoURL, &p.Price, &p.CreatedAt, &p.UpdatedAt,
+            &locID, &locName, &countryName, &locLat, &locLng,
+            &catID, &catName, &catDesc,
+            &placePhotoID, &photoFilePath, &isMain,
+        )
+        if err != nil {
+            log.Printf("[ERROR] GetAll: ошибка сканирования - %v", err)
+            return nil, err
+        }
 
-	log.Printf("[DEBUG] GetAll: успешно загружено %d мест", len(places))
-	return places, nil
+        if _, exists := placesMap[p.ID]; !exists {
+            if locID != nil {
+                p.Locality = models.Locality{
+                    ID:        *locID,
+                    Name:      *locName,
+                    Country:   *countryName,
+                    Latitude:  locLat,
+                    Longitude: locLng,
+                }
+            }
+            if catID != nil {
+                p.Category = models.Category{
+                    ID:          *catID,
+                    Name:        *catName,
+                    Description: *catDesc,
+                }
+            }
+            placesMap[p.ID] = &p
+        }
+
+        if placePhotoID != nil && photoFilePath != nil {
+    photo := models.PlacePhoto{
+        ID:       *placePhotoID,
+        PlaceID:  p.ID,
+        PhotoID:  *placePhotoID,
+        Photo: models.Photo{
+            ID:       *placePhotoID,
+            FilePath: *photoFilePath,
+        },
+        IsMain:   isMain != nil && *isMain,
+    }
+    placesMap[p.ID].Photos = append(placesMap[p.ID].Photos, photo)
+}
+    }
+
+    var places []models.Place
+    for _, p := range placesMap {
+        places = append(places, *p)
+    }
+
+    log.Printf("[DEBUG] GetAll: успешно загружено %d мест", len(places))
+    return places, nil
 }
 
 func (r *PlaceRepo) GetByID(ctx context.Context, id uint64) (*models.Place, error) {

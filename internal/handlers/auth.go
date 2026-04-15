@@ -28,9 +28,9 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	log.Printf("Register request: email=%s, nickname=%s", req.Email, req.Nickname)
+	log.Printf("Register request: email=%s, nickname=%s", req.Login, req.Nickname)
 	user, token, err := h.authService.Register(r.Context(), service.RegisterInput{
-		Email:    req.Email,
+		Login:    req.Login,
 		Password: req.Password,
 		Nickname: req.Nickname,
 	})
@@ -44,7 +44,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
-	log.Printf("User registered: id=%d, email=%s", user.ID, user.Email)
+	log.Printf("User registered: id=%d, email=%s", user.ID, user.Login)
 
 	
 	http.SetCookie(w, &http.Cookie{
@@ -71,7 +71,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user, token, err := h.authService.Login(r.Context(), service.LoginInput{
-		Email:    req.Email,
+		Login:    req.Login,
 		Password: req.Password,
 	})
 	if err != nil {

@@ -19,18 +19,18 @@ func NewAuthService(userRepo *repository.UserRepo, sessionRepo *repository.Sessi
 }
 
 type RegisterInput struct {
-	Email    string
+	Login    string
 	Password string
 	Nickname string
 }
 
 type LoginInput struct {
-	Email    string
+	Login    string
 	Password string
 }
 
 func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*models.User, string, error) {
-	if !utils.IsValidEmail(input.Email) {
+	if !utils.IsValidEmail(input.Login) {
 		return nil, "", errors.New("invalid email format")
 	}
 	if !utils.IsValidNickname(input.Nickname) {
@@ -39,7 +39,7 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*model
 	if len(input.Password) < 8 {
 		return nil, "", errors.New("password must be at least 8 characters")
 	}
-	existing, _ := s.userRepo.GetByEmail(ctx, input.Email)
+	existing, _ := s.userRepo.GetByEmail(ctx, input.Login)
 	if existing != nil {
 		return nil, "", errors.New("email already exists")
 	}
@@ -52,7 +52,7 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*model
 		return nil, "", err
 	}
 	user := &models.User{
-		Email:        input.Email,
+		Login:        input.Login,
 		Nickname:     input.Nickname,
 		AvatarURL:    "",
 		PasswordHash: hashed,
@@ -76,7 +76,7 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*model
 }
 
 func (s *AuthService) Login(ctx context.Context, input LoginInput) (*models.User, string, error) {
-	user, err := s.userRepo.GetByEmail(ctx, input.Email)
+	user, err := s.userRepo.GetByEmail(ctx, input.Login)
 	if err != nil || user == nil {
 		return nil, "", errors.New("invalid credentials")
 	}
