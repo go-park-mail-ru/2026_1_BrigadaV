@@ -98,22 +98,28 @@ func (h *TripHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TripHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
+	log.Println("GetDetails called")
+	
 	vars := mux.Vars(r)
 	idStr, ok := vars["id"]
 	if !ok {
+		log.Println("Missing trip id")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "missing trip id"})
 		return
 	}
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		log.Printf("GetTripDetails error: %v", err)
+		log.Printf("Invalid trip id: %s", idStr)
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip id"})
 		return
 	}
+	log.Printf("Getting trip details for id=%d", id)
+
 	trip, places, err := h.tripService.GetTripDetails(r.Context(), id)
 	if err != nil {
+		log.Printf("GetTripDetails error: %v", err)
 		if err.Error() == "trip not found" {
 			w.WriteHeader(http.StatusNotFound)
 			json.NewEncoder(w).Encode(map[string]string{"error": "trip not found"})
