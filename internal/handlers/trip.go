@@ -53,6 +53,7 @@ func (h *TripHandler) List(w http.ResponseWriter, r *http.Request) {
 			Location:  t.Location,
 			StartDate: t.StartDate,
 			EndDate:   t.EndDate,
+			Description: t.Description,
 			Preview:   t.PreviewURL,
 		}
 	}

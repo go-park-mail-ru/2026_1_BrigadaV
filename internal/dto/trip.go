@@ -10,6 +10,7 @@ type TripResponse struct {
 	Title     string     `json:"title"`
 	Location  *string    `json:"location,omitempty"`
 	StartDate *time.Time `json:"startDate,omitempty"`
+	Description string    `json:"description,omitempty"`
 	EndDate   *time.Time `json:"endDate,omitempty"`
 	Preview   *string    `json:"preview,omitempty"`
 }
