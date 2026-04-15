@@ -16,6 +16,7 @@ type PlaceService interface {
 	GetAll(ctx context.Context) ([]models.Place, error)
 	GetDetails(ctx context.Context, placeID, userID uint64) (*models.PlaceWithRating, error)
 	GetReviews(ctx context.Context, placeID uint64) ([]models.ReviewWithAuthor, error)
+	IsPlaceInTrip(ctx context.Context, placeID, tripID uint64) (bool, error)
 }
 
 type ProfileService interface {

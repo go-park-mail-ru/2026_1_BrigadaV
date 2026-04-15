@@ -160,3 +160,18 @@ func (r *PlaceRepo) GetWithRatingAndLike(ctx context.Context, placeID, userID ui
 		IsLiked:     isLiked,
 	}, nil
 }
+
+func (r *PlaceRepo) IsPlaceInTrip(ctx context.Context, placeID, tripID uint64) (bool, error) {
+	logger.Debug(ctx, "checking if place is in trip", logrus.Fields{"place_id": placeID, "trip_id": tripID})
+	var exists bool
+	err := r.db.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1 FROM trip_attractions 
+			WHERE place_id = $1 AND trip_id = $2
+		)`, placeID, tripID).Scan(&exists)
+	if err != nil {
+		logger.Error(ctx, "failed to check place in trip", logrus.Fields{"error": err})
+		return false, err
+	}
+	return exists, nil
+}

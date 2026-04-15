@@ -46,7 +46,7 @@ func main() {
 	reviewService := service.NewReviewService(reviewRepo)
 
 	authHandler := handlers.NewAuthHandler(authService)
-	placeHandler := handlers.NewPlaceHandler(placeService)
+	placeHandler := handlers.NewPlaceHandler(placeService, tripService)
 	profileHandler := handlers.NewProfileHandler(profileService)
 	tripHandler := handlers.NewTripHandler(tripService)
 	reviewHandler := handlers.NewReviewHandler(reviewService)
@@ -69,6 +69,7 @@ func main() {
 	r.HandleFunc("/api/places", placeHandler.List).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/places/{id:[0-9]+}", placeHandler.GetDetails).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/places/{id:[0-9]+}/reviews", placeHandler.GetReviews).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/places/{id:[0-9]+}/in-trip", authMiddleware.Authenticate(placeHandler.CheckPlaceInTrip)).Methods("GET", "OPTIONS")
 
 	r.HandleFunc("/api/trips", authMiddleware.Authenticate(tripHandler.List)).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/trips", authMiddleware.Authenticate(tripHandler.Create)).Methods("POST", "OPTIONS")

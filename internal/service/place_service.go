@@ -29,3 +29,7 @@ func (s *placeService) GetDetails(ctx context.Context, placeID, userID uint64) (
 func (s *placeService) GetReviews(ctx context.Context, placeID uint64) ([]models.ReviewWithAuthor, error) {
 	return s.reviewRepo.GetByPlaceIDWithAuthor(ctx, placeID)
 }
+
+func (s *placeService) IsPlaceInTrip(ctx context.Context, placeID, tripID uint64) (bool, error) {
+	return s.placeRepo.IsPlaceInTrip(ctx, placeID, tripID)
+}

@@ -23,6 +23,7 @@ type PlaceRepository interface {
 	GetAll(ctx context.Context) ([]models.Place, error)
 	GetByID(ctx context.Context, id uint64) (*models.Place, error)
 	GetWithRatingAndLike(ctx context.Context, placeID, userID uint64) (*models.PlaceWithRating, error)
+	IsPlaceInTrip(ctx context.Context, placeID, tripID uint64) (bool, error)
 }
 
 type TripRepository interface {
