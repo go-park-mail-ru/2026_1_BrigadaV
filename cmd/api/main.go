@@ -45,6 +45,7 @@ func main() {
 	profileHandler := handlers.NewProfileHandler(profileService)
 	tripHandler := handlers.NewTripHandler(tripService)
 	reviewHandler := handlers.NewReviewHandler(reviewService)
+	csrfHandler := handlers.NewCSRFHandler()
 
 	authMiddleware := middleware.NewAuthMiddleware(sessionRepo)
 
@@ -69,6 +70,8 @@ func main() {
 
 	r.HandleFunc("/api/reviews", authMiddleware.Authenticate(reviewHandler.Create)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/reviews/{id:[0-9]+}", authMiddleware.Authenticate(reviewHandler.Delete)).Methods("DELETE", "OPTIONS")
+
+	r.HandleFunc("/api/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
 
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
