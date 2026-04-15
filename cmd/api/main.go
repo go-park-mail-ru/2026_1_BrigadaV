@@ -11,7 +11,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/gorilla/csrf"
+	// "github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
@@ -75,13 +75,13 @@ func main() {
 
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
-	csrfMiddleware := csrf.Protect(
-		[]byte(cfg.JWTSecret),
-		csrf.Secure(false),
-		csrf.HttpOnly(true),
-		csrf.Path("/"),
-	)
-	r.Use(csrfMiddleware)
+	// csrfMiddleware := csrf.Protect(
+	// 	[]byte(cfg.JWTSecret),
+	// 	csrf.Secure(false),
+	// 	csrf.HttpOnly(true),
+	// 	csrf.Path("/"),
+	// )
+	// r.Use(csrfMiddleware)
 	r.Use(middleware.CORS(cfg.FrontendURL))
 
 	log.Printf("Server started on :%s", cfg.Port)
