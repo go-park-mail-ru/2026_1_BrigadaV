@@ -1,10 +1,12 @@
-.PHONY: test cover clean
+.PHONY: migrate-up migrate-down migrate-status
 
-test:
-	go test -v
+DATABASE_URL ?= postgres://postgres:postgres@localhost:5432/travel_planner?sslmode=disable
 
-cover:
-	go test -cover ./...
+migrate-up:
+	goose -dir migrations postgres "$(DATABASE_URL)" up
 
-clean:
-	rm -f coverage.out
+migrate-down:
+	goose -dir migrations postgres "$(DATABASE_URL)" down
+
+migrate-status:
+	goose -dir migrations postgres "$(DATABASE_URL)" status

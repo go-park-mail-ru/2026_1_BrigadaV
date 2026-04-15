@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: guidely-backend
+    environment:
+      - SERVER_PORT=8080
+    env_file:
+      - ./.env.example
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - guidely-network
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: guidely-frontend
+    depends_on:
+      - backend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    networks:
+      - guidely-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: guidely-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-1111}
+      POSTGRES_DB: ${DB_NAME:-texnopark}
+    ports:
+      - "9999:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - guidely-network
+    restart: unless-stopped
+
+  migrations:
+    image: golang:1.25-alpine
+    container_name: guidely-migrations
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      - GOOSE_DRIVER=postgres
+      - GOOSE_DBSTRING=postgres://postgres:1111@postgres:5432/texnopark?sslmode=disable
+    command: sh -c "go install github.com/pressly/goose/v3/cmd/goose@latest && goose -dir ./migrations up"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - guidely-network
+    restart: "no"
+
+networks:
+  guidely-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
