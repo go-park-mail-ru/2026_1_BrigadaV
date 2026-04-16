@@ -132,3 +132,16 @@ func (r *TripRepo) GetPlaceIDs(ctx context.Context, tripID uint64) ([]uint64, er
 	}
 	return placeIDs, nil
 }
+
+func (r *TripRepo) RemoveAttraction(ctx context.Context, tripID, placeID uint64) error {
+    query := `DELETE FROM trip_attractions WHERE trip_id = $1 AND place_id = $2`
+    _, err := r.db.Exec(ctx, query, tripID, placeID)
+    return err
+}
+
+func (r *TripRepo) CheckPlaceInTrip(ctx context.Context, tripID, placeID uint64) (bool, error) {
+    query := `SELECT EXISTS(SELECT 1 FROM trip_attractions WHERE trip_id = $1 AND place_id = $2)`
+    var exists bool
+    err := r.db.QueryRow(ctx, query, tripID, placeID).Scan(&exists)
+    return exists, err
+}
