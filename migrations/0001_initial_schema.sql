@@ -167,20 +167,20 @@ INSERT INTO locality (name, country_id, latitude, longitude) VALUES
 ON CONFLICT (name, country_id) DO NOTHING;
 
 INSERT INTO place (name, description, photo_url, locality_id, category_id, price) VALUES
-    ('Hotel Estalagem St Hubertus', 'Очаровательный отель в Грамаду', 'mock/place/rcmd1.png', 1, 1, 2370000),
-    ('Hotel Ritta Höppner', 'Уютный отель в Грамаду', 'mock/place/rcmd2.png', 1, 1, 1138100),
-    ('Rodin Musée', 'Музей, посвящённый Огюсту Родену', 'mock/place/rcmd3.png', 2, 2, 126900),
-    ('Roman Forum', 'Древний римский форум', 'mock/place/rcmd4.png', 3, 3, 126900),
-    ('Basílica de Santa María del Pi', 'Готическая церковь в Барселоне', 'mock/place/rcmd5.png', 4, 3, 199400),
-    ('De Hallen Amsterdam', 'Культурный комплекс в Амстердаме', 'mock/place/rcmd6.png', 5, 2, 3398800),
-    ('Amnaya Resort Kuta', 'Курорт на Бали', 'mock/place/rcmd7.png', 6, 5, 584400),
-    ('Plaça Reial', 'Историческая площадь в Барселоне', 'mock/place/rcmd8.png', 4, 4, 1236900)
+    ('Hotel Estalagem St Hubertus', 'Очаровательный отель в Грамаду', '/mock/place/rcmd1.png', 1, 1, 2370000),
+    ('Hotel Ritta Höppner', 'Уютный отель в Грамаду', '/mock/place/rcmd2.png', 1, 1, 1138100),
+    ('Rodin Musée', 'Музей, посвящённый Огюсту Родену', '/mock/place/rcmd3.png', 2, 2, 126900),
+    ('Roman Forum', 'Древний римский форум', '/mock/place/rcmd4.png', 3, 3, 126900),
+    ('Basílica de Santa María del Pi', 'Готическая церковь в Барселоне', '/mock/place/rcmd5.png', 4, 3, 199400),
+    ('De Hallen Amsterdam', 'Культурный комплекс в Амстердаме', '/mock/place/rcmd6.png', 5, 2, 3398800),
+    ('Amnaya Resort Kuta', 'Курорт на Бали', '/mock/place/rcmd7.png', 6, 5, 584400),
+    ('Plaça Reial', 'Историческая площадь в Барселоне', '/mock/place/rcmd8.png', 4, 4, 1236900)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO photo (file_path) VALUES
-    ('mock/place/rcmd1.png'), ('mock/place/rcmd2.png'), ('mock/place/rcmd3.png'),
-    ('mock/place/rcmd4.png'), ('mock/place/rcmd5.png'), ('mock/place/rcmd6.png'),
-    ('mock/place/rcmd7.png'), ('mock/place/rcmd8.png')
+    ('/mock/place/rcmd1.png'), ('/mock/place/rcmd2.png'), ('/mock/place/rcmd3.png'),
+    ('/mock/place/rcmd4.png'), ('/mock/place/rcmd5.png'), ('/mock/place/rcmd6.png'),
+    ('/mock/place/rcmd7.png'), ('/mock/place/rcmd8.png')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO place_photo (place_id, photo_id, is_main) VALUES
@@ -188,8 +188,8 @@ INSERT INTO place_photo (place_id, photo_id, is_main) VALUES
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO "user" (login, nickname, avatar_url, password_hash) VALUES
-    ('john@example.com', 'johnny', 'mock/user-avatar/john.jpg', 'argon2id$v=19$m=65536,t=1,p=4$LFU4f51KpaFJ85VzwIXZ2Q$NjKqQ4SfxdTnOJz22q+B8sYtNiTcOA4eozfj7mNJtnY'),
-    ('jane@example.com', 'jane', 'mock/user-avatar/jane.jpg', 'argon2id$v=19$m=65536,t=1,p=4$LFU4f51KpaFJ85VzwIXZ2Q$NjKqQ4SfxdTnOJz22q+B8sYtNiTcOA4eozfj7mNJtnY')
+    ('john@example.com', 'johnny', '/mock/user-avatar/john.jpg', 'argon2id$v=19$m=65536,t=1,p=4$LFU4f51KpaFJ85VzwIXZ2Q$NjKqQ4SfxdTnOJz22q+B8sYtNiTcOA4eozfj7mNJtnY'),
+    ('jane@example.com', 'jane', '/mock/user-avatar/jane.jpg', 'argon2id$v=19$m=65536,t=1,p=4$LFU4f51KpaFJ85VzwIXZ2Q$NjKqQ4SfxdTnOJz22q+B8sYtNiTcOA4eozfj7mNJtnY')
 ON CONFLICT (nickname) DO NOTHING;
 
 INSERT INTO favorite (user_id, place_id) VALUES (1,1), (1,3), (2,2), (2,4)
