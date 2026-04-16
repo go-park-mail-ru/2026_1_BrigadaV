@@ -48,3 +48,5 @@ type TripDetailsResponse struct {
 	Preview     *string              `json:"preview,omitempty"`
 	Attractions []models.PlaceInTrip `json:"attractions"`
 }
+
+type TripPlacesResponse []uint64

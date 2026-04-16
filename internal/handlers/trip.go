@@ -99,7 +99,7 @@ func (h *TripHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (h *TripHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
 	log.Println("GetDetails called")
-	
+
 	vars := mux.Vars(r)
 	idStr, ok := vars["id"]
 	if !ok {
@@ -203,4 +203,27 @@ func (h *TripHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *TripHandler) GetTripPlaces(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.ParseUint(vars["id"], 10, 64)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip id"})
+		return
+	}
+
+	placeIDs, err := h.tripService.GetTripPlaceIDs(r.Context(), id)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch place IDs"})
+		return
+	}
+
+	if placeIDs == nil {
+		placeIDs = []uint64{}
+	}
+
+	json.NewEncoder(w).Encode(placeIDs)
 }

@@ -65,9 +65,9 @@ func (r *TripRepo) GetByUser(ctx context.Context, userID uint64) ([]models.Trip,
 }
 
 func (r *TripRepo) Update(ctx context.Context, trip *models.Trip) error {
-	query := `UPDATE trip SET 
-        title = $1, description = $2, location = $3, start_date = $4, end_date = $5, preview_url = $6, 
-        is_public = $7, updated_at = NOW() 
+	query := `UPDATE trip SET
+        title = $1, description = $2, location = $3, start_date = $4, end_date = $5, preview_url = $6,
+        is_public = $7, updated_at = NOW()
         WHERE id = $8 RETURNING updated_at`
 	return r.db.QueryRow(ctx, query,
 		trip.Title, trip.Description, trip.Location, trip.StartDate, trip.EndDate, trip.PreviewURL,
@@ -87,7 +87,7 @@ func (r *TripRepo) AddAttraction(ctx context.Context, tripID, placeID uint64, or
 
 func (r *TripRepo) GetAttractions(ctx context.Context, tripID uint64) ([]models.PlaceInTrip, error) {
     query := `
-        SELECT p.id, p.name, p.description, 
+        SELECT p.id, p.name, p.description,
                COALESCE(AVG(r.rating), 0) as rating,
                p.photo_url
         FROM trip_attractions ta
@@ -102,7 +102,7 @@ func (r *TripRepo) GetAttractions(ctx context.Context, tripID uint64) ([]models.
         return nil, err
     }
     defer rows.Close()
-    
+
     var places []models.PlaceInTrip
     for rows.Next() {
         var pl models.PlaceInTrip
@@ -112,4 +112,23 @@ func (r *TripRepo) GetAttractions(ctx context.Context, tripID uint64) ([]models.
         places = append(places, pl)
     }
     return places, nil
+}
+
+func (r *TripRepo) GetPlaceIDs(ctx context.Context, tripID uint64) ([]uint64, error) {
+	query := `SELECT place_id FROM trip_attractions WHERE trip_id = $1 ORDER BY order_index`
+	rows, err := r.db.Query(ctx, query, tripID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var placeIDs []uint64
+	for rows.Next() {
+		var id uint64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		placeIDs = append(placeIDs, id)
+	}
+	return placeIDs, nil
 }

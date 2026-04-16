@@ -119,3 +119,7 @@ func (s *TripService) Delete(ctx context.Context, id, userID uint64) error {
 	}
 	return s.tripRepo.Delete(ctx, id)
 }
+
+func (s *TripService) GetTripPlaceIDs(ctx context.Context, tripID uint64) ([]uint64, error) {
+	return s.tripRepo.GetPlaceIDs(ctx, tripID)
+}
