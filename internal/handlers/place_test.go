@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -21,7 +22,9 @@ func TestPlaceHandler_List(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockPlaceService := mocks.NewMockPlaceService(ctrl)
-	handler := NewPlaceHandler(mockPlaceService)
+	mockTripService := mocks.NewMockTripService(ctrl)
+
+	handler := NewPlaceHandler(mockPlaceService, mockTripService)
 
 	places := []models.Place{
 		{ID: 1, Name: "Place 1", Description: "Desc 1", Price: 1000},
@@ -48,7 +51,9 @@ func TestPlaceHandler_List_Error(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockPlaceService := mocks.NewMockPlaceService(ctrl)
-	handler := NewPlaceHandler(mockPlaceService)
+	mockTripService := mocks.NewMockTripService(ctrl)
+
+	handler := NewPlaceHandler(mockPlaceService, mockTripService)
 
 	mockPlaceService.EXPECT().GetAll(gomock.Any()).Return(nil, errors.New("db error"))
 
@@ -65,7 +70,9 @@ func TestPlaceHandler_GetDetails(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockPlaceService := mocks.NewMockPlaceService(ctrl)
-	handler := NewPlaceHandler(mockPlaceService)
+	mockTripService := mocks.NewMockTripService(ctrl)
+
+	handler := NewPlaceHandler(mockPlaceService, mockTripService)
 
 	place := &models.PlaceWithRating{
 		ID:          1,
@@ -98,7 +105,9 @@ func TestPlaceHandler_GetDetails_NotFound(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockPlaceService := mocks.NewMockPlaceService(ctrl)
-	handler := NewPlaceHandler(mockPlaceService)
+	mockTripService := mocks.NewMockTripService(ctrl)
+
+	handler := NewPlaceHandler(mockPlaceService, mockTripService)
 
 	mockPlaceService.EXPECT().GetDetails(gomock.Any(), uint64(999), uint64(0)).Return(nil, errors.New("not found"))
 
@@ -116,7 +125,9 @@ func TestPlaceHandler_GetReviews(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockPlaceService := mocks.NewMockPlaceService(ctrl)
-	handler := NewPlaceHandler(mockPlaceService)
+	mockTripService := mocks.NewMockTripService(ctrl)
+
+	handler := NewPlaceHandler(mockPlaceService, mockTripService)
 
 	reviews := []models.ReviewWithAuthor{
 		{ID: 1, Rating: 5, Comment: "Great!", Author: struct {
@@ -140,4 +151,32 @@ func TestPlaceHandler_GetReviews(t *testing.T) {
 	json.NewDecoder(w.Body).Decode(&resp)
 	assert.Len(t, resp, 1)
 	assert.Equal(t, "Great!", resp[0].Comment)
+}
+
+func TestPlaceHandler_CheckPlaceInTrip(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockPlaceService := mocks.NewMockPlaceService(ctrl)
+	mockTripService := mocks.NewMockTripService(ctrl)
+
+	handler := NewPlaceHandler(mockPlaceService, mockTripService)
+
+	req := httptest.NewRequest("GET", "/api/places/1/in-trip?trip_id=100", nil)
+	ctx := context.WithValue(req.Context(), "user_id", uint64(42))
+	req = req.WithContext(ctx)
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	w := httptest.NewRecorder()
+
+	trip := &models.Trip{ID: 100, Title: "My Trip", CreatedBy: 42}
+	mockTripService.EXPECT().GetTripDetails(gomock.Any(), uint64(100)).Return(trip, []models.PlaceInTrip{}, nil)
+	mockPlaceService.EXPECT().IsPlaceInTrip(gomock.Any(), uint64(1), uint64(100)).Return(true, nil)
+
+	handler.CheckPlaceInTrip(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]bool
+	json.NewDecoder(w.Body).Decode(&resp)
+	assert.True(t, resp["in_trip"])
 }
