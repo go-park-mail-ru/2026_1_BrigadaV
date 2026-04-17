@@ -145,7 +145,6 @@ CREATE TABLE IF NOT EXISTS trip_attractions (
     PRIMARY KEY (trip_id, place_id)
 );
 
-
 INSERT INTO country (name) VALUES
     ('Франция'), ('Италия'), ('Испания'), ('Нидерланды'), ('Индонезия'), ('Бразилия'),
     ('Египет'), ('Абхазия'), ('Россия'), ('Англия')

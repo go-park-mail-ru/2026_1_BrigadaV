@@ -120,32 +120,69 @@ func (r *TripRepo) AddAttraction(ctx context.Context, tripID, placeID uint64, or
 }
 
 func (r *TripRepo) GetAttractions(ctx context.Context, tripID uint64) ([]models.PlaceInTrip, error) {
-	logger.Debug(ctx, "getting attractions for trip", logrus.Fields{"trip_id": tripID})
-	query := `
-        SELECT p.id, p.name, p.description, COALESCE(AVG(r.rating), 0) as rating,
-       (SELECT photo_id FROM place_photo WHERE place_id = p.id AND is_main = true LIMIT 1) as image_photo_id
+  logger.Debug(ctx, "getting attractions for trip", logrus.Fields{"trip_id": tripID})  
+  query := `
+        SELECT p.id, p.name, p.description,
+               COALESCE(AVG(r.rating), 0) as rating,
+               p.photo_url
         FROM trip_attractions ta
         JOIN place p ON ta.place_id = p.id
         LEFT JOIN review r ON r.place_id = p.id
         WHERE ta.trip_id = $1
-        GROUP BY p.id, p.name, p.description, p.photo_url
+        GROUP BY p.id, p.name, p.description, p.photo_url, ta.order_index
         ORDER BY ta.order_index
     `
+    rows, err := r.db.Query(ctx, query, tripID)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    var places []models.PlaceInTrip
+    for rows.Next() {
+        var pl models.PlaceInTrip
+        if err := rows.Scan(&pl.ID, &pl.Name, &pl.Description, &pl.Rating, &pl.PhotoURL); err != nil {
+            return nil, err
+        }
+        places = append(places, pl)
+    }
+    return places, nil
+}
+
+func (r *TripRepo) GetPlaceIDs(ctx context.Context, tripID uint64) ([]uint64, error) {
+	query := `SELECT place_id FROM trip_attractions WHERE trip_id = $1 ORDER BY order_index`
 	rows, err := r.db.Query(ctx, query, tripID)
 	if err != nil {
 		logger.Error(ctx, "failed to get attractions", logrus.Fields{"error": err})
 		return nil, err
 	}
 	defer rows.Close()
-	var places []models.PlaceInTrip
+
+	var placeIDs []uint64
 	for rows.Next() {
-		var pl models.PlaceInTrip
-		if err := rows.Scan(&pl.ID, &pl.Name, &pl.Description, &pl.PhotoURL, &pl.Rating); err != nil {
-			logger.Error(ctx, "failed to scan attraction", logrus.Fields{"error": err})
+var pl models.PlaceInTrip
+if err := rows.Scan(&pl.ID, &pl.Name, &pl.Description, &pl.PhotoURL, &pl.Rating); err != nil {
+    logger.Error(ctx, "failed to scan attraction", logrus.Fields{"error": err})
+    return nil, err
+}
+places = append(places, pl)
 			return nil, err
 		}
-		places = append(places, pl)
+		placeIDs = append(placeIDs, id)
 	}
 	logger.Debug(ctx, "attractions retrieved", logrus.Fields{"count": len(places)})
 	return places, nil
+}
+
+func (r *TripRepo) RemoveAttraction(ctx context.Context, tripID, placeID uint64) error {
+    query := `DELETE FROM trip_attractions WHERE trip_id = $1 AND place_id = $2`
+    _, err := r.db.Exec(ctx, query, tripID, placeID)
+    return err
+}
+
+func (r *TripRepo) CheckPlaceInTrip(ctx context.Context, tripID, placeID uint64) (bool, error) {
+    query := `SELECT EXISTS(SELECT 1 FROM trip_attractions WHERE trip_id = $1 AND place_id = $2)`
+    var exists bool
+    err := r.db.QueryRow(ctx, query, tripID, placeID).Scan(&exists)
+    return exists, err
 }

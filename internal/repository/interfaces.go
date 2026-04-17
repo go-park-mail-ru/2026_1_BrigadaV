@@ -34,6 +34,7 @@ type TripRepository interface {
 	Delete(ctx context.Context, id uint64) error
 	AddAttraction(ctx context.Context, tripID, placeID uint64, order int16) error
 	GetAttractions(ctx context.Context, tripID uint64) ([]models.PlaceInTrip, error)
+	GetPlaceIDs(ctx context.Context, tripID uint64) ([]uint64, error)
 }
 
 type ReviewRepository interface {
