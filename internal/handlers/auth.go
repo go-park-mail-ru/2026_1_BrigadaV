@@ -10,10 +10,10 @@ import (
 )
 
 type AuthHandler struct {
-	authService *service.AuthService
+	authService service.AuthService
 }
 
-func NewAuthHandler(authService *service.AuthService) *AuthHandler {
+func NewAuthHandler(authService service.AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }
 
@@ -37,11 +37,17 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Registration failed: %v", err)
 		status := http.StatusBadRequest
-		if err.Error() == "email already exists" || err.Error() == "nickname already exists" {
+		resp := map[string]string{"error": err.Error()}
+		switch err.Error() {
+		case "login already exists":
 			status = http.StatusConflict
+			resp["field"] = "login"
+		case "nickname already exists":
+			status = http.StatusConflict
+			resp["field"] = "nickname"
 		}
 		w.WriteHeader(status)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		json.NewEncoder(w).Encode(resp)
 		return
 	}
 	log.Printf("User registered: id=%d, email=%s", user.ID, user.Login)

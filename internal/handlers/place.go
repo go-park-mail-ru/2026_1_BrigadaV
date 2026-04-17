@@ -11,11 +11,15 @@ import (
 )
 
 type PlaceHandler struct {
-	placeService *service.PlaceService
+	placeService service.PlaceService
+	tripService  service.TripService
 }
 
-func NewPlaceHandler(placeService *service.PlaceService) *PlaceHandler {
-	return &PlaceHandler{placeService: placeService}
+func NewPlaceHandler(placeService service.PlaceService, tripService service.TripService) *PlaceHandler {
+	return &PlaceHandler{
+		placeService: placeService,
+		tripService:  tripService,
+	}
 }
 
 func (h *PlaceHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -117,4 +121,52 @@ func (h *PlaceHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(reviews)
+}
+
+func (h *PlaceHandler) CheckPlaceInTrip(w http.ResponseWriter, r *http.Request) {
+	userIDVal := r.Context().Value("user_id")
+	userID, ok := userIDVal.(uint64)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		return
+	}
+
+	vars := mux.Vars(r)
+	placeID, err := strconv.ParseUint(vars["id"], 10, 64)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid place id"})
+		return
+	}
+
+	tripIDStr := r.URL.Query().Get("trip_id")
+	if tripIDStr == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "missing trip_id"})
+		return
+	}
+	tripID, err := strconv.ParseUint(tripIDStr, 10, 64)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip_id"})
+		return
+	}
+
+	trip, _, err := h.tripService.GetTripDetails(r.Context(), tripID)
+	if err != nil || trip == nil || trip.CreatedBy != userID {
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{"error": "trip not found or access denied"})
+		return
+	}
+
+	inTrip, err := h.placeService.IsPlaceInTrip(r.Context(), placeID, tripID)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to check place in trip"})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"in_trip": inTrip})
 }

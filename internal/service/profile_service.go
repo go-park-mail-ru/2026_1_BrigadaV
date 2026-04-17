@@ -6,12 +6,12 @@ import (
 	"guidely-app/internal/repository"
 )
 
-type ProfileService struct {
-	userRepo *repository.UserRepo
+type profileService struct {
+	userRepo repository.UserRepository
 }
 
-func NewProfileService(userRepo *repository.UserRepo) *ProfileService {
-	return &ProfileService{userRepo: userRepo}
+func NewProfileService(userRepo repository.UserRepository) ProfileService {
+	return &profileService{userRepo: userRepo}
 }
 
 type UpdateProfileInput struct {
@@ -22,11 +22,11 @@ type UpdateProfileInput struct {
 	About     *string
 }
 
-func (s *ProfileService) GetProfile(ctx context.Context, userID uint64) (*models.User, error) {
+func (s *profileService) GetProfile(ctx context.Context, userID uint64) (*models.User, error) {
 	return s.userRepo.GetByID(ctx, userID)
 }
 
-func (s *ProfileService) UpdateProfile(ctx context.Context, userID uint64, input UpdateProfileInput) (*models.User, error) {
+func (s *profileService) UpdateProfile(ctx context.Context, userID uint64, input UpdateProfileInput) (*models.User, error) {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -46,6 +46,18 @@ func (s *ProfileService) UpdateProfile(ctx context.Context, userID uint64, input
 	if input.About != nil {
 		user.About = input.About
 	}
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (s *profileService) UpdateAvatar(ctx context.Context, userID uint64, avatarURL string) (*models.User, error) {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	user.AvatarURL = avatarURL
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		return nil, err
 	}

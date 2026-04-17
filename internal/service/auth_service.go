@@ -9,13 +9,16 @@ import (
 	"time"
 )
 
-type AuthService struct {
-	userRepo    *repository.UserRepo
-	sessionRepo *repository.SessionRepo
+type authService struct {
+	userRepo    repository.UserRepository
+	sessionRepo repository.SessionRepository
 }
 
-func NewAuthService(userRepo *repository.UserRepo, sessionRepo *repository.SessionRepo) *AuthService {
-	return &AuthService{userRepo: userRepo, sessionRepo: sessionRepo}
+func NewAuthService(userRepo repository.UserRepository, sessionRepo repository.SessionRepository) AuthService {
+	return &authService{
+		userRepo:    userRepo,
+		sessionRepo: sessionRepo,
+	}
 }
 
 type RegisterInput struct {
@@ -29,9 +32,9 @@ type LoginInput struct {
 	Password string
 }
 
-func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*models.User, string, error) {
-	if !utils.IsValidEmail(input.Login) {
-		return nil, "", errors.New("invalid email format")
+func (s *authService) Register(ctx context.Context, input RegisterInput) (*models.User, string, error) {
+	if !utils.IsValidLogin(input.Login) {
+		return nil, "", errors.New("invalid login format")
 	}
 	if !utils.IsValidNickname(input.Nickname) {
 		return nil, "", errors.New("nickname must be at least 3 characters and max 50")
@@ -39,9 +42,9 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*model
 	if len(input.Password) < 8 {
 		return nil, "", errors.New("password must be at least 8 characters")
 	}
-	existing, _ := s.userRepo.GetByEmail(ctx, input.Login)
+	existing, _ := s.userRepo.GetByLogin(ctx, input.Login)
 	if existing != nil {
-		return nil, "", errors.New("email already exists")
+		return nil, "", errors.New("login already exists")
 	}
 	existingNick, _ := s.userRepo.GetByNickname(ctx, input.Nickname)
 	if existingNick != nil {
@@ -75,8 +78,8 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*model
 	return user, token, nil
 }
 
-func (s *AuthService) Login(ctx context.Context, input LoginInput) (*models.User, string, error) {
-	user, err := s.userRepo.GetByEmail(ctx, input.Login)
+func (s *authService) Login(ctx context.Context, input LoginInput) (*models.User, string, error) {
+	user, err := s.userRepo.GetByLogin(ctx, input.Login)
 	if err != nil || user == nil {
 		return nil, "", errors.New("invalid credentials")
 	}
@@ -98,10 +101,10 @@ func (s *AuthService) Login(ctx context.Context, input LoginInput) (*models.User
 	return user, token, nil
 }
 
-func (s *AuthService) Logout(ctx context.Context, token string) error {
+func (s *authService) Logout(ctx context.Context, token string) error {
 	return s.sessionRepo.DeleteByToken(ctx, token)
 }
 
-func (s *AuthService) GetUserByID(ctx context.Context, id uint64) (*models.User, error) {
+func (s *authService) GetUserByID(ctx context.Context, id uint64) (*models.User, error) {
 	return s.userRepo.GetByID(ctx, id)
 }

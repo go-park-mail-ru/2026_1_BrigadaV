@@ -6,16 +6,28 @@ import (
 	"guidely-app/internal/service"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 )
 
 type ReviewHandler struct {
-	reviewService *service.ReviewService
+	reviewService service.ReviewService
 }
 
-func NewReviewHandler(reviewService *service.ReviewService) *ReviewHandler {
+func NewReviewHandler(reviewService service.ReviewService) *ReviewHandler {
 	return &ReviewHandler{reviewService: reviewService}
+}
+
+func parseDatePtr(s *string) *time.Time {
+	if s == nil || *s == "" {
+		return nil
+	}
+	t, err := time.Parse("2006-01-02", *s)
+	if err != nil {
+		return nil
+	}
+	return &t
 }
 
 func (h *ReviewHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -62,6 +74,7 @@ func (h *ReviewHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
+
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
@@ -69,10 +82,20 @@ func (h *ReviewHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid review id"})
 		return
 	}
-	if err := h.reviewService.Delete(r.Context(), userID, id); err != nil {
-		w.WriteHeader(http.StatusForbidden)
+
+	err = h.reviewService.Delete(r.Context(), userID, id)
+	if err != nil {
+		switch err.Error() {
+		case "review not found":
+			w.WriteHeader(http.StatusNotFound)
+		case "not authorized":
+			w.WriteHeader(http.StatusForbidden)
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
+
 	w.WriteHeader(http.StatusNoContent)
 }

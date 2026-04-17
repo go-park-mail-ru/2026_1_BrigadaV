@@ -13,14 +13,14 @@ import (
 )
 
 type TripHandler struct {
-	tripService *service.TripService
+	tripService service.TripService
 }
 
-func NewTripHandler(tripService *service.TripService) *TripHandler {
+func NewTripHandler(tripService service.TripService) *TripHandler {
 	return &TripHandler{tripService: tripService}
 }
 
-func parseDatePtr(s *string) *time.Time {
+func parseDatePtrTrip(s *string) *time.Time {
 	if s == nil || *s == "" {
 		return nil
 	}
@@ -78,8 +78,8 @@ func (h *TripHandler) Create(w http.ResponseWriter, r *http.Request) {
 	input := service.CreateTripInput{
 		Title:      req.Title,
 		Location:   req.Location,
-		StartDate:  parseDatePtr(req.StartDate),
-		EndDate:    parseDatePtr(req.EndDate),
+		StartDate:  parseDatePtrTrip(req.StartDate),
+		EndDate:    parseDatePtrTrip(req.EndDate),
 		PreviewURL: req.Preview,
 		CreatedBy:  userID,
 		IsPublic:   req.IsPublic,
@@ -167,8 +167,8 @@ func (h *TripHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Title:       req.Title,
 		Description: req.Description,
 		Location:    req.Location,
-		StartDate:   parseDatePtr(req.StartDate),
-		EndDate:     parseDatePtr(req.EndDate),
+		StartDate:   parseDatePtrTrip(req.StartDate),
+		EndDate:     parseDatePtrTrip(req.EndDate),
 		PreviewURL:  req.Preview,
 		IsPublic:    req.IsPublic,
 	}
