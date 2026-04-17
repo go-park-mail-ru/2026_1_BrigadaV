@@ -21,20 +21,24 @@ func NewUserRepo(db *pgxpool.Pool) *UserRepo {
 
 func (r *UserRepo) Create(ctx context.Context, user *models.User) error {
 	logger.Debug(ctx, "creating user", logrus.Fields{"login": user.Login})
+	
 	query := `INSERT INTO "user" (login, nickname, avatar_url, password_hash, country, city, about) 
               VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, created_at, updated_at`
+	
 	err := r.db.QueryRow(ctx, query, user.Login, user.Nickname, user.AvatarURL, user.PasswordHash,
 		user.Country, user.City, user.About).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		logger.Error(ctx, "failed to create user", logrus.Fields{"error": err})
 		return err
 	}
+	
 	logger.Debug(ctx, "user created", logrus.Fields{"user_id": user.ID})
 	return nil
 }
 
 func (r *UserRepo) GetByLogin(ctx context.Context, login string) (*models.User, error) {
 	logger.Debug(ctx, "getting user by login", logrus.Fields{"login": login})
+	
 	query := `SELECT id, login, nickname, avatar_url, password_hash, country, city, about, has_reviews, created_at, updated_at 
               FROM "user" WHERE login = $1`
 	var user models.User
@@ -51,11 +55,14 @@ func (r *UserRepo) GetByLogin(ctx context.Context, login string) (*models.User, 
 		logger.Error(ctx, "failed to get user by login", logrus.Fields{"error": err})
 		return nil, err
 	}
+	
+	logger.Debug(ctx, "user found by login", logrus.Fields{"user_id": user.ID, "login": user.Login})
 	return &user, nil
 }
 
 func (r *UserRepo) GetByNickname(ctx context.Context, nickname string) (*models.User, error) {
 	logger.Debug(ctx, "getting user by nickname", logrus.Fields{"nickname": nickname})
+	
 	query := `SELECT id, login, nickname, avatar_url, password_hash, country, city, about, has_reviews, created_at, updated_at 
               FROM "user" WHERE nickname = $1`
 	var user models.User
@@ -72,6 +79,8 @@ func (r *UserRepo) GetByNickname(ctx context.Context, nickname string) (*models.
 		logger.Error(ctx, "failed to get user by nickname", logrus.Fields{"error": err})
 		return nil, err
 	}
+	
+	logger.Debug(ctx, "user found by nickname", logrus.Fields{"user_id": user.ID, "nickname": user.Nickname})
 	return &user, nil
 }
 

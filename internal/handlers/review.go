@@ -52,14 +52,18 @@ func (h *ReviewHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Comment:   req.Content,
 		VisitDate: parseDatePtr(req.VisitDate),
 	}
-	_, err := h.reviewService.Create(r.Context(), input)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
-		return
-	}
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"message": "ok"})
+	review, err := h.reviewService.Create(r.Context(), input)
+    if err != nil {
+        w.WriteHeader(http.StatusBadRequest)
+        json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+        return
+    }
+    
+    w.WriteHeader(http.StatusCreated)
+    json.NewEncoder(w).Encode(map[string]interface{}{
+        "id":      review.ID,
+        "message": "ok",
+    })
 }
 
 func (h *ReviewHandler) Delete(w http.ResponseWriter, r *http.Request) {
