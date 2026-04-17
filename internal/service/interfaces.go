@@ -31,6 +31,9 @@ type TripService interface {
 	GetTripDetails(ctx context.Context, tripID uint64) (*models.Trip, []models.PlaceInTrip, error)
 	Update(ctx context.Context, id, userID uint64, input UpdateTripInput) (*models.Trip, error)
 	Delete(ctx context.Context, id, userID uint64) error
+	GetTripPlaceIDs(ctx context.Context, tripID uint64) ([]uint64, error)
+	AddPlaceToTrip(ctx context.Context, tripID, placeID, userID uint64, orderIndex int16) error
+	RemovePlaceFromTrip(ctx context.Context, tripID, placeID, userID uint64) error
 }
 
 type ReviewService interface {

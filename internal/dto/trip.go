@@ -6,13 +6,13 @@ import (
 )
 
 type TripResponse struct {
-	ID        uint64     `json:"id"`
-	Title     string     `json:"title"`
-	Location  *string    `json:"location,omitempty"`
-	StartDate *time.Time `json:"startDate,omitempty"`
-	Description string    `json:"description,omitempty"`
-	EndDate   *time.Time `json:"endDate,omitempty"`
-	Preview   *string    `json:"preview,omitempty"`
+	ID          uint64     `json:"id"`
+	Title       string     `json:"title"`
+	Location    *string    `json:"location,omitempty"`
+	StartDate   *time.Time `json:"startDate,omitempty"`
+	Description string     `json:"description,omitempty"`
+	EndDate     *time.Time `json:"endDate,omitempty"`
+	Preview     *string    `json:"preview,omitempty"`
 }
 
 type CreateTripRequest struct {

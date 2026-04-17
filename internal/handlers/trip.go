@@ -48,13 +48,13 @@ func (h *TripHandler) List(w http.ResponseWriter, r *http.Request) {
 	response := make([]dto.TripResponse, len(trips))
 	for i, t := range trips {
 		response[i] = dto.TripResponse{
-			ID:        t.ID,
-			Title:     t.Title,
-			Location:  t.Location,
-			StartDate: t.StartDate,
-			EndDate:   t.EndDate,
+			ID:          t.ID,
+			Title:       t.Title,
+			Location:    t.Location,
+			StartDate:   t.StartDate,
+			EndDate:     t.EndDate,
 			Description: t.Description,
-			Preview:   t.PreviewURL,
+			Preview:     t.PreviewURL,
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -229,71 +229,71 @@ func (h *TripHandler) GetTripPlaces(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TripHandler) AddPlace(w http.ResponseWriter, r *http.Request) {
-    userIDVal := r.Context().Value("user_id")
-    userID, ok := userIDVal.(uint64)
-    if !ok {
-        w.WriteHeader(http.StatusUnauthorized)
-        json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
-        return
-    }
-    
-    vars := mux.Vars(r)
-    tripID, err := strconv.ParseUint(vars["id"], 10, 64)
-    if err != nil {
-        w.WriteHeader(http.StatusBadRequest)
-        json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip id"})
-        return
-    }
-    
-    var req struct {
-        PlaceID    uint64 `json:"place_id"`
-        OrderIndex int16  `json:"order_index"`
-    }
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        w.WriteHeader(http.StatusBadRequest)
-        json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
-        return
-    }
-    
-    if err := h.tripService.AddPlaceToTrip(r.Context(), tripID, req.PlaceID, userID, req.OrderIndex); err != nil {
-        w.WriteHeader(http.StatusBadRequest)
-        json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
-        return
-    }
-    
-    w.WriteHeader(http.StatusOK)
-    json.NewEncoder(w).Encode(map[string]string{"message": "place added to trip"})
+	userIDVal := r.Context().Value("user_id")
+	userID, ok := userIDVal.(uint64)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		return
+	}
+
+	vars := mux.Vars(r)
+	tripID, err := strconv.ParseUint(vars["id"], 10, 64)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip id"})
+		return
+	}
+
+	var req struct {
+		PlaceID    uint64 `json:"place_id"`
+		OrderIndex int16  `json:"order_index"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		return
+	}
+
+	if err := h.tripService.AddPlaceToTrip(r.Context(), tripID, req.PlaceID, userID, req.OrderIndex); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "place added to trip"})
 }
 
 func (h *TripHandler) RemovePlace(w http.ResponseWriter, r *http.Request) {
-    userIDVal := r.Context().Value("user_id")
-    userID, ok := userIDVal.(uint64)
-    if !ok {
-        w.WriteHeader(http.StatusUnauthorized)
-        json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
-        return
-    }
-    
-    vars := mux.Vars(r)
-    tripID, err := strconv.ParseUint(vars["id"], 10, 64)
-    if err != nil {
-        w.WriteHeader(http.StatusBadRequest)
-        json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip id"})
-        return
-    }
-    
-    placeID, err := strconv.ParseUint(vars["placeId"], 10, 64)
-    if err != nil {
-        w.WriteHeader(http.StatusBadRequest)
-        json.NewEncoder(w).Encode(map[string]string{"error": "invalid place id"})
-        return
-    }
-    
-    if err := h.tripService.RemovePlaceFromTrip(r.Context(), tripID, placeID, userID); err != nil {
-        w.WriteHeader(http.StatusBadRequest)
-        json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
-        return
-    }
-    
-    w.WriteHeader(http.StatusNoContent)
+	userIDVal := r.Context().Value("user_id")
+	userID, ok := userIDVal.(uint64)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		return
+	}
+
+	vars := mux.Vars(r)
+	tripID, err := strconv.ParseUint(vars["id"], 10, 64)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip id"})
+		return
+	}
+
+	placeID, err := strconv.ParseUint(vars["placeId"], 10, 64)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid place id"})
+		return
+	}
+
+	if err := h.tripService.RemovePlaceFromTrip(r.Context(), tripID, placeID, userID); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

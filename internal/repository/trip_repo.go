@@ -7,15 +7,14 @@ import (
 	"guidely-app/internal/models"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
 )
 
 type TripRepo struct {
-	db *pgxpool.Pool
+	db DB
 }
 
-func NewTripRepo(db *pgxpool.Pool) *TripRepo {
+func NewTripRepo(db DB) *TripRepo {
 	return &TripRepo{db: db}
 }
 
@@ -160,18 +159,16 @@ func (r *TripRepo) GetPlaceIDs(ctx context.Context, tripID uint64) ([]uint64, er
 
 	var placeIDs []uint64
 	for rows.Next() {
-var pl models.PlaceInTrip
-if err := rows.Scan(&pl.ID, &pl.Name, &pl.Description, &pl.PhotoURL, &pl.Rating); err != nil {
-    logger.Error(ctx, "failed to scan attraction", logrus.Fields{"error": err})
-    return nil, err
-}
-places = append(places, pl)
+		var id uint64
+		if err := rows.Scan(&id); err != nil {
+			logger.Error(ctx, "failed to scan attraction", logrus.Fields{"error": err})
 			return nil, err
 		}
 		placeIDs = append(placeIDs, id)
 	}
-	logger.Debug(ctx, "attractions retrieved", logrus.Fields{"count": len(places)})
-	return places, nil
+	
+	logger.Debug(ctx, "attractions retrieved", logrus.Fields{"count": len(placeIDs)})
+	return placeIDs, nil
 }
 
 func (r *TripRepo) RemoveAttraction(ctx context.Context, tripID, placeID uint64) error {

@@ -8,15 +8,14 @@ import (
 	"guidely-app/internal/models"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
 )
 
 type PlaceRepo struct {
-	db *pgxpool.Pool
+	db DB
 }
 
-func NewPlaceRepo(db *pgxpool.Pool) *PlaceRepo {
+func NewPlaceRepo(db DB) *PlaceRepo {
 	return &PlaceRepo{db: db}
 }
 
@@ -34,78 +33,78 @@ func (r *PlaceRepo) GetAll(ctx context.Context) ([]models.Place, error) {
         LEFT JOIN place_photo pp ON p.id = pp.place_id
         LEFT JOIN photo ph ON pp.photo_id = ph.id
         ORDER BY p.id`
-rows, err := r.db.Query(ctx, query)
-if err != nil {
-    logger.Error(ctx, "failed to get all places", logrus.Fields{"error": err})
-    return nil, err
-}
-defer rows.Close()
+	rows, err := r.db.Query(ctx, query)
+	if err != nil {
+		logger.Error(ctx, "failed to get all places", logrus.Fields{"error": err})
+		return nil, err
+	}
+	defer rows.Close()
 
-placesMap := make(map[uint64]*models.Place)
+	placesMap := make(map[uint64]*models.Place)
 
-for rows.Next() {
-    var p models.Place
-    var locID, catID *uint64
-    var locName, countryName *string
-    var locLat, locLng *float64
-    var catName, catDesc *string
-    var placePhotoID *uint64
-    var photoFilePath *string
-    var isMain *bool
+	for rows.Next() {
+		var p models.Place
+		var locID, catID *uint64
+		var locName, countryName *string
+		var locLat, locLng *float64
+		var catName, catDesc *string
+		var placePhotoID *uint64
+		var photoFilePath *string
+		var isMain *bool
 
-    err := rows.Scan(
-        &p.ID, &p.Name, &p.Description, &p.PhotoURL, &p.Price, &p.CreatedAt, &p.UpdatedAt,
-        &locID, &locName, &countryName, &locLat, &locLng,
-        &catID, &catName, &catDesc,
-        &placePhotoID, &photoFilePath, &isMain,
-    )
-    if err != nil {
-        logger.Error(ctx, "failed to scan place row", logrus.Fields{"error": err})
-        return nil, err
-    }
+		err := rows.Scan(
+			&p.ID, &p.Name, &p.Description, &p.PhotoURL, &p.Price, &p.CreatedAt, &p.UpdatedAt,
+			&locID, &locName, &countryName, &locLat, &locLng,
+			&catID, &catName, &catDesc,
+			&placePhotoID, &photoFilePath, &isMain,
+		)
+		if err != nil {
+			logger.Error(ctx, "failed to scan place row", logrus.Fields{"error": err})
+			return nil, err
+		}
 
-    if _, exists := placesMap[p.ID]; !exists {
-        if locID != nil {
-            p.Locality = models.Locality{
-                ID:        *locID,
-                Name:      *locName,
-                Country:   *countryName,
-                Latitude:  locLat,
-                Longitude: locLng,
-            }
-        }
-        if catID != nil {
-            p.Category = models.Category{
-                ID:          *catID,
-                Name:        *catName,
-                Description: *catDesc,
-            }
-        }
-        placesMap[p.ID] = &p
-    }
+		if _, exists := placesMap[p.ID]; !exists {
+			if locID != nil {
+				p.Locality = models.Locality{
+					ID:        *locID,
+					Name:      *locName,
+					Country:   *countryName,
+					Latitude:  locLat,
+					Longitude: locLng,
+				}
+			}
+			if catID != nil {
+				p.Category = models.Category{
+					ID:          *catID,
+					Name:        *catName,
+					Description: *catDesc,
+				}
+			}
+			placesMap[p.ID] = &p
+		}
 
-    if placePhotoID != nil && photoFilePath != nil {
-        photo := models.PlacePhoto{
-            ID:       *placePhotoID,
-            PlaceID:  p.ID,
-            PhotoID:  *placePhotoID,
-            Photo: models.Photo{
-                ID:       *placePhotoID,
-                FilePath: *photoFilePath,
-            },
-            IsMain:   isMain != nil && *isMain,
-        }
-        placesMap[p.ID].Photos = append(placesMap[p.ID].Photos, photo)
-    }
-}
+		if placePhotoID != nil && photoFilePath != nil {
+			photo := models.PlacePhoto{
+				ID:      *placePhotoID,
+				PlaceID: p.ID,
+				PhotoID: *placePhotoID,
+				Photo: models.Photo{
+					ID:       *placePhotoID,
+					FilePath: *photoFilePath,
+				},
+				IsMain: isMain != nil && *isMain,
+			}
+			placesMap[p.ID].Photos = append(placesMap[p.ID].Photos, photo)
+		}
+	}
 
-var places []models.Place
-for _, p := range placesMap {
-    places = append(places, *p)
-}
+	var places []models.Place
+	for _, p := range placesMap {
+		places = append(places, *p)
+	}
 
-logger.Debug(ctx, "places retrieved", logrus.Fields{"count": len(places)})
-return places, nil
+	logger.Debug(ctx, "places retrieved", logrus.Fields{"count": len(places)})
+	return places, nil
 }
 
 func (r *PlaceRepo) GetByID(ctx context.Context, id uint64) (*models.Place, error) {

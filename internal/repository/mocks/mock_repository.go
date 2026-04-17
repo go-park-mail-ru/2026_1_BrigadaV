@@ -294,6 +294,21 @@ func (mr *MockTripRepositoryMockRecorder) AddAttraction(arg0, arg1, arg2, arg3 i
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddAttraction", reflect.TypeOf((*MockTripRepository)(nil).AddAttraction), arg0, arg1, arg2, arg3)
 }
 
+// CheckPlaceInTrip mocks base method.
+func (m *MockTripRepository) CheckPlaceInTrip(arg0 context.Context, arg1, arg2 uint64) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CheckPlaceInTrip", arg0, arg1, arg2)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CheckPlaceInTrip indicates an expected call of CheckPlaceInTrip.
+func (mr *MockTripRepositoryMockRecorder) CheckPlaceInTrip(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckPlaceInTrip", reflect.TypeOf((*MockTripRepository)(nil).CheckPlaceInTrip), arg0, arg1, arg2)
+}
+
 // Create mocks base method.
 func (m *MockTripRepository) Create(arg0 context.Context, arg1 *models.Trip) error {
 	m.ctrl.T.Helper()
@@ -365,6 +380,35 @@ func (m *MockTripRepository) GetByUser(arg0 context.Context, arg1 uint64) ([]mod
 func (mr *MockTripRepositoryMockRecorder) GetByUser(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByUser", reflect.TypeOf((*MockTripRepository)(nil).GetByUser), arg0, arg1)
+}
+
+// GetPlaceIDs mocks base method.
+func (m *MockTripRepository) GetPlaceIDs(arg0 context.Context, arg1 uint64) ([]uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetPlaceIDs", arg0, arg1)
+	ret0, _ := ret[0].([]uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetPlaceIDs indicates an expected call of GetPlaceIDs.
+func (mr *MockTripRepositoryMockRecorder) GetPlaceIDs(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPlaceIDs", reflect.TypeOf((*MockTripRepository)(nil).GetPlaceIDs), arg0, arg1)
+}
+
+// RemoveAttraction mocks base method.
+func (m *MockTripRepository) RemoveAttraction(arg0 context.Context, arg1, arg2 uint64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoveAttraction", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemoveAttraction indicates an expected call of RemoveAttraction.
+func (mr *MockTripRepositoryMockRecorder) RemoveAttraction(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveAttraction", reflect.TypeOf((*MockTripRepository)(nil).RemoveAttraction), arg0, arg1, arg2)
 }
 
 // Update mocks base method.

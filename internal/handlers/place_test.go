@@ -21,7 +21,8 @@ func TestPlaceHandler_List(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockPlaceService := mocks.NewMockPlaceService(ctrl)
-	handler := NewPlaceHandler(mockPlaceService)
+	mockTripService := mocks.NewMockTripService(ctrl)
+	handler := NewPlaceHandler(mockPlaceService, mockTripService)
 
 	places := []models.Place{
 		{ID: 1, Name: "Place 1", Description: "Desc 1", Price: 1000},
@@ -48,7 +49,8 @@ func TestPlaceHandler_List_Error(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockPlaceService := mocks.NewMockPlaceService(ctrl)
-	handler := NewPlaceHandler(mockPlaceService)
+	mockTripService := mocks.NewMockTripService(ctrl)
+	handler := NewPlaceHandler(mockPlaceService, mockTripService)
 
 	mockPlaceService.EXPECT().GetAll(gomock.Any()).Return(nil, errors.New("db error"))
 
@@ -65,7 +67,8 @@ func TestPlaceHandler_GetDetails(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockPlaceService := mocks.NewMockPlaceService(ctrl)
-	handler := NewPlaceHandler(mockPlaceService)
+	mockTripService := mocks.NewMockTripService(ctrl)
+	handler := NewPlaceHandler(mockPlaceService, mockTripService)
 
 	place := &models.PlaceWithRating{
 		ID:          1,
@@ -98,7 +101,8 @@ func TestPlaceHandler_GetDetails_NotFound(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockPlaceService := mocks.NewMockPlaceService(ctrl)
-	handler := NewPlaceHandler(mockPlaceService)
+	mockTripService := mocks.NewMockTripService(ctrl)
+	handler := NewPlaceHandler(mockPlaceService, mockTripService)
 
 	mockPlaceService.EXPECT().GetDetails(gomock.Any(), uint64(999), uint64(0)).Return(nil, errors.New("not found"))
 
@@ -116,7 +120,8 @@ func TestPlaceHandler_GetReviews(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockPlaceService := mocks.NewMockPlaceService(ctrl)
-	handler := NewPlaceHandler(mockPlaceService)
+	mockTripService := mocks.NewMockTripService(ctrl)
+	handler := NewPlaceHandler(mockPlaceService, mockTripService)
 
 	reviews := []models.ReviewWithAuthor{
 		{ID: 1, Rating: 5, Comment: "Great!", Author: struct {

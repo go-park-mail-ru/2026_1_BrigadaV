@@ -36,6 +36,20 @@ func (m *MockTripService) EXPECT() *MockTripServiceMockRecorder {
 	return m.recorder
 }
 
+// AddPlaceToTrip mocks base method.
+func (m *MockTripService) AddPlaceToTrip(arg0 context.Context, arg1, arg2, arg3 uint64, arg4 int16) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddPlaceToTrip", arg0, arg1, arg2, arg3, arg4)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddPlaceToTrip indicates an expected call of AddPlaceToTrip.
+func (mr *MockTripServiceMockRecorder) AddPlaceToTrip(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddPlaceToTrip", reflect.TypeOf((*MockTripService)(nil).AddPlaceToTrip), arg0, arg1, arg2, arg3, arg4)
+}
+
 // Create mocks base method.
 func (m *MockTripService) Create(arg0 context.Context, arg1 service.CreateTripInput) (*models.Trip, error) {
 	m.ctrl.T.Helper()
@@ -81,6 +95,21 @@ func (mr *MockTripServiceMockRecorder) GetTripDetails(arg0, arg1 interface{}) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTripDetails", reflect.TypeOf((*MockTripService)(nil).GetTripDetails), arg0, arg1)
 }
 
+// GetTripPlaceIDs mocks base method.
+func (m *MockTripService) GetTripPlaceIDs(arg0 context.Context, arg1 uint64) ([]uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTripPlaceIDs", arg0, arg1)
+	ret0, _ := ret[0].([]uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetTripPlaceIDs indicates an expected call of GetTripPlaceIDs.
+func (mr *MockTripServiceMockRecorder) GetTripPlaceIDs(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTripPlaceIDs", reflect.TypeOf((*MockTripService)(nil).GetTripPlaceIDs), arg0, arg1)
+}
+
 // GetUserTrips mocks base method.
 func (m *MockTripService) GetUserTrips(arg0 context.Context, arg1 uint64) ([]models.Trip, error) {
 	m.ctrl.T.Helper()
@@ -94,6 +123,20 @@ func (m *MockTripService) GetUserTrips(arg0 context.Context, arg1 uint64) ([]mod
 func (mr *MockTripServiceMockRecorder) GetUserTrips(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserTrips", reflect.TypeOf((*MockTripService)(nil).GetUserTrips), arg0, arg1)
+}
+
+// RemovePlaceFromTrip mocks base method.
+func (m *MockTripService) RemovePlaceFromTrip(arg0 context.Context, arg1, arg2, arg3 uint64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemovePlaceFromTrip", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemovePlaceFromTrip indicates an expected call of RemovePlaceFromTrip.
+func (mr *MockTripServiceMockRecorder) RemovePlaceFromTrip(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemovePlaceFromTrip", reflect.TypeOf((*MockTripService)(nil).RemovePlaceFromTrip), arg0, arg1, arg2, arg3)
 }
 
 // Update mocks base method.

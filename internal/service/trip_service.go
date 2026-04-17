@@ -120,37 +120,37 @@ func (s *tripService) Delete(ctx context.Context, id, userID uint64) error {
 	return s.tripRepo.Delete(ctx, id)
 }
 
-func (s *TripService) GetTripPlaceIDs(ctx context.Context, tripID uint64) ([]uint64, error) {
+func (s *tripService) GetTripPlaceIDs(ctx context.Context, tripID uint64) ([]uint64, error) {
 	return s.tripRepo.GetPlaceIDs(ctx, tripID)
 }
 
-func (s *TripService) AddPlaceToTrip(ctx context.Context, tripID, placeID, userID uint64, orderIndex int16) error {
-    trip, err := s.tripRepo.GetByID(ctx, tripID)
-    if err != nil || trip == nil {
-        return errors.New("trip not found")
-    }
-    if trip.CreatedBy != userID {
-        return errors.New("not your trip")
-    }
-    
-    exists, err := s.tripRepo.CheckPlaceInTrip(ctx, tripID, placeID)
-    if err != nil {
-        return err
-    }
-    if exists {
-        return errors.New("place already in trip")
-    }
-    
-    return s.tripRepo.AddAttraction(ctx, tripID, placeID, orderIndex)
+func (s *tripService) AddPlaceToTrip(ctx context.Context, tripID, placeID, userID uint64, orderIndex int16) error {
+	trip, err := s.tripRepo.GetByID(ctx, tripID)
+	if err != nil || trip == nil {
+		return errors.New("trip not found")
+	}
+	if trip.CreatedBy != userID {
+		return errors.New("not your trip")
+	}
+
+	exists, err := s.tripRepo.CheckPlaceInTrip(ctx, tripID, placeID)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return errors.New("place already in trip")
+	}
+
+	return s.tripRepo.AddAttraction(ctx, tripID, placeID, orderIndex)
 }
 
-func (s *TripService) RemovePlaceFromTrip(ctx context.Context, tripID, placeID, userID uint64) error {
-    trip, err := s.tripRepo.GetByID(ctx, tripID)
-    if err != nil || trip == nil {
-        return errors.New("trip not found")
-    }
-    if trip.CreatedBy != userID {
-        return errors.New("not your trip")
-    }
-    return s.tripRepo.RemoveAttraction(ctx, tripID, placeID)
+func (s *tripService) RemovePlaceFromTrip(ctx context.Context, tripID, placeID, userID uint64) error {
+	trip, err := s.tripRepo.GetByID(ctx, tripID)
+	if err != nil || trip == nil {
+		return errors.New("trip not found")
+	}
+	if trip.CreatedBy != userID {
+		return errors.New("not your trip")
+	}
+	return s.tripRepo.RemoveAttraction(ctx, tripID, placeID)
 }

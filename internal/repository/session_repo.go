@@ -8,15 +8,14 @@ import (
 	"guidely-app/internal/utils"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
 )
 
 type SessionRepo struct {
-	db *pgxpool.Pool
+	db DB
 }
 
-func NewSessionRepo(db *pgxpool.Pool) *SessionRepo {
+func NewSessionRepo(db DB) *SessionRepo {
 	return &SessionRepo{db: db}
 }
 
