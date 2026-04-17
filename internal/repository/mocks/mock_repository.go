@@ -242,6 +242,21 @@ func (mr *MockPlaceRepositoryMockRecorder) GetWithRatingAndLike(arg0, arg1, arg2
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWithRatingAndLike", reflect.TypeOf((*MockPlaceRepository)(nil).GetWithRatingAndLike), arg0, arg1, arg2)
 }
 
+// IsPlaceInTrip mocks base method.
+func (m *MockPlaceRepository) IsPlaceInTrip(arg0 context.Context, arg1, arg2 uint64) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsPlaceInTrip", arg0, arg1, arg2)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsPlaceInTrip indicates an expected call of IsPlaceInTrip.
+func (mr *MockPlaceRepositoryMockRecorder) IsPlaceInTrip(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPlaceInTrip", reflect.TypeOf((*MockPlaceRepository)(nil).IsPlaceInTrip), arg0, arg1, arg2)
+}
+
 // MockTripRepository is a mock of TripRepository interface.
 type MockTripRepository struct {
 	ctrl     *gomock.Controller

@@ -22,6 +22,7 @@ type PlaceService interface {
 type ProfileService interface {
 	GetProfile(ctx context.Context, userID uint64) (*models.User, error)
 	UpdateProfile(ctx context.Context, userID uint64, input UpdateProfileInput) (*models.User, error)
+	UpdateAvatar(ctx context.Context, userID uint64, avatarURL string) (*models.User, error)
 }
 
 type TripService interface {

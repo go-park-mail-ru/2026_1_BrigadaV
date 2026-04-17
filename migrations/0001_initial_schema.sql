@@ -145,9 +145,12 @@ CREATE TABLE IF NOT EXISTS trip_attractions (
     PRIMARY KEY (trip_id, place_id)
 );
 
+
 INSERT INTO country (name) VALUES
-    ('Франция'), ('Италия'), ('Испания'), ('Нидерланды'), ('Индонезия'), ('Бразилия')
+    ('Франция'), ('Италия'), ('Испания'), ('Нидерланды'), ('Индонезия'), ('Бразилия'),
+    ('Египет'), ('Абхазия'), ('Россия'), ('Англия')
 ON CONFLICT (name) DO NOTHING;
+
 
 INSERT INTO category (name, description) VALUES
     ('Отель', 'Гостиницы и места размещения'),
@@ -157,34 +160,74 @@ INSERT INTO category (name, description) VALUES
     ('Курорт', 'Курортные зоны и отдых')
 ON CONFLICT (name) DO NOTHING;
 
+
 INSERT INTO locality (name, country_id, latitude, longitude) VALUES
+
     ('Грамаду', (SELECT id FROM country WHERE name = 'Бразилия'), -29.3733, -50.8762),
     ('Париж', (SELECT id FROM country WHERE name = 'Франция'), 48.8566, 2.3522),
     ('Рим', (SELECT id FROM country WHERE name = 'Италия'), 41.9028, 12.4964),
     ('Барселона', (SELECT id FROM country WHERE name = 'Испания'), 41.3851, 2.1734),
     ('Амстердам', (SELECT id FROM country WHERE name = 'Нидерланды'), 52.3676, 4.9041),
-    ('Бали', (SELECT id FROM country WHERE name = 'Индонезия'), -8.4095, 115.1889)
+    ('Бали', (SELECT id FROM country WHERE name = 'Индонезия'), -8.4095, 115.1889),
+
+    ('Гиза', (SELECT id FROM country WHERE name = 'Египет'), 29.979245, 31.134269),
+    ('Сухум', (SELECT id FROM country WHERE name = 'Абхазия'), 43.004604, 41.022705),
+    ('Гагра', (SELECT id FROM country WHERE name = 'Абхазия'), 43.325606, 40.225216),
+    ('Москва', (SELECT id FROM country WHERE name = 'Россия'), 55.751999, 37.617734),
+    ('Санкт-Петербург', (SELECT id FROM country WHERE name = 'Россия'), 59.934280, 30.335099),
+    ('Лондон', (SELECT id FROM country WHERE name = 'Англия'), 51.507351, -0.127758)
 ON CONFLICT (name, country_id) DO NOTHING;
 
+
 INSERT INTO place (name, description, photo_url, locality_id, category_id, price) VALUES
-    ('Hotel Estalagem St Hubertus', 'Очаровательный отель в Грамаду', 'mock/place/rcmd1.png', 1, 1, 2370000),
-    ('Hotel Ritta Höppner', 'Уютный отель в Грамаду', 'mock/place/rcmd2.png', 1, 1, 1138100),
-    ('Rodin Musée', 'Музей, посвящённый Огюсту Родену', 'mock/place/rcmd3.png', 2, 2, 126900),
-    ('Roman Forum', 'Древний римский форум', 'mock/place/rcmd4.png', 3, 3, 126900),
-    ('Basílica de Santa María del Pi', 'Готическая церковь в Барселоне', 'mock/place/rcmd5.png', 4, 3, 199400),
-    ('De Hallen Amsterdam', 'Культурный комплекс в Амстердаме', 'mock/place/rcmd6.png', 5, 2, 3398800),
-    ('Amnaya Resort Kuta', 'Курорт на Бали', 'mock/place/rcmd7.png', 6, 5, 584400),
-    ('Plaça Reial', 'Историческая площадь в Барселоне', 'mock/place/rcmd8.png', 4, 4, 1236900)
+
+    ('Hotel Estalagem St Hubertus', 'Очаровательный отель в Грамаду', 'mock/place/rcmd1.png', (SELECT id FROM locality WHERE name = 'Грамаду'), (SELECT id FROM category WHERE name = 'Отель'), 2370000),
+    ('Hotel Ritta Höppner', 'Уютный отель в Грамаду', 'mock/place/rcmd2.png', (SELECT id FROM locality WHERE name = 'Грамаду'), (SELECT id FROM category WHERE name = 'Отель'), 1138100),
+    ('Rodin Musée', 'Музей, посвящённый Огюсту Родену', 'mock/place/rcmd3.png', (SELECT id FROM locality WHERE name = 'Париж'), (SELECT id FROM category WHERE name = 'Музей'), 126900),
+    ('Roman Forum', 'Древний римский форум', 'mock/place/rcmd4.png', (SELECT id FROM locality WHERE name = 'Рим'), (SELECT id FROM category WHERE name = 'Историческое место'), 126900),
+    ('Basílica de Santa María del Pi', 'Готическая церковь в Барселоне', 'mock/place/rcmd5.png', (SELECT id FROM locality WHERE name = 'Барселона'), (SELECT id FROM category WHERE name = 'Историческое место'), 199400),
+    ('De Hallen Amsterdam', 'Культурный комплекс в Амстердаме', 'mock/place/rcmd6.png', (SELECT id FROM locality WHERE name = 'Амстердам'), (SELECT id FROM category WHERE name = 'Музей'), 3398800),
+    ('Amnaya Resort Kuta', 'Курорт на Бали', 'mock/place/rcmd7.png', (SELECT id FROM locality WHERE name = 'Бали'), (SELECT id FROM category WHERE name = 'Курорт'), 584400),
+    ('Plaça Reial', 'Историческая площадь в Барселоне', 'mock/place/rcmd8.png', (SELECT id FROM locality WHERE name = 'Барселона'), (SELECT id FROM category WHERE name = 'Площадь'), 1236900),
+
+    ('Пирамиды Гизы', 'Комплекс древних памятников на плато Гиза в пригороде Каира', 'mock/place/egypt_pyramids.jpg', (SELECT id FROM locality WHERE name = 'Гиза'), (SELECT id FROM category WHERE name = 'Историческое место'), 1500),
+    ('Большой сфинкс', 'Древнейшая сохранившаяся на Земле монументальная скульптура', 'mock/place/egypt_sphinx.jpg', (SELECT id FROM locality WHERE name = 'Гиза'), (SELECT id FROM category WHERE name = 'Историческое место'), 0),
+    ('Храм Хатшепсут', 'заупокойный храм правительницы из XVIII династии Хатшепсут', 'mock/place/egypt_hatshepsut.jpg', (SELECT id FROM locality WHERE name = 'Гиза'), (SELECT id FROM category WHERE name = 'Историческое место'), 700),
+
+    ('Анакопийская крепость', 'Древнее оборонительное сооружение VII века', 'mock/place/abkhazia_anakopia.jpg', (SELECT id FROM locality WHERE name = 'Гагра'), (SELECT id FROM category WHERE name = 'Историческое место'), 200),
+    ('Сухумский ботанический сад', 'Один из старейших ботанических садов на Кавказе', 'mock/place/abkhazia_botsad.jpg', (SELECT id FROM locality WHERE name = 'Сухум'), (SELECT id FROM category WHERE name = 'Музей'), 400),
+    ('Замок принца Ольденбургского', 'Летняя резиденция принца Александра Ольденбургского', 'mock/place/abkhazia_oldenburg.jpg', (SELECT id FROM locality WHERE name = 'Гагра'), (SELECT id FROM category WHERE name = 'Историческое место'), 150),
+
+    ('Московский Кремль', 'Крепость в центре Москвы и древнейшая её часть', 'mock/place/russia_kremlin.jpg', (SELECT id FROM locality WHERE name = 'Москва'), (SELECT id FROM category WHERE name = 'Историческое место'), 0),
+    ('Большой театр', 'Один из крупнейших и самых значимых в мире театров оперы и балета', 'mock/place/russia_bolshoi.jpg', (SELECT id FROM locality WHERE name = 'Москва'), (SELECT id FROM category WHERE name = 'Музей'), 1200),
+    ('Третьяковская галерея', 'Крупнейший в мире музей национального русского искусства', 'mock/place/russia_tretyakov.jpg', (SELECT id FROM locality WHERE name = 'Москва'), (SELECT id FROM category WHERE name = 'Музей'), 250),
+    ('Московский зоопарк', 'Зоологический парк в центре Москвы', 'mock/place/russia_zoo.jpg', (SELECT id FROM locality WHERE name = 'Москва'), (SELECT id FROM category WHERE name = 'Музей'), 1000),
+
+    ('Петропавловская крепость', 'Крепость в Санкт-Петербурге, историческое ядро города', 'mock/place/russia_petropavlovka.jpg', (SELECT id FROM locality WHERE name = 'Санкт-Петербург'), (SELECT id FROM category WHERE name = 'Историческое место'), 500),
+    ('Государственный Эрмитаж', 'Один из крупнейших художественных музеев мира', 'mock/place/russia_hermitage.jpg', (SELECT id FROM locality WHERE name = 'Санкт-Петербург'), (SELECT id FROM category WHERE name = 'Музей'), 800),
+
+    ('Стоунхендж', 'Один из самых знаменитых археологических памятников в мире', 'mock/place/england_stonehenge.jpg', (SELECT id FROM locality WHERE name = 'Лондон'), (SELECT id FROM category WHERE name = 'Историческое место'), 2560),
+    ('Лондонский Тауэр', 'Музей с богатой коллекцией и оружейная палата', 'mock/place/england_tower.jpg', (SELECT id FROM locality WHERE name = 'Лондон'), (SELECT id FROM category WHERE name = 'Музей'), 3440),
+    ('Букингемский дворец', 'Официальная лондонская резиденция британских монархов', 'mock/place/england_buckingham.jpg', (SELECT id FROM locality WHERE name = 'Лондон'), (SELECT id FROM category WHERE name = 'Историческое место'), 2560),
+    ('Хэмптон-Корт', 'Загородный дворец английских королей в окрестностях Лондона', 'mock/place/england_hampton.jpg', (SELECT id FROM locality WHERE name = 'Лондон'), (SELECT id FROM category WHERE name = 'Историческое место'), 1638)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO photo (file_path) VALUES
     ('mock/place/rcmd1.png'), ('mock/place/rcmd2.png'), ('mock/place/rcmd3.png'),
     ('mock/place/rcmd4.png'), ('mock/place/rcmd5.png'), ('mock/place/rcmd6.png'),
-    ('mock/place/rcmd7.png'), ('mock/place/rcmd8.png')
+    ('mock/place/rcmd7.png'), ('mock/place/rcmd8.png'),
+    ('mock/place/egypt_pyramids.jpg'), ('mock/place/egypt_sphinx.jpg'), ('mock/place/egypt_hatshepsut.jpg'),
+    ('mock/place/abkhazia_anakopia.jpg'), ('mock/place/abkhazia_botsad.jpg'), ('mock/place/abkhazia_oldenburg.jpg'),
+    ('mock/place/russia_kremlin.jpg'), ('mock/place/russia_bolshoi.jpg'), ('mock/place/russia_tretyakov.jpg'),
+    ('mock/place/russia_zoo.jpg'), ('mock/place/russia_petropavlovka.jpg'), ('mock/place/russia_hermitage.jpg'),
+    ('mock/place/england_stonehenge.jpg'), ('mock/place/england_tower.jpg'), ('mock/place/england_buckingham.jpg'),
+    ('mock/place/england_hampton.jpg')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO place_photo (place_id, photo_id, is_main) VALUES
-    (1,1,true),(2,2,true),(3,3,true),(4,4,true),(5,5,true),(6,6,true),(7,7,true),(8,8,true)
+INSERT INTO place_photo (place_id, photo_id, is_main)
+SELECT p.id, ph.id, true
+FROM place p
+JOIN photo ph ON p.photo_url = ph.file_path
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO "user" (login, nickname, avatar_url, password_hash) VALUES
@@ -192,31 +235,40 @@ INSERT INTO "user" (login, nickname, avatar_url, password_hash) VALUES
     ('jane@example.com', 'jane', 'mock/user-avatar/jane.jpg', 'argon2id$v=19$m=65536,t=1,p=4$LFU4f51KpaFJ85VzwIXZ2Q$NjKqQ4SfxdTnOJz22q+B8sYtNiTcOA4eozfj7mNJtnY')
 ON CONFLICT (nickname) DO NOTHING;
 
-INSERT INTO favorite (user_id, place_id) VALUES (1,1), (1,3), (2,2), (2,4)
+INSERT INTO favorite (user_id, place_id) VALUES
+    ((SELECT id FROM "user" WHERE nickname='johnny'), (SELECT id FROM place WHERE name='Hotel Estalagem St Hubertus')),
+    ((SELECT id FROM "user" WHERE nickname='johnny'), (SELECT id FROM place WHERE name='Rodin Musée')),
+    ((SELECT id FROM "user" WHERE nickname='jane'), (SELECT id FROM place WHERE name='Hotel Ritta Höppner')),
+    ((SELECT id FROM "user" WHERE nickname='jane'), (SELECT id FROM place WHERE name='Roman Forum'))
 ON CONFLICT (user_id, place_id) DO NOTHING;
 
 INSERT INTO review (user_id, place_id, rating, comment, visit_date) VALUES
-    (1,1,5,'Отличный отель!','2025-01-10'),
-    (2,3,4,'Интересный музей','2025-02-15')
+    ((SELECT id FROM "user" WHERE nickname='johnny'), (SELECT id FROM place WHERE name='Hotel Estalagem St Hubertus'), 5, 'Отличный отель!', '2025-01-10'),
+    ((SELECT id FROM "user" WHERE nickname='jane'), (SELECT id FROM place WHERE name='Rodin Musée'), 4, 'Интересный музей', '2025-02-15')
 ON CONFLICT (user_id, place_id) DO NOTHING;
 
 INSERT INTO trip (title, description, location, start_date, end_date, preview_url, created_by, is_public) VALUES
-    ('Поездка в Европу', 'Посещение Парижа и Рима', 'Европа', '2025-06-01', '2025-06-15', NULL, 1, true),
-    ('Отдых на Бали', 'Пляжный отдых', 'Бали', '2025-07-10', '2025-07-20', NULL, 2, false)
+    ('Поездка в Европу', 'Посещение Парижа и Рима', 'Европа', '2025-06-01', '2025-06-15', NULL, (SELECT id FROM "user" WHERE nickname='johnny'), true),
+    ('Отдых на Бали', 'Пляжный отдых', 'Бали', '2025-07-10', '2025-07-20', NULL, (SELECT id FROM "user" WHERE nickname='jane'), false)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO trip_member (trip_id, user_id, role) VALUES
-    (1,1,'owner'), (1,2,'viewer'), (2,2,'owner')
+    (1, (SELECT id FROM "user" WHERE nickname='johnny'), 'owner'),
+    (1, (SELECT id FROM "user" WHERE nickname='jane'), 'viewer'),
+    (2, (SELECT id FROM "user" WHERE nickname='jane'), 'owner')
 ON CONFLICT (trip_id, user_id) DO NOTHING;
 
 INSERT INTO album (trip_id, name, description, cover_photo_id) VALUES
-    (1, 'Париж', 'Фото из Парижа', 3),
-    (1, 'Рим', 'Фото из Рима', 4),
-    (2, 'Бали', 'Пляжи и закаты', 7)
+    (1, 'Париж', 'Фото из Парижа', (SELECT id FROM photo WHERE file_path='mock/place/rcmd3.png')),
+    (1, 'Рим', 'Фото из Рима', (SELECT id FROM photo WHERE file_path='mock/place/rcmd4.png')),
+    (2, 'Бали', 'Пляжи и закаты', (SELECT id FROM photo WHERE file_path='mock/place/rcmd7.png'))
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO album_photo (album_id, photo_id, order_index) VALUES
-    (1,3,0), (1,8,1), (2,4,0), (3,7,0)
+    (1, (SELECT id FROM photo WHERE file_path='mock/place/rcmd3.png'), 0),
+    (1, (SELECT id FROM photo WHERE file_path='mock/place/rcmd8.png'), 1),
+    (2, (SELECT id FROM photo WHERE file_path='mock/place/rcmd4.png'), 0),
+    (3, (SELECT id FROM photo WHERE file_path='mock/place/rcmd7.png'), 0)
 ON CONFLICT (album_id, photo_id) DO NOTHING;
 
 -- +goose StatementEnd

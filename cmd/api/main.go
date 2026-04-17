@@ -63,8 +63,10 @@ func main() {
 	r.HandleFunc("/api/login", authHandler.Login).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/logout", authMiddleware.Authenticate(authHandler.Logout)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/user/me", authMiddleware.Authenticate(authHandler.Me)).Methods("GET", "OPTIONS")
+
 	r.HandleFunc("/api/profile", authMiddleware.Authenticate(profileHandler.GetProfile)).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/profile", authMiddleware.Authenticate(profileHandler.UpdateProfile)).Methods("PUT", "OPTIONS")
+	r.HandleFunc("/api/profile/avatar", authMiddleware.Authenticate(profileHandler.UploadAvatar)).Methods("POST", "OPTIONS")
 
 	r.HandleFunc("/api/places", placeHandler.List).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/places/{id:[0-9]+}", placeHandler.GetDetails).Methods("GET", "OPTIONS")
@@ -84,6 +86,9 @@ func main() {
 
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
+	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
+
+	// CSRF middleware (закомментирован)
 	// csrfMiddleware := csrf.Protect(
 	// 	[]byte(cfg.JWTSecret),
 	// 	csrf.Secure(false),

@@ -30,11 +30,17 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		status := http.StatusBadRequest
-		if err.Error() == "login already exists" || err.Error() == "nickname already exists" {
+		resp := map[string]string{"error": err.Error()}
+		switch err.Error() {
+		case "login already exists":
 			status = http.StatusConflict
+			resp["field"] = "login"
+		case "nickname already exists":
+			status = http.StatusConflict
+			resp["field"] = "nickname"
 		}
 		w.WriteHeader(status)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		json.NewEncoder(w).Encode(resp)
 		return
 	}
 	http.SetCookie(w, &http.Cookie{

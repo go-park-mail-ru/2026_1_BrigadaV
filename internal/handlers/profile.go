@@ -4,7 +4,13 @@ import (
 	"encoding/json"
 	"guidely-app/internal/dto"
 	"guidely-app/internal/service"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/google/uuid"
 )
 
 type ProfileHandler struct {
@@ -79,6 +85,82 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		About:      user.About,
 		HasReviews: user.HasReviews,
 		CreatedAt:  user.CreatedAt,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
+	userIDVal := r.Context().Value("user_id")
+	userID, ok := userIDVal.(uint64)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		return
+	}
+
+	r.ParseMultipartForm(10 << 20)
+	file, header, err := r.FormFile("avatar")
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "missing avatar file"})
+		return
+	}
+	defer file.Close()
+
+	contentType := header.Header.Get("Content-Type")
+	if !strings.HasPrefix(contentType, "image/") {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "file must be an image"})
+		return
+	}
+
+	ext := filepath.Ext(header.Filename)
+	if ext == "" {
+		ext = ".jpg"
+	}
+	newFilename := uuid.New().String() + ext
+
+	uploadDir := "./uploads/avatars"
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to create upload directory"})
+		return
+	}
+	filePath := filepath.Join(uploadDir, newFilename)
+
+	dst, err := os.Create(filePath)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to save file"})
+		return
+	}
+	defer dst.Close()
+
+	if _, err := io.Copy(dst, file); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to write file"})
+		return
+	}
+
+	avatarURL := "/uploads/avatars/" + newFilename
+
+	updatedUser, err := h.profileService.UpdateAvatar(r.Context(), userID, avatarURL)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	response := dto.ProfileResponse{
+		ID:         updatedUser.ID,
+		Nickname:   updatedUser.Nickname,
+		AvatarURL:  updatedUser.AvatarURL,
+		Country:    updatedUser.Country,
+		City:       updatedUser.City,
+		About:      updatedUser.About,
+		HasReviews: updatedUser.HasReviews,
+		CreatedAt:  updatedUser.CreatedAt,
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)

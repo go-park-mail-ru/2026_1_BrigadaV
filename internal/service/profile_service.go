@@ -51,3 +51,15 @@ func (s *profileService) UpdateProfile(ctx context.Context, userID uint64, input
 	}
 	return user, nil
 }
+
+func (s *profileService) UpdateAvatar(ctx context.Context, userID uint64, avatarURL string) (*models.User, error) {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	user.AvatarURL = avatarURL
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return nil, err
+	}
+	return user, nil
+}

@@ -51,6 +51,21 @@ func (mr *MockProfileServiceMockRecorder) GetProfile(arg0, arg1 interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetProfile", reflect.TypeOf((*MockProfileService)(nil).GetProfile), arg0, arg1)
 }
 
+// UpdateAvatar mocks base method.
+func (m *MockProfileService) UpdateAvatar(arg0 context.Context, arg1 uint64, arg2 string) (*models.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateAvatar", arg0, arg1, arg2)
+	ret0, _ := ret[0].(*models.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateAvatar indicates an expected call of UpdateAvatar.
+func (mr *MockProfileServiceMockRecorder) UpdateAvatar(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateAvatar", reflect.TypeOf((*MockProfileService)(nil).UpdateAvatar), arg0, arg1, arg2)
+}
+
 // UpdateProfile mocks base method.
 func (m *MockProfileService) UpdateProfile(arg0 context.Context, arg1 uint64, arg2 service.UpdateProfileInput) (*models.User, error) {
 	m.ctrl.T.Helper()

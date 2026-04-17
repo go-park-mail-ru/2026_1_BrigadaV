@@ -79,3 +79,18 @@ func (mr *MockPlaceServiceMockRecorder) GetReviews(arg0, arg1 interface{}) *gomo
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReviews", reflect.TypeOf((*MockPlaceService)(nil).GetReviews), arg0, arg1)
 }
+
+// IsPlaceInTrip mocks base method.
+func (m *MockPlaceService) IsPlaceInTrip(arg0 context.Context, arg1, arg2 uint64) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsPlaceInTrip", arg0, arg1, arg2)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsPlaceInTrip indicates an expected call of IsPlaceInTrip.
+func (mr *MockPlaceServiceMockRecorder) IsPlaceInTrip(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPlaceInTrip", reflect.TypeOf((*MockPlaceService)(nil).IsPlaceInTrip), arg0, arg1, arg2)
+}
