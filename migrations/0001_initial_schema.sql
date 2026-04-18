@@ -212,15 +212,15 @@ INSERT INTO place (name, description, photo_url, locality_id, category_id, price
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO photo (file_path) VALUES
-    ('mock/place/rcmd1.png'), ('mock/place/rcmd2.png'), ('mock/place/rcmd3.png'),
-    ('mock/place/rcmd4.png'), ('mock/place/rcmd5.png'), ('mock/place/rcmd6.png'),
-    ('mock/place/rcmd7.png'), ('mock/place/rcmd8.png'),
-    ('mock/place/egypt_pyramids.jpg'), ('mock/place/egypt_sphinx.jpg'), ('mock/place/egypt_hatshepsut.jpg'),
-    ('mock/place/abkhazia_anakopia.jpg'), ('mock/place/abkhazia_botsad.jpg'), ('mock/place/abkhazia_oldenburg.jpg'),
-    ('mock/place/russia_kremlin.jpg'), ('mock/place/russia_bolshoi.jpg'), ('mock/place/russia_tretyakov.jpeg'),
-    ('mock/place/russia_zoo.jpg'), ('mock/place/russia_petropavlovka.jpg'), ('mock/place/russia_hermitage.jpg'),
-    ('mock/place/england_stonehenge.jpg'), ('mock/place/england_tower.jpg'), ('mock/place/england_buckingham.jpg'),
-    ('mock/place/england_hampton.jpg')
+    ('/mock/place/rcmd1.png'), ('/mock/place/rcmd2.png'), ('/mock/place/rcmd3.png'),
+    ('/mock/place/rcmd4.png'), ('/mock/place/rcmd5.png'), ('/mock/place/rcmd6.png'),
+    ('/mock/place/rcmd7.png'), ('/mock/place/rcmd8.png'),
+    ('/mock/place/egypt_pyramids.jpg'), ('/mock/place/egypt_sphinx.jpg'), ('/mock/place/egypt_hatshepsut.jpg'),
+    ('/mock/place/abkhazia_anakopia.jpg'), ('/mock/place/abkhazia_botsad.jpg'), ('/mock/place/abkhazia_oldenburg.jpg'),
+    ('/mock/place/russia_kremlin.jpg'), ('/mock/place/russia_bolshoi.jpg'), ('/mock/place/russia_tretyakov.jpeg'),
+    ('/mock/place/russia_zoo.jpg'), ('/mock/place/russia_petropavlovka.jpg'), ('/mock/place/russia_hermitage.jpg'),
+    ('/mock/place/england_stonehenge.jpg'), ('/mock/place/england_tower.jpg'), ('/mock/place/england_buckingham.jpg'),
+    ('/mock/place/england_hampton.jpg')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO place_photo (place_id, photo_id, is_main)
