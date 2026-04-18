@@ -217,7 +217,7 @@ INSERT INTO photo (file_path) VALUES
     ('mock/place/rcmd7.png'), ('mock/place/rcmd8.png'),
     ('mock/place/egypt_pyramids.jpg'), ('mock/place/egypt_sphinx.jpg'), ('mock/place/egypt_hatshepsut.jpg'),
     ('mock/place/abkhazia_anakopia.jpg'), ('mock/place/abkhazia_botsad.jpg'), ('mock/place/abkhazia_oldenburg.jpg'),
-    ('mock/place/russia_kremlin.jpg'), ('mock/place/russia_bolshoi.jpg'), ('mock/place/russia_tretyakov.jpg'),
+    ('mock/place/russia_kremlin.jpg'), ('mock/place/russia_bolshoi.jpg'), ('mock/place/russia_tretyakov.jpeg'),
     ('mock/place/russia_zoo.jpg'), ('mock/place/russia_petropavlovka.jpg'), ('mock/place/russia_hermitage.jpg'),
     ('mock/place/england_stonehenge.jpg'), ('mock/place/england_tower.jpg'), ('mock/place/england_buckingham.jpg'),
     ('mock/place/england_hampton.jpg')
