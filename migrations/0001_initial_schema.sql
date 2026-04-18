@@ -199,7 +199,7 @@ INSERT INTO place (name, description, photo_url, locality_id, category_id, price
 
     ('Московский Кремль', 'Крепость в центре Москвы и древнейшая её часть', '/mock/place/russia_kremlin.jpg', (SELECT id FROM locality WHERE name = 'Москва'), (SELECT id FROM category WHERE name = 'Историческое место'), 0),
     ('Большой театр', 'Один из крупнейших и самых значимых в мире театров оперы и балета', '/mock/place/russia_bolshoi.jpg', (SELECT id FROM locality WHERE name = 'Москва'), (SELECT id FROM category WHERE name = 'Музей'), 120000),
-    ('Третьяковская галерея', 'Крупнейший в мире музей национального русского искусства', '/mock/place/russia_tretyakov.jpg', (SELECT id FROM locality WHERE name = 'Москва'), (SELECT id FROM category WHERE name = 'Музей'), 25000),
+    ('Третьяковская галерея', 'Крупнейший в мире музей национального русского искусства', '/mock/place/russia_tretyakov.jpeg', (SELECT id FROM locality WHERE name = 'Москва'), (SELECT id FROM category WHERE name = 'Музей'), 25000),
     ('Московский зоопарк', 'Зоологический парк в центре Москвы', '/mock/place/russia_zoo.jpg', (SELECT id FROM locality WHERE name = 'Москва'), (SELECT id FROM category WHERE name = 'Музей'), 100000),
 
     ('Петропавловская крепость', 'Крепость в Санкт-Петербурге, историческое ядро города', '/mock/place/russia_petropavlovka.jpg', (SELECT id FROM locality WHERE name = 'Санкт-Петербург'), (SELECT id FROM category WHERE name = 'Историческое место'), 50000),
