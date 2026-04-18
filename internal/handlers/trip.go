@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"guidely-app/internal/dto"
 	"guidely-app/internal/service"
+	"guidely-app/internal/utils"
 	"log"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -18,17 +18,6 @@ type TripHandler struct {
 
 func NewTripHandler(tripService service.TripService) *TripHandler {
 	return &TripHandler{tripService: tripService}
-}
-
-func parseDatePtrTrip(s *string) *time.Time {
-	if s == nil || *s == "" {
-		return nil
-	}
-	t, err := time.Parse("2006-01-02", *s)
-	if err != nil {
-		return nil
-	}
-	return &t
 }
 
 func (h *TripHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -78,8 +67,8 @@ func (h *TripHandler) Create(w http.ResponseWriter, r *http.Request) {
 	input := service.CreateTripInput{
 		Title:      req.Title,
 		Location:   req.Location,
-		StartDate:  parseDatePtrTrip(req.StartDate),
-		EndDate:    parseDatePtrTrip(req.EndDate),
+		StartDate:  utils.ParseDatePtr(req.StartDate),
+		EndDate:    utils.ParseDatePtr(req.EndDate),
 		PreviewURL: req.Preview,
 		CreatedBy:  userID,
 		IsPublic:   req.IsPublic,
@@ -167,8 +156,8 @@ func (h *TripHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Title:       req.Title,
 		Description: req.Description,
 		Location:    req.Location,
-		StartDate:   parseDatePtrTrip(req.StartDate),
-		EndDate:     parseDatePtrTrip(req.EndDate),
+		StartDate:   utils.ParseDatePtr(req.StartDate),
+		EndDate:     utils.ParseDatePtr(req.EndDate),
 		PreviewURL:  req.Preview,
 		IsPublic:    req.IsPublic,
 	}

@@ -6,7 +6,7 @@ import (
 	"guidely-app/internal/service"
 	"net/http"
 	"strconv"
-	"time"
+	"guidely-app/internal/utils"
 
 	"github.com/gorilla/mux"
 )
@@ -17,17 +17,6 @@ type ReviewHandler struct {
 
 func NewReviewHandler(reviewService service.ReviewService) *ReviewHandler {
 	return &ReviewHandler{reviewService: reviewService}
-}
-
-func parseDatePtr(s *string) *time.Time {
-	if s == nil || *s == "" {
-		return nil
-	}
-	t, err := time.Parse("2006-01-02", *s)
-	if err != nil {
-		return nil
-	}
-	return &t
 }
 
 func (h *ReviewHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -50,7 +39,7 @@ func (h *ReviewHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Title:     req.Title,
 		Rating:    req.Rating,
 		Comment:   req.Content,
-		VisitDate: parseDatePtr(req.VisitDate),
+		VisitDate: utils.ParseDatePtr(req.VisitDate),
 	}
 	review, err := h.reviewService.Create(r.Context(), input)
 	if err != nil {
