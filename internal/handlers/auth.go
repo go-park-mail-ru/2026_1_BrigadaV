@@ -86,6 +86,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
+		Domain:   "guidely.ru",
 		Value:    token,
 		Expires:  time.Now().Add(7 * 24 * time.Hour),
 		HttpOnly: true,
@@ -115,6 +116,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
 		Value:    "",
+		Domain:   "guidely.ru",
 		Expires:  time.Unix(0, 0),
 		HttpOnly: true,
 		Path:     "/",
