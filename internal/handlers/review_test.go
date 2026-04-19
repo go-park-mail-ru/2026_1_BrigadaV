@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"guidely-app/internal/dto"
+	"guidely-app/internal/models"
 	"guidely-app/internal/service/mocks"
 	"guidely-app/internal/testutil"
 
@@ -39,7 +40,7 @@ func TestReviewHandler_Create_Success(t *testing.T) {
 	req = req.WithContext(ctx)
 	w := httptest.NewRecorder()
 
-	mockReviewService.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, nil)
+	mockReviewService.EXPECT().Create(gomock.Any(), gomock.Any()).Return(&models.Review{ID: 1}, nil)
 
 	handler.Create(w, req)
 
