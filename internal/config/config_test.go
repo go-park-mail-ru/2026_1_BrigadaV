@@ -30,7 +30,7 @@ func TestLoad(t *testing.T) {
 	assert.Equal(t, "8080", cfg.Port)
 	assert.Equal(t, "postgres://postgres:1111@212.233.96.48:5432/texnopark?sslmode=disable", cfg.DatabaseURL)
 	assert.Equal(t, "your-secret-key", cfg.JWTSecret)
-	assert.Equal(t, "http://212.233.96.48", cfg.FrontendURL)
+	assert.Equal(t, "http://guidely.ru", cfg.FrontendURL)
 
 	os.Setenv("PORT", "3000")
 	os.Setenv("DATABASE_URL", "postgres://localhost/test")

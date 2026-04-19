@@ -19,7 +19,7 @@ func Load() (*Config, error) {
 		Port:        getEnv("PORT", "8080"),
 		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:1111@212.233.96.48:5432/texnopark?sslmode=disable"),
 		JWTSecret:   getEnv("JWT_SECRET", "your-secret-key"),
-		FrontendURL: getEnv("FRONTEND_URL", "http://212.233.96.48"),
+		FrontendURL: getEnv("FRONTEND_URL", "http://guidely.ru"),
 	}, nil
 }
 
