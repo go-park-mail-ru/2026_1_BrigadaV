@@ -98,7 +98,6 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
-
 	r.ParseMultipartForm(10 << 20)
 	file, header, err := r.FormFile("avatar")
 	if err != nil {
@@ -107,20 +106,17 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
-
 	contentType := header.Header.Get("Content-Type")
 	if !strings.HasPrefix(contentType, "image/") {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "file must be an image"})
 		return
 	}
-
 	ext := filepath.Ext(header.Filename)
 	if ext == "" {
 		ext = ".jpg"
 	}
 	newFilename := uuid.New().String() + ext
-
 	uploadDir := "./uploads/avatars"
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -128,7 +124,6 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	filePath := filepath.Join(uploadDir, newFilename)
-
 	dst, err := os.Create(filePath)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -136,22 +131,18 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer dst.Close()
-
 	if _, err := io.Copy(dst, file); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"error": "failed to write file"})
 		return
 	}
-
 	avatarURL := "/uploads/avatars/" + newFilename
-
 	updatedUser, err := h.profileService.UpdateAvatar(r.Context(), userID, avatarURL)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
-
 	response := dto.ProfileResponse{
 		ID:         updatedUser.ID,
 		Nickname:   updatedUser.Nickname,
@@ -164,4 +155,60 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func (h *ProfileHandler) GetAvatar(w http.ResponseWriter, r *http.Request) {
+	userIDVal := r.Context().Value("user_id")
+	userID, ok := userIDVal.(uint64)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		return
+	}
+	user, err := h.profileService.GetProfile(r.Context(), userID)
+	if err != nil || user == nil {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
+		return
+	}
+	if user.AvatarURL == "" {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "avatar not set"})
+		return
+	}
+	filePath := strings.TrimPrefix(user.AvatarURL, "/uploads/")
+	if filePath == user.AvatarURL {
+		filePath = user.AvatarURL
+	}
+	fullPath := filepath.Join("./uploads", filePath)
+
+	info, err := os.Stat(fullPath)
+	if os.IsNotExist(err) {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "avatar file not found"})
+		return
+	}
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to access avatar"})
+		return
+	}
+	if info.IsDir() {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid avatar path"})
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(fullPath))
+	contentType := "image/jpeg"
+	switch ext {
+	case ".png":
+		contentType = "image/png"
+	case ".gif":
+		contentType = "image/gif"
+	case ".webp":
+		contentType = "image/webp"
+	}
+	w.Header().Set("Content-Type", contentType)
+	http.ServeFile(w, r, fullPath)
 }

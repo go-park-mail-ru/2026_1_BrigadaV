@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"guidely-app/internal/dto"
-	"guidely-app/internal/service/mocks"
+	"guidely-app/internal/models"
+	"guidely-app/internal/repository/mocks"
+	"guidely-app/internal/service"
 	"guidely-app/internal/testutil"
 
 	"github.com/golang/mock/gomock"
@@ -22,8 +23,9 @@ func TestReviewHandler_Create_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockReviewService := mocks.NewMockReviewService(ctrl)
-	handler := NewReviewHandler(mockReviewService)
+	mockReviewRepo := mocks.NewMockReviewRepository(ctrl)
+	reviewService := service.NewReviewService(mockReviewRepo)
+	handler := NewReviewHandler(reviewService)
 
 	reqBody := dto.CreateReviewRequest{
 		PlaceID:   1,
@@ -39,7 +41,10 @@ func TestReviewHandler_Create_Success(t *testing.T) {
 	req = req.WithContext(ctx)
 	w := httptest.NewRecorder()
 
-	mockReviewService.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, nil)
+	mockReviewRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil).DoAndReturn(func(_ context.Context, r *models.Review) error {
+		r.ID = 1
+		return nil
+	})
 
 	handler.Create(w, req)
 
@@ -54,8 +59,9 @@ func TestReviewHandler_Create_Unauthorized(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockReviewService := mocks.NewMockReviewService(ctrl)
-	handler := NewReviewHandler(mockReviewService)
+	mockReviewRepo := mocks.NewMockReviewRepository(ctrl)
+	reviewService := service.NewReviewService(mockReviewRepo)
+	handler := NewReviewHandler(reviewService)
 
 	reqBody := dto.CreateReviewRequest{PlaceID: 1, Rating: 5, Content: "Great"}
 	body, _ := json.Marshal(reqBody)
@@ -72,8 +78,9 @@ func TestReviewHandler_Delete_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockReviewService := mocks.NewMockReviewService(ctrl)
-	handler := NewReviewHandler(mockReviewService)
+	mockReviewRepo := mocks.NewMockReviewRepository(ctrl)
+	reviewService := service.NewReviewService(mockReviewRepo)
+	handler := NewReviewHandler(reviewService)
 
 	req := httptest.NewRequest("DELETE", "/api/reviews/1", nil)
 	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
@@ -81,7 +88,9 @@ func TestReviewHandler_Delete_Success(t *testing.T) {
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()
 
-	mockReviewService.EXPECT().Delete(gomock.Any(), uint64(1), uint64(1)).Return(nil)
+	review := &models.Review{ID: 1, UserID: 1}
+	mockReviewRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(review, nil)
+	mockReviewRepo.EXPECT().Delete(gomock.Any(), uint64(1)).Return(nil)
 
 	handler.Delete(w, req)
 
@@ -92,8 +101,9 @@ func TestReviewHandler_Delete_Unauthorized(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockReviewService := mocks.NewMockReviewService(ctrl)
-	handler := NewReviewHandler(mockReviewService)
+	mockReviewRepo := mocks.NewMockReviewRepository(ctrl)
+	reviewService := service.NewReviewService(mockReviewRepo)
+	handler := NewReviewHandler(reviewService)
 
 	req := httptest.NewRequest("DELETE", "/api/reviews/1", nil)
 	w := httptest.NewRecorder()
@@ -107,8 +117,9 @@ func TestReviewHandler_Delete_InvalidID(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockReviewService := mocks.NewMockReviewService(ctrl)
-	handler := NewReviewHandler(mockReviewService)
+	mockReviewRepo := mocks.NewMockReviewRepository(ctrl)
+	reviewService := service.NewReviewService(mockReviewRepo)
+	handler := NewReviewHandler(reviewService)
 
 	req := httptest.NewRequest("DELETE", "/api/reviews/invalid", nil)
 	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
@@ -125,8 +136,9 @@ func TestReviewHandler_Delete_Forbidden(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockReviewService := mocks.NewMockReviewService(ctrl)
-	handler := NewReviewHandler(mockReviewService)
+	mockReviewRepo := mocks.NewMockReviewRepository(ctrl)
+	reviewService := service.NewReviewService(mockReviewRepo)
+	handler := NewReviewHandler(reviewService)
 
 	req := httptest.NewRequest("DELETE", "/api/reviews/1", nil)
 	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
@@ -134,7 +146,8 @@ func TestReviewHandler_Delete_Forbidden(t *testing.T) {
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()
 
-	mockReviewService.EXPECT().Delete(gomock.Any(), uint64(1), uint64(1)).Return(errors.New("not authorized"))
+	review := &models.Review{ID: 1, UserID: 2}
+	mockReviewRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(review, nil)
 
 	handler.Delete(w, req)
 

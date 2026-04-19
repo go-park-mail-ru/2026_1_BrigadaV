@@ -26,7 +26,7 @@ func TestHashToken(t *testing.T) {
 	hash := HashToken(token)
 
 	assert.NotEmpty(t, hash)
-	assert.Len(t, hash, 64) // SHA256 produces 64 hex chars
+	assert.Len(t, hash, 64) 
 }
 
 func TestHashToken_Consistency(t *testing.T) {
