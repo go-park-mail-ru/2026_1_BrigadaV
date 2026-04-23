@@ -3,13 +3,14 @@ package handlers
 import (
 	"encoding/json"
 	"guidely-app/internal/dto"
+	"guidely-app/internal/logger"
 	"guidely-app/internal/service"
 	"guidely-app/internal/utils"
-	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
 )
 
 type TripHandler struct {
@@ -30,6 +31,7 @@ func (h *TripHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	trips, err := h.tripService.GetUserTrips(r.Context(), userID)
 	if err != nil {
+		logger.Error(r.Context(), "Failed to fetch trips", logrus.Fields{"error": err})
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch trips"})
 		return
@@ -60,6 +62,7 @@ func (h *TripHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	var req dto.CreateTripRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logger.Error(r.Context(), "Invalid JSON in CreateTrip", logrus.Fields{"error": err})
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
@@ -75,10 +78,12 @@ func (h *TripHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	trip, err := h.tripService.Create(r.Context(), input)
 	if err != nil {
+		logger.Error(r.Context(), "CreateTrip failed", logrus.Fields{"error": err})
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
+	logger.Info(r.Context(), "Trip created", logrus.Fields{"trip_id": trip.ID})
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(dto.CreateTripResponse{
 		ID:      trip.ID,
@@ -87,28 +92,24 @@ func (h *TripHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TripHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
-	log.Println("GetDetails called")
-
 	vars := mux.Vars(r)
 	idStr, ok := vars["id"]
 	if !ok {
-		log.Println("Missing trip id")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "missing trip id"})
 		return
 	}
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		log.Printf("Invalid trip id: %s", idStr)
+		logger.Error(r.Context(), "Invalid trip id in GetDetails", logrus.Fields{"id": idStr, "error": err})
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip id"})
 		return
 	}
-	log.Printf("Getting trip details for id=%d", id)
 
 	trip, places, err := h.tripService.GetTripDetails(r.Context(), id)
 	if err != nil {
-		log.Printf("GetTripDetails error: %v", err)
+		logger.Error(r.Context(), "GetTripDetails failed", logrus.Fields{"error": err, "trip_id": id})
 		if err.Error() == "trip not found" {
 			w.WriteHeader(http.StatusNotFound)
 			json.NewEncoder(w).Encode(map[string]string{"error": "trip not found"})
@@ -142,12 +143,14 @@ func (h *TripHandler) Update(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
+		logger.Error(r.Context(), "Invalid trip id in Update", logrus.Fields{"id": vars["id"], "error": err})
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip id"})
 		return
 	}
 	var req dto.UpdateTripRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logger.Error(r.Context(), "Invalid JSON in UpdateTrip", logrus.Fields{"error": err})
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
@@ -163,6 +166,7 @@ func (h *TripHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	_, err = h.tripService.Update(r.Context(), id, userID, input)
 	if err != nil {
+		logger.Error(r.Context(), "UpdateTrip failed", logrus.Fields{"error": err, "trip_id": id})
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
@@ -182,15 +186,18 @@ func (h *TripHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
+		logger.Error(r.Context(), "Invalid trip id in Delete", logrus.Fields{"id": vars["id"], "error": err})
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip id"})
 		return
 	}
 	if err := h.tripService.Delete(r.Context(), id, userID); err != nil {
+		logger.Error(r.Context(), "DeleteTrip failed", logrus.Fields{"error": err, "trip_id": id})
 		w.WriteHeader(http.StatusForbidden)
 		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
+	logger.Info(r.Context(), "Trip deleted", logrus.Fields{"trip_id": id})
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -198,6 +205,7 @@ func (h *TripHandler) GetTripPlaces(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
+		logger.Error(r.Context(), "Invalid trip id in GetTripPlaces", logrus.Fields{"id": vars["id"], "error": err})
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip id"})
 		return
@@ -205,6 +213,7 @@ func (h *TripHandler) GetTripPlaces(w http.ResponseWriter, r *http.Request) {
 
 	placeIDs, err := h.tripService.GetTripPlaceIDs(r.Context(), id)
 	if err != nil {
+		logger.Error(r.Context(), "Failed to fetch place IDs", logrus.Fields{"error": err, "trip_id": id})
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch place IDs"})
 		return
@@ -229,6 +238,7 @@ func (h *TripHandler) AddPlace(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	tripID, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
+		logger.Error(r.Context(), "Invalid trip id in AddPlace", logrus.Fields{"id": vars["id"], "error": err})
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip id"})
 		return
@@ -239,17 +249,20 @@ func (h *TripHandler) AddPlace(w http.ResponseWriter, r *http.Request) {
 		OrderIndex int16  `json:"order_index"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logger.Error(r.Context(), "Invalid JSON in AddPlace", logrus.Fields{"error": err})
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
 	}
 
 	if err := h.tripService.AddPlaceToTrip(r.Context(), tripID, req.PlaceID, userID, req.OrderIndex); err != nil {
+		logger.Error(r.Context(), "AddPlaceToTrip failed", logrus.Fields{"error": err, "trip_id": tripID, "place_id": req.PlaceID})
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
+	logger.Info(r.Context(), "Place added to trip", logrus.Fields{"trip_id": tripID, "place_id": req.PlaceID})
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "place added to trip"})
 }
@@ -266,6 +279,7 @@ func (h *TripHandler) RemovePlace(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	tripID, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
+		logger.Error(r.Context(), "Invalid trip id in RemovePlace", logrus.Fields{"id": vars["id"], "error": err})
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip id"})
 		return
@@ -273,16 +287,19 @@ func (h *TripHandler) RemovePlace(w http.ResponseWriter, r *http.Request) {
 
 	placeID, err := strconv.ParseUint(vars["placeId"], 10, 64)
 	if err != nil {
+		logger.Error(r.Context(), "Invalid place id in RemovePlace", logrus.Fields{"placeId": vars["placeId"], "error": err})
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid place id"})
 		return
 	}
 
 	if err := h.tripService.RemovePlaceFromTrip(r.Context(), tripID, placeID, userID); err != nil {
+		logger.Error(r.Context(), "RemovePlaceFromTrip failed", logrus.Fields{"error": err, "trip_id": tripID, "place_id": placeID})
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
+	logger.Info(r.Context(), "Place removed from trip", logrus.Fields{"trip_id": tripID, "place_id": placeID})
 	w.WriteHeader(http.StatusNoContent)
 }

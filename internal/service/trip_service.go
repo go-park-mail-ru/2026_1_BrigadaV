@@ -3,9 +3,12 @@ package service
 import (
 	"context"
 	"errors"
+	"guidely-app/internal/logger"
 	"guidely-app/internal/models"
 	"guidely-app/internal/repository"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 type tripService struct {
@@ -37,6 +40,7 @@ type UpdateTripInput struct {
 }
 
 func (s *tripService) Create(ctx context.Context, input CreateTripInput) (*models.Trip, error) {
+	logger.Info(ctx, "CreateTrip called", logrus.Fields{"title": input.Title})
 	if input.Title == "" {
 		return nil, errors.New("title is required")
 	}
@@ -52,6 +56,7 @@ func (s *tripService) Create(ctx context.Context, input CreateTripInput) (*model
 	if err := s.tripRepo.Create(ctx, trip); err != nil {
 		return nil, err
 	}
+	logger.Info(ctx, "CreateTrip successful", logrus.Fields{"trip_id": trip.ID})
 	return trip, nil
 }
 
@@ -75,6 +80,7 @@ func (s *tripService) GetTripDetails(ctx context.Context, tripID uint64) (*model
 }
 
 func (s *tripService) Update(ctx context.Context, id, userID uint64, input UpdateTripInput) (*models.Trip, error) {
+	logger.Info(ctx, "UpdateTrip called", logrus.Fields{"trip_id": id, "user_id": userID})
 	trip, err := s.tripRepo.GetByID(ctx, id)
 	if err != nil || trip == nil {
 		return nil, errors.New("trip not found")
@@ -106,10 +112,12 @@ func (s *tripService) Update(ctx context.Context, id, userID uint64, input Updat
 	if err := s.tripRepo.Update(ctx, trip); err != nil {
 		return nil, err
 	}
+	logger.Info(ctx, "UpdateTrip successful", logrus.Fields{"trip_id": trip.ID})
 	return trip, nil
 }
 
 func (s *tripService) Delete(ctx context.Context, id, userID uint64) error {
+	logger.Info(ctx, "DeleteTrip called", logrus.Fields{"trip_id": id, "user_id": userID})
 	trip, err := s.tripRepo.GetByID(ctx, id)
 	if err != nil || trip == nil {
 		return errors.New("trip not found")
@@ -125,6 +133,7 @@ func (s *tripService) GetTripPlaceIDs(ctx context.Context, tripID uint64) ([]uin
 }
 
 func (s *tripService) AddPlaceToTrip(ctx context.Context, tripID, placeID, userID uint64, orderIndex int16) error {
+	logger.Info(ctx, "AddPlaceToTrip called", logrus.Fields{"trip_id": tripID, "place_id": placeID})
 	trip, err := s.tripRepo.GetByID(ctx, tripID)
 	if err != nil || trip == nil {
 		return errors.New("trip not found")
@@ -145,6 +154,7 @@ func (s *tripService) AddPlaceToTrip(ctx context.Context, tripID, placeID, userI
 }
 
 func (s *tripService) RemovePlaceFromTrip(ctx context.Context, tripID, placeID, userID uint64) error {
+	logger.Info(ctx, "RemovePlaceFromTrip called", logrus.Fields{"trip_id": tripID, "place_id": placeID})
 	trip, err := s.tripRepo.GetByID(ctx, tripID)
 	if err != nil || trip == nil {
 		return errors.New("trip not found")

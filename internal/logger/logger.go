@@ -30,7 +30,6 @@ func Init(level string) {
 func Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-
 		reqID := r.Header.Get("X-Request-ID")
 		if reqID == "" {
 			reqID = uuid.New().String()
@@ -38,23 +37,27 @@ func Middleware(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), RequestIDKey, reqID)
 		r = r.WithContext(ctx)
 
-		Log.WithFields(logrus.Fields{
-			"request_id": reqID,
-			"method":     r.Method,
-			"path":       r.URL.Path,
-			"remote":     r.RemoteAddr,
-		}).Info("request started")
+		if Log != nil {
+			Log.WithFields(logrus.Fields{
+				"request_id": reqID,
+				"method":     r.Method,
+				"path":       r.URL.Path,
+				"remote":     r.RemoteAddr,
+			}).Info("request started")
+		}
 
 		wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
 		next.ServeHTTP(wrapped, r)
 
-		Log.WithFields(logrus.Fields{
-			"request_id": reqID,
-			"method":     r.Method,
-			"path":       r.URL.Path,
-			"status":     wrapped.statusCode,
-			"duration":   time.Since(start).String(),
-		}).Info("request completed")
+		if Log != nil {
+			Log.WithFields(logrus.Fields{
+				"request_id": reqID,
+				"method":     r.Method,
+				"path":       r.URL.Path,
+				"status":     wrapped.statusCode,
+				"duration":   time.Since(start).String(),
+			}).Info("request completed")
+		}
 	})
 }
 
@@ -76,6 +79,9 @@ func GetRequestID(ctx context.Context) string {
 }
 
 func Info(ctx context.Context, msg string, fields logrus.Fields) {
+	if Log == nil {
+		return
+	}
 	if fields == nil {
 		fields = logrus.Fields{}
 	}
@@ -84,6 +90,9 @@ func Info(ctx context.Context, msg string, fields logrus.Fields) {
 }
 
 func Error(ctx context.Context, msg string, fields logrus.Fields) {
+	if Log == nil {
+		return
+	}
 	if fields == nil {
 		fields = logrus.Fields{}
 	}
@@ -92,6 +101,9 @@ func Error(ctx context.Context, msg string, fields logrus.Fields) {
 }
 
 func Debug(ctx context.Context, msg string, fields logrus.Fields) {
+	if Log == nil {
+		return
+	}
 	if fields == nil {
 		fields = logrus.Fields{}
 	}
@@ -100,6 +112,9 @@ func Debug(ctx context.Context, msg string, fields logrus.Fields) {
 }
 
 func Warn(ctx context.Context, msg string, fields logrus.Fields) {
+	if Log == nil {
+		return
+	}
 	if fields == nil {
 		fields = logrus.Fields{}
 	}

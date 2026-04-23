@@ -3,10 +3,13 @@ package handlers
 import (
 	"encoding/json"
 	"guidely-app/internal/dto"
+	"guidely-app/internal/logger"
 	"guidely-app/internal/service"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 type AuthHandler struct {
@@ -51,6 +54,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("User registered: id=%d, email=%s", user.ID, user.Login)
+	logger.Info(r.Context(), "User registered", logrus.Fields{"user_id": user.ID, "login": user.Login})
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
@@ -84,6 +88,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid credentials"})
 		return
 	}
+	logger.Info(r.Context(), "User logged in", logrus.Fields{"user_id": user.ID})
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
 		Value:    token,
@@ -108,10 +113,12 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.authService.Logout(r.Context(), cookie.Value); err != nil {
+		logger.Error(r.Context(), "Logout failed", logrus.Fields{"error": err.Error()})
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"error": "logout failed"})
 		return
 	}
+	logger.Info(r.Context(), "User logged out", nil)
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
 		Value:    "",

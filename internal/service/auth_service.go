@@ -3,10 +3,13 @@ package service
 import (
 	"context"
 	"errors"
+	"guidely-app/internal/logger"
 	"guidely-app/internal/models"
 	"guidely-app/internal/repository"
 	"guidely-app/internal/utils"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 type authService struct {
@@ -33,6 +36,7 @@ type LoginInput struct {
 }
 
 func (s *authService) Register(ctx context.Context, input RegisterInput) (*models.User, string, error) {
+	logger.Info(ctx, "Register called", logrus.Fields{"login": input.Login, "nickname": input.Nickname})
 	if !utils.IsValidLogin(input.Login) {
 		return nil, "", errors.New("invalid login format")
 	}
@@ -52,6 +56,7 @@ func (s *authService) Register(ctx context.Context, input RegisterInput) (*model
 	}
 	hashed, err := utils.HashPassword(input.Password)
 	if err != nil {
+		logger.Error(ctx, "Failed to hash password", logrus.Fields{"error": err.Error()})
 		return nil, "", err
 	}
 	user := &models.User{
@@ -75,10 +80,12 @@ func (s *authService) Register(ctx context.Context, input RegisterInput) (*model
 	if err := s.sessionRepo.Create(ctx, session); err != nil {
 		return nil, "", err
 	}
+	logger.Info(ctx, "Registration successful", logrus.Fields{"user_id": user.ID})
 	return user, token, nil
 }
 
 func (s *authService) Login(ctx context.Context, input LoginInput) (*models.User, string, error) {
+	logger.Info(ctx, "Login called", logrus.Fields{"login": input.Login})
 	user, err := s.userRepo.GetByLogin(ctx, input.Login)
 	if err != nil || user == nil {
 		return nil, "", errors.New("invalid credentials")
@@ -98,10 +105,12 @@ func (s *authService) Login(ctx context.Context, input LoginInput) (*models.User
 	if err := s.sessionRepo.Create(ctx, session); err != nil {
 		return nil, "", err
 	}
+	logger.Info(ctx, "Login successful", logrus.Fields{"user_id": user.ID})
 	return user, token, nil
 }
 
 func (s *authService) Logout(ctx context.Context, token string) error {
+	logger.Info(ctx, "Logout called", nil)
 	return s.sessionRepo.DeleteByToken(ctx, token)
 }
 

@@ -119,8 +119,8 @@ func (r *TripRepo) AddAttraction(ctx context.Context, tripID, placeID uint64, or
 }
 
 func (r *TripRepo) GetAttractions(ctx context.Context, tripID uint64) ([]models.PlaceInTrip, error) {
-  logger.Debug(ctx, "getting attractions for trip", logrus.Fields{"trip_id": tripID})  
-  query := `
+	logger.Debug(ctx, "getting attractions for trip", logrus.Fields{"trip_id": tripID})
+	query := `
         SELECT p.id, p.name, p.description,
                COALESCE(AVG(r.rating), 0) as rating,
                p.photo_url
@@ -131,28 +131,32 @@ func (r *TripRepo) GetAttractions(ctx context.Context, tripID uint64) ([]models.
         GROUP BY p.id, p.name, p.description, p.photo_url, ta.order_index
         ORDER BY ta.order_index
     `
-    rows, err := r.db.Query(ctx, query, tripID)
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
-
-    var places []models.PlaceInTrip
-    for rows.Next() {
-        var pl models.PlaceInTrip
-        if err := rows.Scan(&pl.ID, &pl.Name, &pl.Description, &pl.Rating, &pl.PhotoURL); err != nil {
-            return nil, err
-        }
-        places = append(places, pl)
-    }
-    return places, nil
-}
-
-func (r *TripRepo) GetPlaceIDs(ctx context.Context, tripID uint64) ([]uint64, error) {
-	query := `SELECT place_id FROM trip_attractions WHERE trip_id = $1 ORDER BY order_index`
 	rows, err := r.db.Query(ctx, query, tripID)
 	if err != nil {
 		logger.Error(ctx, "failed to get attractions", logrus.Fields{"error": err})
+		return nil, err
+	}
+	defer rows.Close()
+
+	var places []models.PlaceInTrip
+	for rows.Next() {
+		var pl models.PlaceInTrip
+		if err := rows.Scan(&pl.ID, &pl.Name, &pl.Description, &pl.Rating, &pl.PhotoURL); err != nil {
+			logger.Error(ctx, "failed to scan attraction", logrus.Fields{"error": err})
+			return nil, err
+		}
+		places = append(places, pl)
+	}
+	logger.Debug(ctx, "attractions retrieved", logrus.Fields{"count": len(places)})
+	return places, nil
+}
+
+func (r *TripRepo) GetPlaceIDs(ctx context.Context, tripID uint64) ([]uint64, error) {
+	logger.Debug(ctx, "getting place IDs for trip", logrus.Fields{"trip_id": tripID})
+	query := `SELECT place_id FROM trip_attractions WHERE trip_id = $1 ORDER BY order_index`
+	rows, err := r.db.Query(ctx, query, tripID)
+	if err != nil {
+		logger.Error(ctx, "failed to get place IDs", logrus.Fields{"error": err})
 		return nil, err
 	}
 	defer rows.Close()
@@ -161,25 +165,35 @@ func (r *TripRepo) GetPlaceIDs(ctx context.Context, tripID uint64) ([]uint64, er
 	for rows.Next() {
 		var id uint64
 		if err := rows.Scan(&id); err != nil {
-			logger.Error(ctx, "failed to scan attraction", logrus.Fields{"error": err})
+			logger.Error(ctx, "failed to scan place ID", logrus.Fields{"error": err})
 			return nil, err
 		}
 		placeIDs = append(placeIDs, id)
 	}
-	
-	logger.Debug(ctx, "attractions retrieved", logrus.Fields{"count": len(placeIDs)})
+
+	logger.Debug(ctx, "place IDs retrieved", logrus.Fields{"count": len(placeIDs)})
 	return placeIDs, nil
 }
 
 func (r *TripRepo) RemoveAttraction(ctx context.Context, tripID, placeID uint64) error {
-    query := `DELETE FROM trip_attractions WHERE trip_id = $1 AND place_id = $2`
-    _, err := r.db.Exec(ctx, query, tripID, placeID)
-    return err
+	logger.Debug(ctx, "removing attraction from trip", logrus.Fields{"trip_id": tripID, "place_id": placeID})
+	query := `DELETE FROM trip_attractions WHERE trip_id = $1 AND place_id = $2`
+	_, err := r.db.Exec(ctx, query, tripID, placeID)
+	if err != nil {
+		logger.Error(ctx, "failed to remove attraction", logrus.Fields{"error": err})
+		return err
+	}
+	return nil
 }
 
 func (r *TripRepo) CheckPlaceInTrip(ctx context.Context, tripID, placeID uint64) (bool, error) {
-    query := `SELECT EXISTS(SELECT 1 FROM trip_attractions WHERE trip_id = $1 AND place_id = $2)`
-    var exists bool
-    err := r.db.QueryRow(ctx, query, tripID, placeID).Scan(&exists)
-    return exists, err
+	logger.Debug(ctx, "checking if place is in trip", logrus.Fields{"trip_id": tripID, "place_id": placeID})
+	query := `SELECT EXISTS(SELECT 1 FROM trip_attractions WHERE trip_id = $1 AND place_id = $2)`
+	var exists bool
+	err := r.db.QueryRow(ctx, query, tripID, placeID).Scan(&exists)
+	if err != nil {
+		logger.Error(ctx, "failed to check place in trip", logrus.Fields{"error": err})
+		return false, err
+	}
+	return exists, nil
 }

@@ -3,11 +3,13 @@ package handlers
 import (
 	"encoding/json"
 	"guidely-app/internal/dto"
+	"guidely-app/internal/logger"
 	"guidely-app/internal/service"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
 )
 
 type PlaceHandler struct {
@@ -25,6 +27,7 @@ func NewPlaceHandler(placeService service.PlaceService, tripService service.Trip
 func (h *PlaceHandler) List(w http.ResponseWriter, r *http.Request) {
 	places, err := h.placeService.GetAll(r.Context())
 	if err != nil {
+		logger.Error(r.Context(), "Failed to fetch places", logrus.Fields{"error": err})
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch places"})
 		return
@@ -84,6 +87,7 @@ func (h *PlaceHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
+		logger.Error(r.Context(), "Invalid place id in GetDetails", logrus.Fields{"id": vars["id"], "error": err})
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid place id"})
 		return
@@ -97,6 +101,7 @@ func (h *PlaceHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
 	}
 	place, err := h.placeService.GetDetails(r.Context(), id, userID)
 	if err != nil {
+		logger.Error(r.Context(), "Failed to get place details", logrus.Fields{"place_id": id, "error": err})
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(map[string]string{"error": "place not found"})
 		return
@@ -109,12 +114,14 @@ func (h *PlaceHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
+		logger.Error(r.Context(), "Invalid place id in GetReviews", logrus.Fields{"id": vars["id"], "error": err})
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid place id"})
 		return
 	}
 	reviews, err := h.placeService.GetReviews(r.Context(), id)
 	if err != nil {
+		logger.Error(r.Context(), "Failed to fetch reviews", logrus.Fields{"place_id": id, "error": err})
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch reviews"})
 		return
@@ -135,6 +142,7 @@ func (h *PlaceHandler) CheckPlaceInTrip(w http.ResponseWriter, r *http.Request) 
 	vars := mux.Vars(r)
 	placeID, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
+		logger.Error(r.Context(), "Invalid place id in CheckPlaceInTrip", logrus.Fields{"id": vars["id"], "error": err})
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid place id"})
 		return
@@ -148,6 +156,7 @@ func (h *PlaceHandler) CheckPlaceInTrip(w http.ResponseWriter, r *http.Request) 
 	}
 	tripID, err := strconv.ParseUint(tripIDStr, 10, 64)
 	if err != nil {
+		logger.Error(r.Context(), "Invalid trip_id in CheckPlaceInTrip", logrus.Fields{"trip_id": tripIDStr, "error": err})
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip_id"})
 		return
@@ -155,6 +164,7 @@ func (h *PlaceHandler) CheckPlaceInTrip(w http.ResponseWriter, r *http.Request) 
 
 	trip, _, err := h.tripService.GetTripDetails(r.Context(), tripID)
 	if err != nil || trip == nil || trip.CreatedBy != userID {
+		logger.Error(r.Context(), "Access denied or trip not found in CheckPlaceInTrip", logrus.Fields{"trip_id": tripID, "user_id": userID})
 		w.WriteHeader(http.StatusForbidden)
 		json.NewEncoder(w).Encode(map[string]string{"error": "trip not found or access denied"})
 		return
@@ -162,6 +172,7 @@ func (h *PlaceHandler) CheckPlaceInTrip(w http.ResponseWriter, r *http.Request) 
 
 	inTrip, err := h.placeService.IsPlaceInTrip(r.Context(), placeID, tripID)
 	if err != nil {
+		logger.Error(r.Context(), "Failed to check place in trip", logrus.Fields{"error": err})
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"error": "failed to check place in trip"})
 		return
