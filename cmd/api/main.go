@@ -96,6 +96,7 @@ func main() {
 			csrf.Secure(false),
 			csrf.HttpOnly(true),
 			csrf.Path("/"),
+			csrf.TrustedOrigins([]string{"guidely.ru"}),
 		)
 		r.Use(csrfMiddleware)
 		r.Use(middleware.CORS(cfg.FrontendURL))
