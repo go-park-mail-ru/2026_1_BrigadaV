@@ -12,7 +12,7 @@ import (
 	"log"
 	"net/http"
 
-	// "github.com/gorilla/csrf"
+	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
@@ -91,14 +91,13 @@ func main() {
 	
 	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 	
-	// CSRF middleware (закомментирован)
-	// csrfMiddleware := csrf.Protect(
-		// 	[]byte(cfg.JWTSecret),
-		// 	csrf.Secure(false),
-		// 	csrf.HttpOnly(true),
-		// 	csrf.Path("/"),
-		// )
-		// r.Use(csrfMiddleware)
+	csrfMiddleware := csrf.Protect(
+			[]byte(cfg.JWTSecret),
+			csrf.Secure(false),
+			csrf.HttpOnly(true),
+			csrf.Path("/"),
+		)
+		r.Use(csrfMiddleware)
 		r.Use(middleware.CORS(cfg.FrontendURL))
 		
 	logger.Log.Info("Server started on :" + cfg.Port)
