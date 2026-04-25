@@ -61,6 +61,7 @@ type CreateTicketRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Category      string                 `protobuf:"bytes,1,opt,name=category,proto3" json:"category,omitempty"`
 	Subject       string                 `protobuf:"bytes,2,opt,name=subject,proto3" json:"subject,omitempty"`
+	Body          string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -105,6 +106,13 @@ func (x *CreateTicketRequest) GetCategory() string {
 func (x *CreateTicketRequest) GetSubject() string {
 	if x != nil {
 		return x.Subject
+	}
+	return ""
+}
+
+func (x *CreateTicketRequest) GetBody() string {
+	if x != nil {
+		return x.Body
 	}
 	return ""
 }
@@ -699,10 +707,11 @@ const file_api_support_v1_support_proto_rawDesc = "" +
 	"\n" +
 	"\x1capi/support/v1/support.proto\x12\n" +
 	"support.v1\"\a\n" +
-	"\x05Empty\"K\n" +
+	"\x05Empty\"_\n" +
 	"\x13CreateTicketRequest\x12\x1a\n" +
 	"\bcategory\x18\x01 \x01(\tR\bcategory\x12\x18\n" +
-	"\asubject\x18\x02 \x01(\tR\asubject\"/\n" +
+	"\asubject\x18\x02 \x01(\tR\asubject\x12\x12\n" +
+	"\x04body\x18\x03 \x01(\tR\x04body\"/\n" +
 	"\x10SubscribeRequest\x12\x1b\n" +
 	"\tticket_id\x18\x01 \x01(\x03R\bticketId\"\x14\n" +
 	"\x12ListTicketsRequest\"/\n" +
