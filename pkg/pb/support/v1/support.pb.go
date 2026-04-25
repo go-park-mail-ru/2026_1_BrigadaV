@@ -109,6 +109,50 @@ func (x *CreateTicketRequest) GetSubject() string {
 	return ""
 }
 
+type SubscribeRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TicketId      int64                  `protobuf:"varint,1,opt,name=ticket_id,json=ticketId,proto3" json:"ticket_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubscribeRequest) Reset() {
+	*x = SubscribeRequest{}
+	mi := &file_api_support_v1_support_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubscribeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubscribeRequest) ProtoMessage() {}
+
+func (x *SubscribeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_support_v1_support_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubscribeRequest.ProtoReflect.Descriptor instead.
+func (*SubscribeRequest) Descriptor() ([]byte, []int) {
+	return file_api_support_v1_support_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SubscribeRequest) GetTicketId() int64 {
+	if x != nil {
+		return x.TicketId
+	}
+	return 0
+}
+
 type ListTicketsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -117,7 +161,7 @@ type ListTicketsRequest struct {
 
 func (x *ListTicketsRequest) Reset() {
 	*x = ListTicketsRequest{}
-	mi := &file_api_support_v1_support_proto_msgTypes[2]
+	mi := &file_api_support_v1_support_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -129,7 +173,7 @@ func (x *ListTicketsRequest) String() string {
 func (*ListTicketsRequest) ProtoMessage() {}
 
 func (x *ListTicketsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_support_v1_support_proto_msgTypes[2]
+	mi := &file_api_support_v1_support_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -142,7 +186,7 @@ func (x *ListTicketsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTicketsRequest.ProtoReflect.Descriptor instead.
 func (*ListTicketsRequest) Descriptor() ([]byte, []int) {
-	return file_api_support_v1_support_proto_rawDescGZIP(), []int{2}
+	return file_api_support_v1_support_proto_rawDescGZIP(), []int{3}
 }
 
 type GetTicketRequest struct {
@@ -154,7 +198,7 @@ type GetTicketRequest struct {
 
 func (x *GetTicketRequest) Reset() {
 	*x = GetTicketRequest{}
-	mi := &file_api_support_v1_support_proto_msgTypes[3]
+	mi := &file_api_support_v1_support_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -166,7 +210,7 @@ func (x *GetTicketRequest) String() string {
 func (*GetTicketRequest) ProtoMessage() {}
 
 func (x *GetTicketRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_support_v1_support_proto_msgTypes[3]
+	mi := &file_api_support_v1_support_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -179,7 +223,7 @@ func (x *GetTicketRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTicketRequest.ProtoReflect.Descriptor instead.
 func (*GetTicketRequest) Descriptor() ([]byte, []int) {
-	return file_api_support_v1_support_proto_rawDescGZIP(), []int{3}
+	return file_api_support_v1_support_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetTicketRequest) GetTicketId() int64 {
@@ -199,7 +243,7 @@ type SendMessageRequest struct {
 
 func (x *SendMessageRequest) Reset() {
 	*x = SendMessageRequest{}
-	mi := &file_api_support_v1_support_proto_msgTypes[4]
+	mi := &file_api_support_v1_support_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -211,7 +255,7 @@ func (x *SendMessageRequest) String() string {
 func (*SendMessageRequest) ProtoMessage() {}
 
 func (x *SendMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_support_v1_support_proto_msgTypes[4]
+	mi := &file_api_support_v1_support_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -224,7 +268,7 @@ func (x *SendMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendMessageRequest.ProtoReflect.Descriptor instead.
 func (*SendMessageRequest) Descriptor() ([]byte, []int) {
-	return file_api_support_v1_support_proto_rawDescGZIP(), []int{4}
+	return file_api_support_v1_support_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SendMessageRequest) GetTicketId() int64 {
@@ -251,7 +295,7 @@ type ReplyAsAdminRequest struct {
 
 func (x *ReplyAsAdminRequest) Reset() {
 	*x = ReplyAsAdminRequest{}
-	mi := &file_api_support_v1_support_proto_msgTypes[5]
+	mi := &file_api_support_v1_support_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -263,7 +307,7 @@ func (x *ReplyAsAdminRequest) String() string {
 func (*ReplyAsAdminRequest) ProtoMessage() {}
 
 func (x *ReplyAsAdminRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_support_v1_support_proto_msgTypes[5]
+	mi := &file_api_support_v1_support_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -276,7 +320,7 @@ func (x *ReplyAsAdminRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplyAsAdminRequest.ProtoReflect.Descriptor instead.
 func (*ReplyAsAdminRequest) Descriptor() ([]byte, []int) {
-	return file_api_support_v1_support_proto_rawDescGZIP(), []int{5}
+	return file_api_support_v1_support_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ReplyAsAdminRequest) GetTicketId() int64 {
@@ -303,7 +347,7 @@ type UpdateTicketStatusRequest struct {
 
 func (x *UpdateTicketStatusRequest) Reset() {
 	*x = UpdateTicketStatusRequest{}
-	mi := &file_api_support_v1_support_proto_msgTypes[6]
+	mi := &file_api_support_v1_support_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -315,7 +359,7 @@ func (x *UpdateTicketStatusRequest) String() string {
 func (*UpdateTicketStatusRequest) ProtoMessage() {}
 
 func (x *UpdateTicketStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_support_v1_support_proto_msgTypes[6]
+	mi := &file_api_support_v1_support_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -328,7 +372,7 @@ func (x *UpdateTicketStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateTicketStatusRequest.ProtoReflect.Descriptor instead.
 func (*UpdateTicketStatusRequest) Descriptor() ([]byte, []int) {
-	return file_api_support_v1_support_proto_rawDescGZIP(), []int{6}
+	return file_api_support_v1_support_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *UpdateTicketStatusRequest) GetTicketId() int64 {
@@ -360,7 +404,7 @@ type Ticket struct {
 
 func (x *Ticket) Reset() {
 	*x = Ticket{}
-	mi := &file_api_support_v1_support_proto_msgTypes[7]
+	mi := &file_api_support_v1_support_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -372,7 +416,7 @@ func (x *Ticket) String() string {
 func (*Ticket) ProtoMessage() {}
 
 func (x *Ticket) ProtoReflect() protoreflect.Message {
-	mi := &file_api_support_v1_support_proto_msgTypes[7]
+	mi := &file_api_support_v1_support_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -385,7 +429,7 @@ func (x *Ticket) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Ticket.ProtoReflect.Descriptor instead.
 func (*Ticket) Descriptor() ([]byte, []int) {
-	return file_api_support_v1_support_proto_rawDescGZIP(), []int{7}
+	return file_api_support_v1_support_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Ticket) GetId() int64 {
@@ -450,7 +494,7 @@ type Message struct {
 
 func (x *Message) Reset() {
 	*x = Message{}
-	mi := &file_api_support_v1_support_proto_msgTypes[8]
+	mi := &file_api_support_v1_support_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -462,7 +506,7 @@ func (x *Message) String() string {
 func (*Message) ProtoMessage() {}
 
 func (x *Message) ProtoReflect() protoreflect.Message {
-	mi := &file_api_support_v1_support_proto_msgTypes[8]
+	mi := &file_api_support_v1_support_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -475,7 +519,7 @@ func (x *Message) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Message.ProtoReflect.Descriptor instead.
 func (*Message) Descriptor() ([]byte, []int) {
-	return file_api_support_v1_support_proto_rawDescGZIP(), []int{8}
+	return file_api_support_v1_support_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Message) GetId() int64 {
@@ -522,7 +566,7 @@ type ListTicketsResponse struct {
 
 func (x *ListTicketsResponse) Reset() {
 	*x = ListTicketsResponse{}
-	mi := &file_api_support_v1_support_proto_msgTypes[9]
+	mi := &file_api_support_v1_support_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -534,7 +578,7 @@ func (x *ListTicketsResponse) String() string {
 func (*ListTicketsResponse) ProtoMessage() {}
 
 func (x *ListTicketsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_support_v1_support_proto_msgTypes[9]
+	mi := &file_api_support_v1_support_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -547,7 +591,7 @@ func (x *ListTicketsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTicketsResponse.ProtoReflect.Descriptor instead.
 func (*ListTicketsResponse) Descriptor() ([]byte, []int) {
-	return file_api_support_v1_support_proto_rawDescGZIP(), []int{9}
+	return file_api_support_v1_support_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ListTicketsResponse) GetTickets() []*Ticket {
@@ -574,7 +618,7 @@ type StatsResponse struct {
 
 func (x *StatsResponse) Reset() {
 	*x = StatsResponse{}
-	mi := &file_api_support_v1_support_proto_msgTypes[10]
+	mi := &file_api_support_v1_support_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -586,7 +630,7 @@ func (x *StatsResponse) String() string {
 func (*StatsResponse) ProtoMessage() {}
 
 func (x *StatsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_support_v1_support_proto_msgTypes[10]
+	mi := &file_api_support_v1_support_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -599,7 +643,7 @@ func (x *StatsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatsResponse.ProtoReflect.Descriptor instead.
 func (*StatsResponse) Descriptor() ([]byte, []int) {
-	return file_api_support_v1_support_proto_rawDescGZIP(), []int{10}
+	return file_api_support_v1_support_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *StatsResponse) GetOpenCount() int64 {
@@ -653,7 +697,9 @@ const file_api_support_v1_support_proto_rawDesc = "" +
 	"\x05Empty\"K\n" +
 	"\x13CreateTicketRequest\x12\x1a\n" +
 	"\bcategory\x18\x01 \x01(\tR\bcategory\x12\x18\n" +
-	"\asubject\x18\x02 \x01(\tR\asubject\"\x14\n" +
+	"\asubject\x18\x02 \x01(\tR\asubject\"/\n" +
+	"\x10SubscribeRequest\x12\x1b\n" +
+	"\tticket_id\x18\x01 \x01(\x03R\bticketId\"\x14\n" +
 	"\x12ListTicketsRequest\"/\n" +
 	"\x10GetTicketRequest\x12\x1b\n" +
 	"\tticket_id\x18\x01 \x01(\x03R\bticketId\"E\n" +
@@ -696,7 +742,7 @@ const file_api_support_v1_support_proto_rawDesc = "" +
 	"\x0etotal_messages\x18\x06 \x01(\x03R\rtotalMessages\x1a=\n" +
 	"\x0fByCategoryEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x012\xcf\x04\n" +
+	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x012\x99\x05\n" +
 	"\x0eSupportService\x12C\n" +
 	"\fCreateTicket\x12\x1f.support.v1.CreateTicketRequest\x1a\x12.support.v1.Ticket\x12P\n" +
 	"\rListMyTickets\x12\x1e.support.v1.ListTicketsRequest\x1a\x1f.support.v1.ListTicketsResponse\x12=\n" +
@@ -705,7 +751,8 @@ const file_api_support_v1_support_proto_rawDesc = "" +
 	"\bGetStats\x12\x11.support.v1.Empty\x1a\x19.support.v1.StatsResponse\x12R\n" +
 	"\x0fListOpenTickets\x12\x1e.support.v1.ListTicketsRequest\x1a\x1f.support.v1.ListTicketsResponse\x12D\n" +
 	"\fReplyAsAdmin\x12\x1f.support.v1.ReplyAsAdminRequest\x1a\x13.support.v1.Message\x12O\n" +
-	"\x12UpdateTicketStatus\x12%.support.v1.UpdateTicketStatusRequest\x1a\x12.support.v1.TicketB)Z'guidely-app/pkg/pb/support/v1;supportv1b\x06proto3"
+	"\x12UpdateTicketStatus\x12%.support.v1.UpdateTicketStatusRequest\x1a\x12.support.v1.Ticket\x12H\n" +
+	"\x11SubscribeToTicket\x12\x1c.support.v1.SubscribeRequest\x1a\x13.support.v1.Message0\x01B)Z'guidely-app/pkg/pb/support/v1;supportv1b\x06proto3"
 
 var (
 	file_api_support_v1_support_proto_rawDescOnce sync.Once
@@ -719,43 +766,46 @@ func file_api_support_v1_support_proto_rawDescGZIP() []byte {
 	return file_api_support_v1_support_proto_rawDescData
 }
 
-var file_api_support_v1_support_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_api_support_v1_support_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_api_support_v1_support_proto_goTypes = []any{
 	(*Empty)(nil),                     // 0: support.v1.Empty
 	(*CreateTicketRequest)(nil),       // 1: support.v1.CreateTicketRequest
-	(*ListTicketsRequest)(nil),        // 2: support.v1.ListTicketsRequest
-	(*GetTicketRequest)(nil),          // 3: support.v1.GetTicketRequest
-	(*SendMessageRequest)(nil),        // 4: support.v1.SendMessageRequest
-	(*ReplyAsAdminRequest)(nil),       // 5: support.v1.ReplyAsAdminRequest
-	(*UpdateTicketStatusRequest)(nil), // 6: support.v1.UpdateTicketStatusRequest
-	(*Ticket)(nil),                    // 7: support.v1.Ticket
-	(*Message)(nil),                   // 8: support.v1.Message
-	(*ListTicketsResponse)(nil),       // 9: support.v1.ListTicketsResponse
-	(*StatsResponse)(nil),             // 10: support.v1.StatsResponse
-	nil,                               // 11: support.v1.StatsResponse.ByCategoryEntry
+	(*SubscribeRequest)(nil),          // 2: support.v1.SubscribeRequest
+	(*ListTicketsRequest)(nil),        // 3: support.v1.ListTicketsRequest
+	(*GetTicketRequest)(nil),          // 4: support.v1.GetTicketRequest
+	(*SendMessageRequest)(nil),        // 5: support.v1.SendMessageRequest
+	(*ReplyAsAdminRequest)(nil),       // 6: support.v1.ReplyAsAdminRequest
+	(*UpdateTicketStatusRequest)(nil), // 7: support.v1.UpdateTicketStatusRequest
+	(*Ticket)(nil),                    // 8: support.v1.Ticket
+	(*Message)(nil),                   // 9: support.v1.Message
+	(*ListTicketsResponse)(nil),       // 10: support.v1.ListTicketsResponse
+	(*StatsResponse)(nil),             // 11: support.v1.StatsResponse
+	nil,                               // 12: support.v1.StatsResponse.ByCategoryEntry
 }
 var file_api_support_v1_support_proto_depIdxs = []int32{
-	8,  // 0: support.v1.Ticket.messages:type_name -> support.v1.Message
-	7,  // 1: support.v1.ListTicketsResponse.tickets:type_name -> support.v1.Ticket
-	11, // 2: support.v1.StatsResponse.by_category:type_name -> support.v1.StatsResponse.ByCategoryEntry
+	9,  // 0: support.v1.Ticket.messages:type_name -> support.v1.Message
+	8,  // 1: support.v1.ListTicketsResponse.tickets:type_name -> support.v1.Ticket
+	12, // 2: support.v1.StatsResponse.by_category:type_name -> support.v1.StatsResponse.ByCategoryEntry
 	1,  // 3: support.v1.SupportService.CreateTicket:input_type -> support.v1.CreateTicketRequest
-	2,  // 4: support.v1.SupportService.ListMyTickets:input_type -> support.v1.ListTicketsRequest
-	3,  // 5: support.v1.SupportService.GetTicket:input_type -> support.v1.GetTicketRequest
-	4,  // 6: support.v1.SupportService.SendMessage:input_type -> support.v1.SendMessageRequest
+	3,  // 4: support.v1.SupportService.ListMyTickets:input_type -> support.v1.ListTicketsRequest
+	4,  // 5: support.v1.SupportService.GetTicket:input_type -> support.v1.GetTicketRequest
+	5,  // 6: support.v1.SupportService.SendMessage:input_type -> support.v1.SendMessageRequest
 	0,  // 7: support.v1.SupportService.GetStats:input_type -> support.v1.Empty
-	2,  // 8: support.v1.SupportService.ListOpenTickets:input_type -> support.v1.ListTicketsRequest
-	5,  // 9: support.v1.SupportService.ReplyAsAdmin:input_type -> support.v1.ReplyAsAdminRequest
-	6,  // 10: support.v1.SupportService.UpdateTicketStatus:input_type -> support.v1.UpdateTicketStatusRequest
-	7,  // 11: support.v1.SupportService.CreateTicket:output_type -> support.v1.Ticket
-	9,  // 12: support.v1.SupportService.ListMyTickets:output_type -> support.v1.ListTicketsResponse
-	7,  // 13: support.v1.SupportService.GetTicket:output_type -> support.v1.Ticket
-	8,  // 14: support.v1.SupportService.SendMessage:output_type -> support.v1.Message
-	10, // 15: support.v1.SupportService.GetStats:output_type -> support.v1.StatsResponse
-	9,  // 16: support.v1.SupportService.ListOpenTickets:output_type -> support.v1.ListTicketsResponse
-	8,  // 17: support.v1.SupportService.ReplyAsAdmin:output_type -> support.v1.Message
-	7,  // 18: support.v1.SupportService.UpdateTicketStatus:output_type -> support.v1.Ticket
-	11, // [11:19] is the sub-list for method output_type
-	3,  // [3:11] is the sub-list for method input_type
+	3,  // 8: support.v1.SupportService.ListOpenTickets:input_type -> support.v1.ListTicketsRequest
+	6,  // 9: support.v1.SupportService.ReplyAsAdmin:input_type -> support.v1.ReplyAsAdminRequest
+	7,  // 10: support.v1.SupportService.UpdateTicketStatus:input_type -> support.v1.UpdateTicketStatusRequest
+	2,  // 11: support.v1.SupportService.SubscribeToTicket:input_type -> support.v1.SubscribeRequest
+	8,  // 12: support.v1.SupportService.CreateTicket:output_type -> support.v1.Ticket
+	10, // 13: support.v1.SupportService.ListMyTickets:output_type -> support.v1.ListTicketsResponse
+	8,  // 14: support.v1.SupportService.GetTicket:output_type -> support.v1.Ticket
+	9,  // 15: support.v1.SupportService.SendMessage:output_type -> support.v1.Message
+	11, // 16: support.v1.SupportService.GetStats:output_type -> support.v1.StatsResponse
+	10, // 17: support.v1.SupportService.ListOpenTickets:output_type -> support.v1.ListTicketsResponse
+	9,  // 18: support.v1.SupportService.ReplyAsAdmin:output_type -> support.v1.Message
+	8,  // 19: support.v1.SupportService.UpdateTicketStatus:output_type -> support.v1.Ticket
+	9,  // 20: support.v1.SupportService.SubscribeToTicket:output_type -> support.v1.Message
+	12, // [12:21] is the sub-list for method output_type
+	3,  // [3:12] is the sub-list for method input_type
 	3,  // [3:3] is the sub-list for extension type_name
 	3,  // [3:3] is the sub-list for extension extendee
 	0,  // [0:3] is the sub-list for field type_name
@@ -772,7 +822,7 @@ func file_api_support_v1_support_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_support_v1_support_proto_rawDesc), len(file_api_support_v1_support_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -27,6 +27,7 @@ const (
 	SupportService_ListOpenTickets_FullMethodName    = "/support.v1.SupportService/ListOpenTickets"
 	SupportService_ReplyAsAdmin_FullMethodName       = "/support.v1.SupportService/ReplyAsAdmin"
 	SupportService_UpdateTicketStatus_FullMethodName = "/support.v1.SupportService/UpdateTicketStatus"
+	SupportService_SubscribeToTicket_FullMethodName  = "/support.v1.SupportService/SubscribeToTicket"
 )
 
 // SupportServiceClient is the client API for SupportService service.
@@ -41,6 +42,7 @@ type SupportServiceClient interface {
 	ListOpenTickets(ctx context.Context, in *ListTicketsRequest, opts ...grpc.CallOption) (*ListTicketsResponse, error)
 	ReplyAsAdmin(ctx context.Context, in *ReplyAsAdminRequest, opts ...grpc.CallOption) (*Message, error)
 	UpdateTicketStatus(ctx context.Context, in *UpdateTicketStatusRequest, opts ...grpc.CallOption) (*Ticket, error)
+	SubscribeToTicket(ctx context.Context, in *SubscribeRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Message], error)
 }
 
 type supportServiceClient struct {
@@ -131,6 +133,25 @@ func (c *supportServiceClient) UpdateTicketStatus(ctx context.Context, in *Updat
 	return out, nil
 }
 
+func (c *supportServiceClient) SubscribeToTicket(ctx context.Context, in *SubscribeRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Message], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &SupportService_ServiceDesc.Streams[0], SupportService_SubscribeToTicket_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[SubscribeRequest, Message]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type SupportService_SubscribeToTicketClient = grpc.ServerStreamingClient[Message]
+
 // SupportServiceServer is the server API for SupportService service.
 // All implementations must embed UnimplementedSupportServiceServer
 // for forward compatibility.
@@ -143,6 +164,7 @@ type SupportServiceServer interface {
 	ListOpenTickets(context.Context, *ListTicketsRequest) (*ListTicketsResponse, error)
 	ReplyAsAdmin(context.Context, *ReplyAsAdminRequest) (*Message, error)
 	UpdateTicketStatus(context.Context, *UpdateTicketStatusRequest) (*Ticket, error)
+	SubscribeToTicket(*SubscribeRequest, grpc.ServerStreamingServer[Message]) error
 	mustEmbedUnimplementedSupportServiceServer()
 }
 
@@ -176,6 +198,9 @@ func (UnimplementedSupportServiceServer) ReplyAsAdmin(context.Context, *ReplyAsA
 }
 func (UnimplementedSupportServiceServer) UpdateTicketStatus(context.Context, *UpdateTicketStatusRequest) (*Ticket, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateTicketStatus not implemented")
+}
+func (UnimplementedSupportServiceServer) SubscribeToTicket(*SubscribeRequest, grpc.ServerStreamingServer[Message]) error {
+	return status.Error(codes.Unimplemented, "method SubscribeToTicket not implemented")
 }
 func (UnimplementedSupportServiceServer) mustEmbedUnimplementedSupportServiceServer() {}
 func (UnimplementedSupportServiceServer) testEmbeddedByValue()                        {}
@@ -342,6 +367,17 @@ func _SupportService_UpdateTicketStatus_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SupportService_SubscribeToTicket_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(SubscribeRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(SupportServiceServer).SubscribeToTicket(m, &grpc.GenericServerStream[SubscribeRequest, Message]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type SupportService_SubscribeToTicketServer = grpc.ServerStreamingServer[Message]
+
 // SupportService_ServiceDesc is the grpc.ServiceDesc for SupportService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -382,6 +418,12 @@ var SupportService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _SupportService_UpdateTicketStatus_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "SubscribeToTicket",
+			Handler:       _SupportService_SubscribeToTicket_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "api/support/v1/support.proto",
 }
