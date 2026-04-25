@@ -59,9 +59,10 @@ func (*Empty) Descriptor() ([]byte, []int) {
 
 type CreateTicketRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Category      string                 `protobuf:"bytes,1,opt,name=category,proto3" json:"category,omitempty"`
-	Subject       string                 `protobuf:"bytes,2,opt,name=subject,proto3" json:"subject,omitempty"`
-	Body          string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Category      string                 `protobuf:"bytes,2,opt,name=category,proto3" json:"category,omitempty"`
+	Subject       string                 `protobuf:"bytes,3,opt,name=subject,proto3" json:"subject,omitempty"`
+	Body          string                 `protobuf:"bytes,4,opt,name=body,proto3" json:"body,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -94,6 +95,13 @@ func (x *CreateTicketRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreateTicketRequest.ProtoReflect.Descriptor instead.
 func (*CreateTicketRequest) Descriptor() ([]byte, []int) {
 	return file_api_support_v1_support_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *CreateTicketRequest) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
 }
 
 func (x *CreateTicketRequest) GetCategory() string {
@@ -707,11 +715,12 @@ const file_api_support_v1_support_proto_rawDesc = "" +
 	"\n" +
 	"\x1capi/support/v1/support.proto\x12\n" +
 	"support.v1\"\a\n" +
-	"\x05Empty\"_\n" +
-	"\x13CreateTicketRequest\x12\x1a\n" +
-	"\bcategory\x18\x01 \x01(\tR\bcategory\x12\x18\n" +
-	"\asubject\x18\x02 \x01(\tR\asubject\x12\x12\n" +
-	"\x04body\x18\x03 \x01(\tR\x04body\"/\n" +
+	"\x05Empty\"x\n" +
+	"\x13CreateTicketRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1a\n" +
+	"\bcategory\x18\x02 \x01(\tR\bcategory\x12\x18\n" +
+	"\asubject\x18\x03 \x01(\tR\asubject\x12\x12\n" +
+	"\x04body\x18\x04 \x01(\tR\x04body\"/\n" +
 	"\x10SubscribeRequest\x12\x1b\n" +
 	"\tticket_id\x18\x01 \x01(\x03R\bticketId\"\x14\n" +
 	"\x12ListTicketsRequest\"/\n" +

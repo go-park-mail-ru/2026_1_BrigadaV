@@ -41,6 +41,7 @@ func (h *SupportHandlers) CreateTicket(w http.ResponseWriter, r *http.Request) {
 	ctx := metadata.NewOutgoingContext(r.Context(), md)
 
 	resp, err := h.supportClient.CreateTicket(ctx, &pb.CreateTicketRequest{
+		UserId: userID,
 		Category: req.Category,
 		Subject:  req.Subject,
 		Body:     req.Body,

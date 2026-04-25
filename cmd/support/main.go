@@ -390,10 +390,7 @@ func checkAdminRole(ctx context.Context) error {
 }
 
 func (s *supportServer) CreateTicket(ctx context.Context, req *pb.CreateTicketRequest) (*pb.Ticket, error) {
-	userID, err := getUserIDFromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
+	userID := req.UserId
 
 	if req.Category != "bug" && req.Category != "proposal" && req.Category != "complaint" {
 		return nil, status.Error(codes.InvalidArgument, "category must be bug, proposal, or complaint")
