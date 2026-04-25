@@ -52,6 +52,23 @@ services:
       - guidely-network
     restart: unless-stopped
 
+  support:
+    build:
+      context: .
+      dockerfile: Dockerfile.support
+    container_name: guidely-support
+    environment:
+      - SUPPORT_DB_URL=postgres://${DB_USER:-postgres}:${DB_PASSWORD:-1111}@postgres:5432/${DB_NAME:-texnopark}?sslmode=disable
+      - GRPC_PORT=8084
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    ports:
+      - "50052:50052"
+    networks:
+      - guidely-network
+
   migrations:
     image: golang:1.25-alpine
     container_name: guidely-migrations

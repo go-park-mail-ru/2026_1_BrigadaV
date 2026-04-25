@@ -12,6 +12,7 @@ type User struct {
 	City         *string
 	About        *string
 	HasReviews   bool
+	Role         string
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }

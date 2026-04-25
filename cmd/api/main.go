@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	_ "guidely-app/docs"
 	"guidely-app/internal/config"
 	"guidely-app/internal/db"
@@ -12,9 +13,13 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/gorilla/csrf"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	// "github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
+
+	pb "guidely-app/pkg/pb/support/v1"
 )
 
 func main() {
@@ -52,12 +57,44 @@ func main() {
 	reviewHandler := handlers.NewReviewHandler(reviewService)
 	csrfHandler := handlers.NewCSRFHandler()
 
-	authMiddleware := middleware.NewAuthMiddleware(sessionRepo)
+	authMiddleware := middleware.NewAuthMiddleware(sessionRepo, userRepo)
 
+supportAddr := os.Getenv("SUPPORT_GRPC_ADDR")
+if supportAddr == "" {
+    supportAddr = "localhost:8084"
+}
+
+supportConn, err := grpc.Dial(supportAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Printf("Warning: Failed to connect to support service: %v", err)
+		log.Printf("Support features will be unavailable")
+	} else {
+		defer supportConn.Close()
+		log.Printf("Connected to support gRPC service at %s", supportAddr)
+	}
+	
+	var supportHandlers *handlers.SupportHandlers
+	if supportConn != nil {
+		supportClient := pb.NewSupportServiceClient(supportConn)
+		supportHandlers = handlers.NewSupportHandlers(supportClient)
+	}
 	r := mux.NewRouter()
-
+	
 	r.Use(logger.Middleware)
 	
+	if supportHandlers != nil {
+		logger.Log.Info("Support routes enabled")
+		r.HandleFunc("/api/support/tickets", authMiddleware.Authenticate(supportHandlers.CreateTicket)).Methods("POST", "OPTIONS")
+		r.HandleFunc("/api/support/tickets", authMiddleware.Authenticate(supportHandlers.ListMyTickets)).Methods("GET", "OPTIONS")
+		r.HandleFunc("/api/support/tickets/{id}", authMiddleware.Authenticate(supportHandlers.GetTicket)).Methods("GET", "OPTIONS")
+		r.HandleFunc("/api/support/tickets/{id}/messages", authMiddleware.Authenticate(supportHandlers.SendMessage)).Methods("POST", "OPTIONS")
+		
+		r.HandleFunc("/api/admin/support/stats", authMiddleware.Authenticate(supportHandlers.GetStats)).Methods("GET", "OPTIONS")
+		r.HandleFunc("/api/admin/support/tickets/open", authMiddleware.Authenticate(supportHandlers.ListOpenTickets)).Methods("GET", "OPTIONS")
+		r.HandleFunc("/api/admin/support/tickets/{id}/reply", authMiddleware.Authenticate(supportHandlers.ReplyAsAdmin)).Methods("POST", "OPTIONS")
+		r.HandleFunc("/api/admin/support/tickets/{id}/status", authMiddleware.Authenticate(supportHandlers.UpdateTicketStatus)).Methods("PATCH", "OPTIONS")
+	}
+
 	r.HandleFunc("/api/register", authHandler.Register).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/login", authHandler.Login).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/logout", authMiddleware.Authenticate(authHandler.Logout)).Methods("POST", "OPTIONS")
@@ -84,21 +121,22 @@ func main() {
 	
 	r.HandleFunc("/api/reviews", authMiddleware.Authenticate(reviewHandler.Create)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/reviews/{id:[0-9]+}", authMiddleware.Authenticate(reviewHandler.Delete)).Methods("DELETE", "OPTIONS")
-	
+
+
 	r.HandleFunc("/api/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
 	
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 	
 	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 	
-	csrfMiddleware := csrf.Protect(
-			[]byte(cfg.JWTSecret),
-			csrf.Secure(false),
-			csrf.HttpOnly(true),
-			csrf.Path("/"),
-			csrf.TrustedOrigins([]string{"guidely.ru"}),
-		)
-		r.Use(csrfMiddleware)
+	// csrfMiddleware := csrf.Protect(
+	// 		[]byte(cfg.JWTSecret),
+	// 		csrf.Secure(false),
+	// 		csrf.HttpOnly(true),
+	// 		csrf.Path("/"),
+	// 		csrf.TrustedOrigins([]string{"guidely.ru"}),
+	// 	)
+	// 	r.Use(csrfMiddleware)
 		r.Use(middleware.CORS(cfg.FrontendURL))
 		
 	logger.Log.Info("Server started on :" + cfg.Port)
