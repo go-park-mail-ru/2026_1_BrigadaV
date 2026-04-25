@@ -1,0 +1,5 @@
+-- +goose Up
+ALTER TABLE "user" ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user';
+
+-- +goose Down
+ALTER TABLE "user" DROP COLUMN IF EXISTS role;
