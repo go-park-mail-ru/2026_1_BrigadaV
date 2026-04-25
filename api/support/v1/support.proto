@@ -64,9 +64,9 @@ message Ticket {
 message Message {
   int64 id = 1;
   int64 ticket_id = 2;
-  string author_type = 3;       // user, admin
+  string author_type = 3;
   string text = 4;
-  string created_at = 5;        // RFC3339
+  string created_at = 5;
 }
 
 message ListTicketsResponse {
@@ -74,15 +74,12 @@ message ListTicketsResponse {
 }
 
 message StatsResponse {
-  // По статусам
   int64 open_count = 1;
   int64 in_progress_count = 2;
   int64 closed_count = 3;
   
-  // По категориям (баг/предложение/жалоба)
   map<string, int64> by_category = 4;
   
-  // Опционально: общее число обращений и сообщений
   int64 total_tickets = 5;
   int64 total_messages = 6;
 }

@@ -485,9 +485,9 @@ type Message struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	TicketId      int64                  `protobuf:"varint,2,opt,name=ticket_id,json=ticketId,proto3" json:"ticket_id,omitempty"`
-	AuthorType    string                 `protobuf:"bytes,3,opt,name=author_type,json=authorType,proto3" json:"author_type,omitempty"` // user, admin
+	AuthorType    string                 `protobuf:"bytes,3,opt,name=author_type,json=authorType,proto3" json:"author_type,omitempty"`
 	Text          string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
-	CreatedAt     string                 `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"` // RFC3339
+	CreatedAt     string                 `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -602,18 +602,15 @@ func (x *ListTicketsResponse) GetTickets() []*Ticket {
 }
 
 type StatsResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// По статусам
-	OpenCount       int64 `protobuf:"varint,1,opt,name=open_count,json=openCount,proto3" json:"open_count,omitempty"`
-	InProgressCount int64 `protobuf:"varint,2,opt,name=in_progress_count,json=inProgressCount,proto3" json:"in_progress_count,omitempty"`
-	ClosedCount     int64 `protobuf:"varint,3,opt,name=closed_count,json=closedCount,proto3" json:"closed_count,omitempty"`
-	// По категориям (баг/предложение/жалоба)
-	ByCategory map[string]int64 `protobuf:"bytes,4,rep,name=by_category,json=byCategory,proto3" json:"by_category,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	// Опционально: общее число обращений и сообщений
-	TotalTickets  int64 `protobuf:"varint,5,opt,name=total_tickets,json=totalTickets,proto3" json:"total_tickets,omitempty"`
-	TotalMessages int64 `protobuf:"varint,6,opt,name=total_messages,json=totalMessages,proto3" json:"total_messages,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	OpenCount       int64                  `protobuf:"varint,1,opt,name=open_count,json=openCount,proto3" json:"open_count,omitempty"`
+	InProgressCount int64                  `protobuf:"varint,2,opt,name=in_progress_count,json=inProgressCount,proto3" json:"in_progress_count,omitempty"`
+	ClosedCount     int64                  `protobuf:"varint,3,opt,name=closed_count,json=closedCount,proto3" json:"closed_count,omitempty"`
+	ByCategory      map[string]int64       `protobuf:"bytes,4,rep,name=by_category,json=byCategory,proto3" json:"by_category,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	TotalTickets    int64                  `protobuf:"varint,5,opt,name=total_tickets,json=totalTickets,proto3" json:"total_tickets,omitempty"`
+	TotalMessages   int64                  `protobuf:"varint,6,opt,name=total_messages,json=totalMessages,proto3" json:"total_messages,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *StatsResponse) Reset() {
