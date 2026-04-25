@@ -57,7 +57,7 @@ func main() {
 	reviewHandler := handlers.NewReviewHandler(reviewService)
 	csrfHandler := handlers.NewCSRFHandler()
 
-	authMiddleware := middleware.NewAuthMiddleware(sessionRepo)
+	authMiddleware := middleware.NewAuthMiddleware(sessionRepo, userRepo)
 
 supportAddr := os.Getenv("SUPPORT_GRPC_ADDR")
 if supportAddr == "" {
@@ -94,7 +94,7 @@ supportConn, err := grpc.Dial(supportAddr, grpc.WithTransportCredentials(insecur
 		r.HandleFunc("/api/admin/support/tickets/{id}/reply", authMiddleware.Authenticate(supportHandlers.ReplyAsAdmin)).Methods("POST", "OPTIONS")
 		r.HandleFunc("/api/admin/support/tickets/{id}/status", authMiddleware.Authenticate(supportHandlers.UpdateTicketStatus)).Methods("PATCH", "OPTIONS")
 	}
-	
+
 	r.HandleFunc("/api/register", authHandler.Register).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/login", authHandler.Login).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/logout", authMiddleware.Authenticate(authHandler.Logout)).Methods("POST", "OPTIONS")
