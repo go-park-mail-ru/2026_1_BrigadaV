@@ -57,8 +57,9 @@ message Ticket {
   string category = 3;
   string status = 4;
   string subject = 5;
-  string created_at = 6;        
-  repeated Message messages = 7;
+  string body = 6;
+  string created_at = 7;        
+  repeated Message messages = 8;
 }
 
 message Message {

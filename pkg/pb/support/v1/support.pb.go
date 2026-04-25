@@ -396,8 +396,9 @@ type Ticket struct {
 	Category      string                 `protobuf:"bytes,3,opt,name=category,proto3" json:"category,omitempty"`
 	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
 	Subject       string                 `protobuf:"bytes,5,opt,name=subject,proto3" json:"subject,omitempty"`
-	CreatedAt     string                 `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	Messages      []*Message             `protobuf:"bytes,7,rep,name=messages,proto3" json:"messages,omitempty"`
+	Body          string                 `protobuf:"bytes,6,opt,name=body,proto3" json:"body,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	Messages      []*Message             `protobuf:"bytes,8,rep,name=messages,proto3" json:"messages,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -463,6 +464,13 @@ func (x *Ticket) GetStatus() string {
 func (x *Ticket) GetSubject() string {
 	if x != nil {
 		return x.Subject
+	}
+	return ""
+}
+
+func (x *Ticket) GetBody() string {
+	if x != nil {
+		return x.Body
 	}
 	return ""
 }
@@ -708,16 +716,17 @@ const file_api_support_v1_support_proto_rawDesc = "" +
 	"\x04text\x18\x02 \x01(\tR\x04text\"P\n" +
 	"\x19UpdateTicketStatusRequest\x12\x1b\n" +
 	"\tticket_id\x18\x01 \x01(\x03R\bticketId\x12\x16\n" +
-	"\x06status\x18\x02 \x01(\tR\x06status\"\xcf\x01\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\"\xe3\x01\n" +
 	"\x06Ticket\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x1a\n" +
 	"\bcategory\x18\x03 \x01(\tR\bcategory\x12\x16\n" +
 	"\x06status\x18\x04 \x01(\tR\x06status\x12\x18\n" +
-	"\asubject\x18\x05 \x01(\tR\asubject\x12\x1d\n" +
+	"\asubject\x18\x05 \x01(\tR\asubject\x12\x12\n" +
+	"\x04body\x18\x06 \x01(\tR\x04body\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\x06 \x01(\tR\tcreatedAt\x12/\n" +
-	"\bmessages\x18\a \x03(\v2\x13.support.v1.MessageR\bmessages\"\x8a\x01\n" +
+	"created_at\x18\a \x01(\tR\tcreatedAt\x12/\n" +
+	"\bmessages\x18\b \x03(\v2\x13.support.v1.MessageR\bmessages\"\x8a\x01\n" +
 	"\aMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
 	"\tticket_id\x18\x02 \x01(\x03R\bticketId\x12\x1f\n" +
