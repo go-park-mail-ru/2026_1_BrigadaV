@@ -137,7 +137,7 @@ supportConn, err := grpc.Dial(supportAddr, grpc.WithTransportCredentials(insecur
 	// 		csrf.TrustedOrigins([]string{"guidely.ru"}),
 	// 	)
 	// 	r.Use(csrfMiddleware)
-	// 	r.Use(middleware.CORS(cfg.FrontendURL))
+		r.Use(middleware.CORS(cfg.FrontendURL))
 		
 	logger.Log.Info("Server started on :" + cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, r))
