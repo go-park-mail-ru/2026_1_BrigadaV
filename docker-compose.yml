@@ -55,7 +55,7 @@ services:
   support:
     build:
       context: .
-      dockerfile: Dockerfile.support //TODO: создать докерфайл
+      dockerfile: Dockerfile.support
     container_name: guidely-support
     environment:
       - SUPPORT_DB_URL=postgres://${DB_USER:-postgres}:${DB_PASSWORD:-1111}@postgres:5432/${DB_NAME:-texnopark}?sslmode=disable
