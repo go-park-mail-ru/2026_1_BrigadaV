@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+type contextKey string
+
+const UserIDKey contextKey = "user_id"
+
 type AuthMiddleware struct {
 	sessionRepo repository.SessionRepository
 }
@@ -33,4 +37,11 @@ func (m *AuthMiddleware) Authenticate(next http.HandlerFunc) http.HandlerFunc {
 		ctx := context.WithValue(r.Context(), "user_id", session.UserID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
+}
+
+func GetUserIDFromContext(r *http.Request) int64 {
+	if userID, ok := r.Context().Value(UserIDKey).(int64); ok {
+		return userID
+	}
+	return 0
 }
