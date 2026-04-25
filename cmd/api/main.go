@@ -15,7 +15,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"github.com/gorilla/csrf"
+	// "github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
 
@@ -129,15 +129,15 @@ supportConn, err := grpc.Dial(supportAddr, grpc.WithTransportCredentials(insecur
 	
 	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 	
-	csrfMiddleware := csrf.Protect(
-			[]byte(cfg.JWTSecret),
-			csrf.Secure(false),
-			csrf.HttpOnly(true),
-			csrf.Path("/"),
-			csrf.TrustedOrigins([]string{"guidely.ru"}),
-		)
-		r.Use(csrfMiddleware)
-		r.Use(middleware.CORS(cfg.FrontendURL))
+	// csrfMiddleware := csrf.Protect(
+	// 		[]byte(cfg.JWTSecret),
+	// 		csrf.Secure(false),
+	// 		csrf.HttpOnly(true),
+	// 		csrf.Path("/"),
+	// 		csrf.TrustedOrigins([]string{"guidely.ru"}),
+	// 	)
+	// 	r.Use(csrfMiddleware)
+	// 	r.Use(middleware.CORS(cfg.FrontendURL))
 		
 	logger.Log.Info("Server started on :" + cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, r))
