@@ -6,13 +6,10 @@ import (
 	"guidely-app/internal/logger"
 	"guidely-app/internal/service"
 	"guidely-app/internal/storage"
-	"io"
-	"net/http"
-	"os"
 	"path/filepath"
+	"net/http"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -109,7 +106,21 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	r.ParseMultipartForm(10 << 20)
+	if h.minioClient == nil {
+		logger.Error(r.Context(), "MinIO client not initialized", nil)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "storage not available"})
+		return
+	}
+
+	err := r.ParseMultipartForm(10 << 20)
+	if err != nil {
+		logger.Error(r.Context(), "Failed to parse form", logrus.Fields{"error": err})
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to parse form"})
+		return
+	}
+
 	file, header, err := r.FormFile("avatar")
 	if err != nil {
 		logger.Error(r.Context(), "Missing avatar file", logrus.Fields{"error": err})
@@ -126,39 +137,15 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ext := filepath.Ext(header.Filename)
-	if ext == "" {
-		ext = ".jpg"
-	}
-	newFilename := uuid.New().String() + ext
-
-	uploadDir := "./uploads/avatars"
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		logger.Error(r.Context(), "Failed to create upload directory", logrus.Fields{"error": err})
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to create upload directory"})
-		return
-	}
-	filePath := filepath.Join(uploadDir, newFilename)
-
-	dst, err := os.Create(filePath)
+	avatarURL, err := h.minioClient.UploadFile(r.Context(), file, header)
 	if err != nil {
-		logger.Error(r.Context(), "Failed to save file", logrus.Fields{"error": err})
+		logger.Error(r.Context(), "Failed to upload to MinIO", logrus.Fields{"error": err})
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to save file"})
-		return
-	}
-	defer dst.Close()
-
-	if _, err := io.Copy(dst, file); err != nil {
-		logger.Error(r.Context(), "Failed to write file", logrus.Fields{"error": err})
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to write file"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to upload avatar"})
 		return
 	}
 
-	avatarURL := "/uploads/avatars/" + newFilename
-	logger.Info(r.Context(), "File uploaded for avatar", logrus.Fields{"avatar_url": avatarURL})
+	logger.Info(r.Context(), "File uploaded to MinIO", logrus.Fields{"avatar_url": avatarURL})
 
 	updatedUser, err := h.profileService.UpdateAvatar(r.Context(), userID, avatarURL)
 	if err != nil {
@@ -204,25 +191,14 @@ func (h *ProfileHandler) GetAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filePath := strings.TrimPrefix(user.AvatarURL, "/uploads/")
-	fullPath := filepath.Join("./uploads", filePath)
+	if strings.HasPrefix(user.AvatarURL, "http://") || strings.HasPrefix(user.AvatarURL, "https://") {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"avatar_url": user.AvatarURL})
+		return
+	}
 
-	info, err := os.Stat(fullPath)
-	if os.IsNotExist(err) {
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "avatar file not found"})
-		return
-	}
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to access avatar"})
-		return
-	}
-	if info.IsDir() {
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid avatar path"})
-		return
-	}
+	filePath := strings.TrimPrefix(user.AvatarURL, "/uploads/")
+	fullPath := "./uploads/" + filePath
 
 	ext := strings.ToLower(filepath.Ext(fullPath))
 	contentType := "image/jpeg"
