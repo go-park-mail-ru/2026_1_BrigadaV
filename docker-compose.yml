@@ -7,15 +7,18 @@ services:
       dockerfile: Dockerfile
     container_name: guidely-backend
     environment:
-      - SERVER_PORT=8080
+      - SERVER_PORT=${PORT:-8080}
+      - DATABASE_URL=${DATABASE_URL}
     env_file:
-      - ./.env.example
+      - ./.env
     depends_on:
       postgres:
         condition: service_healthy
+      minio:
+        condition: service_started
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "${PORT:-8080}:8080"
     networks:
       - guidely-network
 
@@ -60,7 +63,7 @@ services:
       - .:/app
     environment:
       - GOOSE_DRIVER=postgres
-      - GOOSE_DBSTRING=postgres://postgres:1111@postgres:5432/texnopark?sslmode=disable
+      - GOOSE_DBSTRING=postgres://${DB_USER:-postgres}:${DB_PASSWORD:-1111}@postgres:5432/${DB_NAME:-texnopark}?sslmode=disable
     command: sh -c "go install github.com/pressly/goose/v3/cmd/goose@latest && goose -dir ./migrations up"
     depends_on:
       postgres:
@@ -69,9 +72,25 @@ services:
       - guidely-network
     restart: "no"
 
+  minio:
+    image: minio/minio:latest
+    container_name: guidely-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    networks:
+      - guidely-network
+
 networks:
   guidely-network:
     driver: bridge
 
 volumes:
   postgres_data:
+  minio_data:
