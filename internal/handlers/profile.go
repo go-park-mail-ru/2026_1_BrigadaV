@@ -5,6 +5,7 @@ import (
 	"guidely-app/internal/dto"
 	"guidely-app/internal/logger"
 	"guidely-app/internal/service"
+	"guidely-app/internal/storage"
 	"io"
 	"net/http"
 	"os"
@@ -17,10 +18,14 @@ import (
 
 type ProfileHandler struct {
 	profileService service.ProfileService
+	minioClient    *storage.MinioClient
 }
 
-func NewProfileHandler(profileService service.ProfileService) *ProfileHandler {
-	return &ProfileHandler{profileService: profileService}
+func NewProfileHandler(profileService service.ProfileService, minioClient *storage.MinioClient) *ProfileHandler {
+	return &ProfileHandler{
+		profileService: profileService,
+		minioClient:    minioClient,
+	}
 }
 
 func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
