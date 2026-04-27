@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"context"
 	"guidely-app/internal/logger"
 	"guidely-app/internal/models"
@@ -19,6 +20,7 @@ func NewProfileService(userRepo repository.UserRepository) ProfileService {
 
 type UpdateProfileInput struct {
 	Nickname  *string
+	Login     *string
 	AvatarURL *string
 	Country   *string
 	City      *string
@@ -35,6 +37,29 @@ func (s *profileService) UpdateProfile(ctx context.Context, userID uint64, input
 	if err != nil {
 		return nil, err
 	}
+
+	if input.Login != nil && *input.Login != user.Login {
+		existing, err := s.userRepo.GetByLogin(ctx, *input.Login)
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil {
+			return nil, errors.New("login already exists")
+		}
+		user.Login = *input.Login
+	}
+
+if input.Nickname != nil && *input.Nickname != user.Nickname {
+		existing, err := s.userRepo.GetByNickname(ctx, *input.Nickname)
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil {
+			return nil, errors.New("nickname already exists")
+		}
+		user.Nickname = *input.Nickname
+	}
+
 	if input.Nickname != nil {
 		user.Nickname = *input.Nickname
 	}

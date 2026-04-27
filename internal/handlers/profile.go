@@ -86,6 +86,7 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	response := dto.ProfileResponse{
 		ID:         user.ID,
 		Nickname:   user.Nickname,
+		Login: 			user.Login,
 		AvatarURL:  user.AvatarURL,
 		Country:    user.Country,
 		City:       user.City,
@@ -158,6 +159,7 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	response := dto.ProfileResponse{
 		ID:         updatedUser.ID,
 		Nickname:   updatedUser.Nickname,
+		Login: 			updatedUser.Login,
 		AvatarURL:  updatedUser.AvatarURL,
 		Country:    updatedUser.Country,
 		City:       updatedUser.City,
