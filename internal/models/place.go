@@ -7,9 +7,12 @@ type Place struct {
 	Name        string
 	Description string
 	PhotoURL    string
+	Type        string
 	LocalityID  *uint64
 	CategoryID  *uint64
 	Price       int64
+	Rating      float64
+	ReviewCount int
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 

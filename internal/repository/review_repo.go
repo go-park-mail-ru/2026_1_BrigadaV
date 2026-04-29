@@ -100,3 +100,11 @@ func (r *ReviewRepo) Delete(ctx context.Context, id uint64) error {
 	logger.Debug(ctx, "review deleted", logrus.Fields{"review_id": id})
 	return nil
 }
+func (r *PlaceRepo) UpdateRating(ctx context.Context, placeID uint64) error {
+	_, err := r.db.Exec(ctx, `UPDATE place SET
+		rating = COALESCE((SELECT AVG(rating)::DECIMAL(2,1) FROM review WHERE place_id=$1), 0),
+		review_count = (SELECT COUNT(*) FROM review WHERE place_id=$1),
+		updated_at = NOW()
+		WHERE id=$1`, placeID)
+	return err
+}

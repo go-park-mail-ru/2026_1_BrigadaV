@@ -2,15 +2,15 @@ package handlers
 
 import (
 	"encoding/json"
-	"guidely-app/internal/dto"
-	"guidely-app/internal/logger"
-	"guidely-app/internal/service"
-	"guidely-app/internal/utils"
+	"log"
 	"net/http"
 	"strconv"
 
+	"guidely-app/internal/dto"
+	"guidely-app/internal/service"
+	"guidely-app/internal/utils"
+
 	"github.com/gorilla/mux"
-	"github.com/sirupsen/logrus"
 )
 
 type ReviewHandler struct {
@@ -29,13 +29,14 @@ func (h *ReviewHandler) Create(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
+
 	var req dto.CreateReviewRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		logger.Error(r.Context(), "Invalid JSON in CreateReview", logrus.Fields{"error": err})
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
 	}
+
 	input := service.CreateReviewInput{
 		UserID:    userID,
 		PlaceID:   req.PlaceID,
@@ -44,15 +45,19 @@ func (h *ReviewHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Comment:   req.Content,
 		VisitDate: utils.ParseDatePtr(req.VisitDate),
 	}
+
 	review, err := h.reviewService.Create(r.Context(), input)
 	if err != nil {
-		logger.Error(r.Context(), "CreateReview failed", logrus.Fields{"error": err})
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		log.Printf("review create error: %v", err)
+		switch {
+		case err.Error() == "rating must be between 1 and 5":
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		default:
+			http.Error(w, "internal error", http.StatusInternalServerError)
+		}
 		return
 	}
 
-	logger.Info(r.Context(), "Review created", logrus.Fields{"review_id": review.ID})
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"id":      review.ID,
@@ -72,7 +77,6 @@ func (h *ReviewHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
-		logger.Error(r.Context(), "Invalid review id in Delete", logrus.Fields{"id": vars["id"], "error": err})
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid review id"})
 		return
@@ -80,19 +84,17 @@ func (h *ReviewHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	err = h.reviewService.Delete(r.Context(), userID, id)
 	if err != nil {
-		logger.Error(r.Context(), "DeleteReview failed", logrus.Fields{"error": err, "review_id": id})
-		switch err.Error() {
-		case "review not found":
-			w.WriteHeader(http.StatusNotFound)
-		case "not authorized":
-			w.WriteHeader(http.StatusForbidden)
+		log.Printf("review delete error: %v", err)
+		switch {
+		case err.Error() == "review not found":
+			http.Error(w, "review not found", http.StatusNotFound)
+		case err.Error() == "not authorized":
+			http.Error(w, "forbidden", http.StatusForbidden)
 		default:
-			w.WriteHeader(http.StatusInternalServerError)
+			http.Error(w, "internal error", http.StatusInternalServerError)
 		}
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
-	logger.Info(r.Context(), "Review deleted", logrus.Fields{"review_id": id})
 	w.WriteHeader(http.StatusNoContent)
 }

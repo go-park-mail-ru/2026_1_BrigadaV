@@ -40,3 +40,19 @@ type ReviewService interface {
 	Create(ctx context.Context, input CreateReviewInput) (*models.Review, error)
 	Delete(ctx context.Context, userID, reviewID uint64) error
 }
+
+type CategoryService interface {
+	GetAll(ctx context.Context) ([]models.Category, error)
+	GetByID(ctx context.Context, id uint64) (*models.Category, error)
+	Create(ctx context.Context, c *models.Category) error
+	Update(ctx context.Context, c *models.Category) error
+	Delete(ctx context.Context, id uint64) error
+}
+
+type AlbumService interface {
+	Create(ctx context.Context, album *models.Album) error
+	GetByID(ctx context.Context, id uint64) (*models.Album, error)
+	GetByTrip(ctx context.Context, tripID uint64) ([]models.Album, error)
+	Update(ctx context.Context, album *models.Album) error
+	Delete(ctx context.Context, id uint64) error
+}

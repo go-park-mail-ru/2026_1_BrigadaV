@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS "user" (
     city TEXT,
     about TEXT,
     has_reviews BOOLEAN DEFAULT false,
+    role TEXT NOT NULL DEFAULT 'user',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -50,6 +51,8 @@ CREATE TABLE IF NOT EXISTS place (
     locality_id BIGINT REFERENCES locality(id) ON DELETE SET NULL,
     category_id BIGINT REFERENCES category(id) ON DELETE SET NULL,
     price BIGINT NOT NULL DEFAULT 0 CHECK (price >= 0),
+    rating DECIMAL(2,1) NOT NULL DEFAULT 0,
+    review_count INT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -132,17 +135,6 @@ CREATE TABLE IF NOT EXISTS album (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE OR REPLACE FUNCTION create_default_album()
-RETURNS TRIGGER AS $$
-BEGIN
-    INSERT INTO album (trip_id, name, description) VALUES (NEW.id, 'Основной альбом', '');
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS trip_after_insert ON trip;
-CREATE TRIGGER trip_after_insert AFTER INSERT ON trip FOR EACH ROW EXECUTE FUNCTION create_default_album();
-
 CREATE TABLE IF NOT EXISTS album_photo (
     album_id BIGINT NOT NULL REFERENCES album(id) ON DELETE CASCADE,
     photo_id BIGINT NOT NULL REFERENCES photo(id) ON DELETE CASCADE,
@@ -159,8 +151,41 @@ CREATE TABLE IF NOT EXISTS trip_attractions (
     PRIMARY KEY (trip_id, place_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_place_search ON place USING GIN (to_tsvector('russian', name || ' ' || COALESCE(description, '')));
+CREATE OR REPLACE FUNCTION update_place_rating() RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        UPDATE place SET
+            rating = COALESCE((SELECT AVG(rating)::DECIMAL(2,1) FROM review WHERE place_id = OLD.place_id), 0),
+            review_count = (SELECT COUNT(*) FROM review WHERE place_id = OLD.place_id),
+            updated_at = NOW()
+        WHERE id = OLD.place_id;
+    ELSE
+        UPDATE place SET
+            rating = COALESCE((SELECT AVG(rating)::DECIMAL(2,1) FROM review WHERE place_id = NEW.place_id), 0),
+            review_count = (SELECT COUNT(*) FROM review WHERE place_id = NEW.place_id),
+            updated_at = NOW()
+        WHERE id = NEW.place_id;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS review_rating_update ON review;
+CREATE TRIGGER review_rating_update
+    AFTER INSERT OR UPDATE OR DELETE ON review
+    FOR EACH ROW EXECUTE FUNCTION update_place_rating();
+
+CREATE OR REPLACE FUNCTION create_default_album() RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO album (trip_id, name, description) VALUES (NEW.id, 'Основной альбом', '');
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trip_after_insert ON trip;
+CREATE TRIGGER trip_after_insert AFTER INSERT ON trip FOR EACH ROW EXECUTE FUNCTION create_default_album();
+
+CREATE INDEX IF NOT EXISTS idx_place_search ON place USING GIN (to_tsvector('russian', name || ' ' || COALESCE(description, '')));
 
 INSERT INTO country (name) VALUES
     ('Франция'), ('Италия'), ('Испания'), ('Нидерланды'), ('Индонезия'), ('Бразилия'),
@@ -243,47 +268,10 @@ INSERT INTO "user" (login, nickname, avatar_url, password_hash) VALUES
     ('jane@example.com', 'jane', '/mock/user-avatar/jane.jpg', 'argon2id$v=19$m=65536,t=1,p=4$LFU4f51KpaFJ85VzwIXZ2Q$NjKqQ4SfxdTnOJz22q+B8sYtNiTcOA4eozfj7mNJtnY')
 ON CONFLICT (nickname) DO NOTHING;
 
-INSERT INTO favorite (user_id, place_id) VALUES
-    ((SELECT id FROM "user" WHERE nickname='johnny'), (SELECT id FROM place WHERE name='Hotel Estalagem St Hubertus')),
-    ((SELECT id FROM "user" WHERE nickname='johnny'), (SELECT id FROM place WHERE name='Rodin Musée')),
-    ((SELECT id FROM "user" WHERE nickname='jane'), (SELECT id FROM place WHERE name='Hotel Ritta Höppner')),
-    ((SELECT id FROM "user" WHERE nickname='jane'), (SELECT id FROM place WHERE name='Roman Forum'))
-ON CONFLICT (user_id, place_id) DO NOTHING;
-
-INSERT INTO review (user_id, place_id, rating, comment, visit_date) VALUES
-    ((SELECT id FROM "user" WHERE nickname='johnny'), (SELECT id FROM place WHERE name='Hotel Estalagem St Hubertus'), 5, 'Отличный отель!', '2025-01-10'),
-    ((SELECT id FROM "user" WHERE nickname='jane'), (SELECT id FROM place WHERE name='Rodin Musée'), 4, 'Интересный музей', '2025-02-15')
-ON CONFLICT (user_id, place_id) DO NOTHING;
-
-INSERT INTO trip (title, description, location, start_date, end_date, preview_url, created_by, is_public) VALUES
-    ('Поездка в Европу', 'Посещение Парижа и Рима', 'Европа', '2025-06-01', '2025-06-15', NULL, (SELECT id FROM "user" WHERE nickname='johnny'), true),
-    ('Отдых на Бали', 'Пляжный отдых', 'Бали', '2025-07-10', '2025-07-20', NULL, (SELECT id FROM "user" WHERE nickname='jane'), false)
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO trip_member (trip_id, user_id, role) VALUES
-    (1, (SELECT id FROM "user" WHERE nickname='johnny'), 'owner'),
-    (1, (SELECT id FROM "user" WHERE nickname='jane'), 'viewer'),
-    (2, (SELECT id FROM "user" WHERE nickname='jane'), 'owner')
-ON CONFLICT (trip_id, user_id) DO NOTHING;
-
-INSERT INTO album (trip_id, name, description, cover_photo_id) VALUES
-    (1, 'Париж', 'Фото из Парижа', (SELECT id FROM photo WHERE file_path='/mock/place/rcmd3.png')),
-    (1, 'Рим', 'Фото из Рима', (SELECT id FROM photo WHERE file_path='/mock/place/rcmd4.png')),
-    (2, 'Бали', 'Пляжи и закаты', (SELECT id FROM photo WHERE file_path='/mock/place/rcmd7.png'))
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO album_photo (album_id, photo_id, order_index) VALUES
-    (1, (SELECT id FROM photo WHERE file_path='/mock/place/rcmd3.png'), 0),
-    (1, (SELECT id FROM photo WHERE file_path='/mock/place/rcmd8.png'), 1),
-    (2, (SELECT id FROM photo WHERE file_path='/mock/place/rcmd4.png'), 0),
-    (3, (SELECT id FROM photo WHERE file_path='/mock/place/rcmd7.png'), 0)
-ON CONFLICT (album_id, photo_id) DO NOTHING;
-
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-
 DROP TABLE IF EXISTS trip_attractions CASCADE;
 DROP TABLE IF EXISTS album_photo CASCADE;
 DROP TABLE IF EXISTS album CASCADE;
@@ -299,7 +287,4 @@ DROP TABLE IF EXISTS locality CASCADE;
 DROP TABLE IF EXISTS country CASCADE;
 DROP TABLE IF EXISTS category CASCADE;
 DROP TABLE IF EXISTS "user" CASCADE;
-
-DROP FUNCTION IF EXISTS create_default_album();
-
 -- +goose StatementEnd

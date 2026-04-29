@@ -5,6 +5,7 @@ import (
 	"guidely-app/internal/dto"
 	"guidely-app/internal/logger"
 	"guidely-app/internal/service"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -87,7 +88,6 @@ func (h *PlaceHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
-		logger.Error(r.Context(), "Invalid place id in GetDetails", logrus.Fields{"id": vars["id"], "error": err})
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid place id"})
 		return
@@ -101,7 +101,11 @@ func (h *PlaceHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
 	}
 	place, err := h.placeService.GetDetails(r.Context(), id, userID)
 	if err != nil {
-		logger.Error(r.Context(), "Failed to get place details", logrus.Fields{"place_id": id, "error": err})
+		log.Printf("place get details error: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if place == nil {
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(map[string]string{"error": "place not found"})
 		return
