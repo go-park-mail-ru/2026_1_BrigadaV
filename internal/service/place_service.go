@@ -33,3 +33,7 @@ func (s *placeService) GetReviews(ctx context.Context, placeID uint64) ([]models
 func (s *placeService) IsPlaceInTrip(ctx context.Context, placeID, tripID uint64) (bool, error) {
 	return s.placeRepo.IsPlaceInTrip(ctx, placeID, tripID)
 }
+
+func (s *placeService) Search(ctx context.Context, query string) ([]models.Place, error) {
+	return s.placeRepo.Search(ctx, query)
+}

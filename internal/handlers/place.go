@@ -181,3 +181,61 @@ func (h *PlaceHandler) CheckPlaceInTrip(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"in_trip": inTrip})
 }
+
+func (h *PlaceHandler) Search(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+	if query == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "missing query parameter 'q'"})
+		return
+	}
+
+	places, err := h.placeService.Search(r.Context(), query)
+	if err != nil {
+		logger.Error(r.Context(), "Failed to search places", logrus.Fields{"query": query, "error": err})
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to search places"})
+		return
+	}
+
+	response := make([]dto.PlaceResponse, 0, len(places))
+	for _, p := range places {
+		pr := dto.PlaceResponse{
+			ID:          p.ID,
+			Name:        p.Name,
+			Description: p.Description,
+			Price:       p.Price,
+			Locality: dto.LocalityDTO{
+				ID:        p.Locality.ID,
+				Name:      p.Locality.Name,
+				Country:   p.Locality.Country,
+				Latitude:  p.Locality.Latitude,
+				Longitude: p.Locality.Longitude,
+			},
+			CreatedAt: p.CreatedAt,
+			UpdatedAt: p.UpdatedAt,
+		}
+		if p.Category.ID != 0 {
+			pr.Category = &dto.CategoryDTO{
+				ID:          p.Category.ID,
+				Name:        p.Category.Name,
+				Description: p.Category.Description,
+			}
+		}
+		if len(p.Photos) > 0 {
+			pr.Photos = make([]dto.PlacePhotoDTO, len(p.Photos))
+			for i, ph := range p.Photos {
+				pr.Photos[i] = dto.PlacePhotoDTO{
+					ID:       ph.ID,
+					PlaceID:  ph.PlaceID,
+					FilePath: ph.Photo.FilePath,
+					IsMain:   ph.IsMain,
+				}
+			}
+		}
+		response = append(response, pr)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
