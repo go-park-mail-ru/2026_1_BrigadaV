@@ -15,6 +15,8 @@ import (
 	// "github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -33,36 +35,45 @@ func main() {
 
 	dbAdapter := &repository.PgxPoolAdapter{Pool: dbPool}
 
+	authConn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("failed to connect to auth service: %v", err)
+	}
+	authClient := pbauth.NewAuthServiceClient(authConn)
+
+	albumConn, err := grpc.Dial("localhost:50052", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("failed to connect to album service: %v", err)
+	}
+	albumClient := pbalbum.NewAlbumServiceClient(albumConn)
+
+	placeRepo := repository.NewPlaceRepo(dbAdapter)
+	reviewRepo := repository.NewReviewRepo(dbAdapter)
+	tripRepo := repository.NewTripRepo(dbAdapter)
+	categoryRepo := repository.NewCategoryRepo(dbPool)
 	userRepo := repository.NewUserRepo(dbAdapter)
 	sessionRepo := repository.NewSessionRepo(dbAdapter)
-	placeRepo := repository.NewPlaceRepo(dbAdapter)
-	tripRepo := repository.NewTripRepo(dbAdapter)
-	reviewRepo := repository.NewReviewRepo(dbAdapter)
-	categoryRepo := repository.NewCategoryRepo(dbPool)
-	albumRepo := repository.NewAlbumRepo(dbAdapter)
 
-	authService := service.NewAuthService(userRepo, sessionRepo)
 	placeService := service.NewPlaceService(placeRepo, reviewRepo)
-	profileService := service.NewProfileService(userRepo)
 	tripService := service.NewTripService(tripRepo)
 	reviewService := service.NewReviewService(reviewRepo)
 	categoryService := service.NewCategoryService(categoryRepo)
-	albumService := service.NewAlbumService(albumRepo)
+	profileService := service.NewProfileService(userRepo)
 
-	authHandler := handlers.NewAuthHandler(authService)
+	authHandler := handlers.NewAuthHandler(authClient)
+	albumHandler := handlers.NewAlbumHandler(albumClient)
 	placeHandler := handlers.NewPlaceHandler(placeService, tripService)
 	profileHandler := handlers.NewProfileHandler(profileService)
 	tripHandler := handlers.NewTripHandler(tripService)
 	reviewHandler := handlers.NewReviewHandler(reviewService)
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
-	albumHandler := handlers.NewAlbumHandler(albumService)
 	csrfHandler := handlers.NewCSRFHandler()
 
-	authMiddleware := middleware.NewAuthMiddleware(sessionRepo)
+	authMiddleware := middleware.NewAuthMiddleware(sessionRepo, userRepo)
 
 	r := mux.NewRouter()
-
 	r.Use(logger.Middleware)
+	r.Use(middleware.CORS(cfg.FrontendURL))
 
 	r.HandleFunc("/api/register", authHandler.Register).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/login", authHandler.Login).Methods("POST", "OPTIONS")
