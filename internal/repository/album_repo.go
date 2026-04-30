@@ -6,14 +6,13 @@ import (
 	"guidely-app/internal/models"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type AlbumRepo struct {
-	db *pgxpool.Pool
+	db DB
 }
 
-func NewAlbumRepo(db *pgxpool.Pool) *AlbumRepo {
+func NewAlbumRepo(db DB) *AlbumRepo {
 	return &AlbumRepo{db: db}
 }
 

@@ -6,30 +6,30 @@ import (
 	"guidely-app/internal/repository"
 )
 
-type CategoryService struct {
-	repo *repository.CategoryRepo
+type categoryServiceImpl struct {
+	repo repository.CategoryRepository
 }
 
-func NewCategoryService(repo *repository.CategoryRepo) *CategoryService {
-	return &CategoryService{repo: repo}
+func NewCategoryService(repo repository.CategoryRepository) CategoryService {
+	return &categoryServiceImpl{repo: repo}
 }
 
-func (s *CategoryService) GetAll(ctx context.Context) ([]models.Category, error) {
+func (s *categoryServiceImpl) GetAll(ctx context.Context) ([]models.Category, error) {
 	return s.repo.GetAll(ctx)
 }
 
-func (s *CategoryService) GetByID(ctx context.Context, id uint64) (*models.Category, error) {
+func (s *categoryServiceImpl) GetByID(ctx context.Context, id uint64) (*models.Category, error) {
 	return s.repo.GetByID(ctx, id)
 }
 
-func (s *CategoryService) Create(ctx context.Context, c *models.Category) error {
+func (s *categoryServiceImpl) Create(ctx context.Context, c *models.Category) error {
 	return s.repo.Create(ctx, c)
 }
 
-func (s *CategoryService) Update(ctx context.Context, c *models.Category) error {
+func (s *categoryServiceImpl) Update(ctx context.Context, c *models.Category) error {
 	return s.repo.Update(ctx, c)
 }
 
-func (s *CategoryService) Delete(ctx context.Context, id uint64) error {
+func (s *categoryServiceImpl) Delete(ctx context.Context, id uint64) error {
 	return s.repo.Delete(ctx, id)
 }

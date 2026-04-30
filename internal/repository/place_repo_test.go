@@ -27,9 +27,11 @@ func TestPlaceRepo_GetAll(t *testing.T) {
 		"id", "name", "description", "photo_url", "price", "created_at", "updated_at",
 		"locality_id", "locality_name", "country_name", "latitude", "longitude",
 		"category_id", "category_name", "category_description",
-	}).AddRow(uint64(1), "Eiffel Tower", "Famous tower", nil, 1500, time.Now(), time.Now(),
+	}).AddRow(
+		uint64(1), "Eiffel Tower", "Famous tower", nil, 1500, time.Now(), time.Now(),
 		nil, &localityName, &countryName, &latitude, &longitude,
-		nil, &categoryName, &categoryDesc)
+		nil, &categoryName, &categoryDesc,
+	)
 
 	mockPool.ExpectQuery(`SELECT p\.id, p\.name, p\.description, p\.photo_url, p\.price, p\.created_at, p\.updated_at,`).
 		WillReturnRows(rows)

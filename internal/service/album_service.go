@@ -6,30 +6,31 @@ import (
 	"guidely-app/internal/repository"
 )
 
-type AlbumService struct {
-	repo *repository.AlbumRepo
+// albumServiceImpl – приватная реализация интерфейса AlbumService
+type albumServiceImpl struct {
+	repo repository.AlbumRepository
 }
 
-func NewAlbumService(repo *repository.AlbumRepo) *AlbumService {
-	return &AlbumService{repo: repo}
+func NewAlbumService(repo repository.AlbumRepository) AlbumService {
+	return &albumServiceImpl{repo: repo}
 }
 
-func (s *AlbumService) Create(ctx context.Context, album *models.Album) error {
+func (s *albumServiceImpl) Create(ctx context.Context, album *models.Album) error {
 	return s.repo.Create(ctx, album)
 }
 
-func (s *AlbumService) GetByID(ctx context.Context, id uint64) (*models.Album, error) {
+func (s *albumServiceImpl) GetByID(ctx context.Context, id uint64) (*models.Album, error) {
 	return s.repo.GetByID(ctx, id)
 }
 
-func (s *AlbumService) GetByTrip(ctx context.Context, tripID uint64) ([]models.Album, error) {
+func (s *albumServiceImpl) GetByTrip(ctx context.Context, tripID uint64) ([]models.Album, error) {
 	return s.repo.GetByTrip(ctx, tripID)
 }
 
-func (s *AlbumService) Update(ctx context.Context, album *models.Album) error {
+func (s *albumServiceImpl) Update(ctx context.Context, album *models.Album) error {
 	return s.repo.Update(ctx, album)
 }
 
-func (s *AlbumService) Delete(ctx context.Context, id uint64) error {
+func (s *albumServiceImpl) Delete(ctx context.Context, id uint64) error {
 	return s.repo.Delete(ctx, id)
 }

@@ -102,12 +102,12 @@ func (h *PlaceHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
 	place, err := h.placeService.GetDetails(r.Context(), id, userID)
 	if err != nil {
 		log.Printf("place get details error: %v", err)
+		if err.Error() == "place not found" {
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{"error": "place not found"})
+			return
+		}
 		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	if place == nil {
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "place not found"})
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

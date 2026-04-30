@@ -39,6 +39,7 @@ func main() {
 	tripRepo := repository.NewTripRepo(dbAdapter)
 	reviewRepo := repository.NewReviewRepo(dbAdapter)
 	categoryRepo := repository.NewCategoryRepo(dbPool)
+	albumRepo := repository.NewAlbumRepo(dbAdapter)
 
 	authService := service.NewAuthService(userRepo, sessionRepo)
 	placeService := service.NewPlaceService(placeRepo, reviewRepo)

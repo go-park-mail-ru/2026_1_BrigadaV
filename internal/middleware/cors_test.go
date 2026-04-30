@@ -33,7 +33,7 @@ func TestCORS(t *testing.T) {
 			expectedHeaders: map[string]string{
 				"Access-Control-Allow-Origin":  allowedOrigin,
 				"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-				"Access-Control-Allow-Headers": "Content-Type, Authorization",
+				"Access-Control-Allow-Headers": "Content-Type, Authorization, X-CSRF-Token",
 			},
 		},
 		{

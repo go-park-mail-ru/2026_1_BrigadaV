@@ -28,16 +28,13 @@ func TestPlaceHandler_List(t *testing.T) {
 		{ID: 1, Name: "Place 1", Description: "Desc 1", Price: 1000},
 		{ID: 2, Name: "Place 2", Description: "Desc 2", Price: 2000},
 	}
-
 	mockPlaceService.EXPECT().GetAll(gomock.Any()).Return(places, nil)
 
 	req := httptest.NewRequest("GET", "/api/places", nil)
 	w := httptest.NewRecorder()
-
 	handler.List(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-
 	var resp []dto.PlaceResponse
 	json.NewDecoder(w.Body).Decode(&resp)
 	assert.Len(t, resp, 2)
@@ -56,7 +53,6 @@ func TestPlaceHandler_List_Error(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/api/places", nil)
 	w := httptest.NewRecorder()
-
 	handler.List(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -79,17 +75,14 @@ func TestPlaceHandler_GetDetails(t *testing.T) {
 		ReviewCount: 100,
 		IsLiked:     false,
 	}
-
 	mockPlaceService.EXPECT().GetDetails(gomock.Any(), uint64(1), uint64(0)).Return(place, nil)
 
 	req := httptest.NewRequest("GET", "/api/places/1", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()
-
 	handler.GetDetails(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-
 	var resp models.PlaceWithRating
 	json.NewDecoder(w.Body).Decode(&resp)
 	assert.Equal(t, uint64(1), resp.ID)
@@ -104,12 +97,11 @@ func TestPlaceHandler_GetDetails_NotFound(t *testing.T) {
 	mockTripService := mocks.NewMockTripService(ctrl)
 	handler := NewPlaceHandler(mockPlaceService, mockTripService)
 
-	mockPlaceService.EXPECT().GetDetails(gomock.Any(), uint64(999), uint64(0)).Return(nil, errors.New("not found"))
+	mockPlaceService.EXPECT().GetDetails(gomock.Any(), uint64(999), uint64(0)).Return(nil, errors.New("place not found"))
 
 	req := httptest.NewRequest("GET", "/api/places/999", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "999"})
 	w := httptest.NewRecorder()
-
 	handler.GetDetails(w, req)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
@@ -130,17 +122,14 @@ func TestPlaceHandler_GetReviews(t *testing.T) {
 			Avatar   *string `json:"avatar,omitempty"`
 		}{ID: 1, Nickname: "john"}},
 	}
-
 	mockPlaceService.EXPECT().GetReviews(gomock.Any(), uint64(1)).Return(reviews, nil)
 
 	req := httptest.NewRequest("GET", "/api/places/1/reviews", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()
-
 	handler.GetReviews(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-
 	var resp []models.ReviewWithAuthor
 	json.NewDecoder(w.Body).Decode(&resp)
 	assert.Len(t, resp, 1)

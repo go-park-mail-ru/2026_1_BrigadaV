@@ -6,7 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"guidely-app/internal/service/mocks"
+	"guidely-app/internal/repository/mocks"
+	"guidely-app/internal/service"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -16,14 +17,14 @@ func TestCategoryHandler_List_Error(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockService := mocks.NewMockCategoryService(ctrl)
-	handler := NewCategoryHandler(mockService)
+	mockRepo := mocks.NewMockCategoryRepository(ctrl) // мок появится после генерации
+	svc := service.NewCategoryService(mockRepo)
+	handler := NewCategoryHandler(svc)
 
-	mockService.EXPECT().GetAll(gomock.Any()).Return(nil, errors.New("db error"))
+	mockRepo.EXPECT().GetAll(gomock.Any()).Return(nil, errors.New("db error"))
 
 	req := httptest.NewRequest("GET", "/api/categories", nil)
 	w := httptest.NewRecorder()
-
 	handler.List(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
