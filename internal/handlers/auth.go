@@ -91,7 +91,6 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	logger.Info(r.Context(), "User logged in", logrus.Fields{"user_id": user.ID})
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
-		Domain:   "guidely.ru",
 		Value:    token,
 		Expires:  time.Now().Add(7 * 24 * time.Hour),
 		HttpOnly: true,
@@ -123,7 +122,6 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
 		Value:    "",
-		Domain:   "guidely.ru",
 		Expires:  time.Unix(0, 0),
 		HttpOnly: true,
 		Path:     "/",
