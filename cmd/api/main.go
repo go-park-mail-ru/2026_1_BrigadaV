@@ -105,7 +105,6 @@ func main() {
 	"http://localhost:80",
 	"http://localhost:8080",
 	"https://guidely.ru",
-	"https://guidely.com",
 	cfg.FrontendURL,
 }
 		r.Use(middleware.CORS(allowedOrigins))
