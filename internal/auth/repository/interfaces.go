@@ -1,3 +1,4 @@
+// internal/auth/repository/interfaces.go
 package repository
 
 import (

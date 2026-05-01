@@ -3,23 +3,23 @@ package repository
 import (
 	"context"
 	"errors"
-	"guidely-app/internal/models"
+	"guidely-app/pkg/models"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type AlbumRepo struct {
-	db DB
+	db *pgxpool.Pool
 }
 
-func NewAlbumRepo(db DB) *AlbumRepo {
+func NewAlbumRepo(db *pgxpool.Pool) *AlbumRepo {
 	return &AlbumRepo{db: db}
 }
 
 func (r *AlbumRepo) Create(ctx context.Context, album *models.Album) error {
 	query := `INSERT INTO album (trip_id, name, description, cover_photo_id, max_photos, created_at, updated_at)
-	          VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-	          RETURNING id, created_at, updated_at`
+	          VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) RETURNING id, created_at, updated_at`
 	return r.db.QueryRow(ctx, query,
 		album.TripID, album.Name, album.Description, album.CoverPhotoID, album.MaxPhotos,
 	).Scan(&album.ID, &album.CreatedAt, &album.UpdatedAt)

@@ -3,33 +3,35 @@ package auth
 import (
 	"context"
 	"errors"
+	"time"
+
 	"guidely-app/internal/auth/repository"
 	"guidely-app/pkg/models"
 	"guidely-app/pkg/utils"
-	"time"
 )
 
-type Service struct {
+type AuthService interface {
+	Register(ctx context.Context, in RegisterInput) (*models.User, string, error)
+	Login(ctx context.Context, in LoginInput) (*models.User, string, error)
+	Logout(ctx context.Context, token string) error
+	GetUserByID(ctx context.Context, id uint64) (*models.User, error)
+	UpdateProfile(ctx context.Context, id uint64, nick, avatar, country, city, about *string) (*models.User, error)
+	UpdateAvatar(ctx context.Context, id uint64, url string) (*models.User, error)
+}
+
+type RegisterInput struct{ Login, Password, Nickname string }
+type LoginInput struct{ Login, Password string }
+
+type authService struct {
 	userRepo    repository.UserRepository
 	sessionRepo repository.SessionRepository
 }
 
-func NewService(userRepo repository.UserRepository, sessionRepo repository.SessionRepository) *Service {
-	return &Service{userRepo: userRepo, sessionRepo: sessionRepo}
+func NewService(userRepo repository.UserRepository, sessionRepo repository.SessionRepository) AuthService {
+	return &authService{userRepo: userRepo, sessionRepo: sessionRepo}
 }
 
-type RegisterInput struct {
-	Login    string
-	Password string
-	Nickname string
-}
-
-type LoginInput struct {
-	Login    string
-	Password string
-}
-
-func (s *Service) Register(ctx context.Context, in RegisterInput) (*models.User, string, error) {
+func (s *authService) Register(ctx context.Context, in RegisterInput) (*models.User, string, error) {
 	if !utils.IsValidLogin(in.Login) {
 		return nil, "", errors.New("invalid login format")
 	}
@@ -39,23 +41,17 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (*models.User,
 	if len(in.Password) < 8 {
 		return nil, "", errors.New("password too short")
 	}
-	existing, _ := s.userRepo.GetByLogin(ctx, in.Login)
-	if existing != nil {
+	if ex, _ := s.userRepo.GetByLogin(ctx, in.Login); ex != nil {
 		return nil, "", errors.New("login already exists")
 	}
-	existingNick, _ := s.userRepo.GetByNickname(ctx, in.Nickname)
-	if existingNick != nil {
+	if exNick, _ := s.userRepo.GetByNickname(ctx, in.Nickname); exNick != nil {
 		return nil, "", errors.New("nickname already exists")
 	}
 	hashed, err := utils.HashPassword(in.Password)
 	if err != nil {
 		return nil, "", err
 	}
-	user := &models.User{
-		Login:        in.Login,
-		Nickname:     in.Nickname,
-		PasswordHash: hashed,
-	}
+	user := &models.User{Login: in.Login, Nickname: in.Nickname, PasswordHash: hashed}
 	if err := s.userRepo.Create(ctx, user); err != nil {
 		return nil, "", err
 	}
@@ -74,7 +70,7 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (*models.User,
 	return user, token, nil
 }
 
-func (s *Service) Login(ctx context.Context, in LoginInput) (*models.User, string, error) {
+func (s *authService) Login(ctx context.Context, in LoginInput) (*models.User, string, error) {
 	user, err := s.userRepo.GetByLogin(ctx, in.Login)
 	if err != nil || user == nil {
 		return nil, "", errors.New("invalid credentials")
@@ -97,15 +93,15 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (*models.User, strin
 	return user, token, nil
 }
 
-func (s *Service) Logout(ctx context.Context, token string) error {
+func (s *authService) Logout(ctx context.Context, token string) error {
 	return s.sessionRepo.DeleteByToken(ctx, utils.HashToken(token))
 }
 
-func (s *Service) GetUserByID(ctx context.Context, id uint64) (*models.User, error) {
+func (s *authService) GetUserByID(ctx context.Context, id uint64) (*models.User, error) {
 	return s.userRepo.GetByID(ctx, id)
 }
 
-func (s *Service) UpdateProfile(ctx context.Context, id uint64, nick, avatar, country, city, about *string) (*models.User, error) {
+func (s *authService) UpdateProfile(ctx context.Context, id uint64, nick, avatar, country, city, about *string) (*models.User, error) {
 	user, err := s.userRepo.GetByID(ctx, id)
 	if err != nil || user == nil {
 		return nil, errors.New("user not found")
@@ -131,7 +127,7 @@ func (s *Service) UpdateProfile(ctx context.Context, id uint64, nick, avatar, co
 	return user, nil
 }
 
-func (s *Service) UpdateAvatar(ctx context.Context, id uint64, url string) (*models.User, error) {
+func (s *authService) UpdateAvatar(ctx context.Context, id uint64, url string) (*models.User, error) {
 	user, err := s.userRepo.GetByID(ctx, id)
 	if err != nil || user == nil {
 		return nil, errors.New("user not found")

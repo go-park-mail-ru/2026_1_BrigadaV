@@ -5,13 +5,6 @@ import (
 	"guidely-app/internal/models"
 )
 
-type AuthService interface {
-	Register(ctx context.Context, input RegisterInput) (*models.User, string, error)
-	Login(ctx context.Context, input LoginInput) (*models.User, string, error)
-	Logout(ctx context.Context, token string) error
-	GetUserByID(ctx context.Context, id uint64) (*models.User, error)
-}
-
 type PlaceService interface {
 	GetAll(ctx context.Context) ([]models.Place, error)
 	GetDetails(ctx context.Context, placeID, userID uint64) (*models.PlaceWithRating, error)

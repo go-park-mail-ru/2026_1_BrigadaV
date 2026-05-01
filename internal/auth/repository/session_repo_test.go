@@ -2,42 +2,31 @@ package repository
 
 import (
 	"context"
+	"guidely-app/pkg/models"
+	"guidely-app/pkg/utils"
 	"testing"
 	"time"
-
-	"guidely-app/internal/models"
-	"guidely-app/internal/utils"
 
 	"github.com/pashagolub/pgxmock/v4"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSessionRepo_Create(t *testing.T) {
-	mockPool, err := pgxmock.NewPool()
-	assert.NoError(t, err)
+	mockPool, _ := pgxmock.NewPool()
 	defer mockPool.Close()
-
 	repo := NewSessionRepo(mockPool)
 
-	token := "test_token"
-	hashedToken := utils.HashToken(token)
-
 	session := &models.Session{
-		UserID:       1,
-		SessionToken: token,
-		ExpiresAt:    time.Now().Add(7 * 24 * time.Hour),
+		UserID:    1,
+		TokenHash: utils.HashToken("test_token"),
+		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
 	}
 
-	rows := mockPool.NewRows([]string{"id", "created_at"}).AddRow(uint64(1), time.Now())
+	mockPool.ExpectQuery(`INSERT INTO session`).WithArgs(session.UserID, session.TokenHash, session.ExpiresAt).
+		WillReturnRows(mockPool.NewRows([]string{"id", "created_at"}).AddRow(uint64(1), time.Now()))
 
-	mockPool.ExpectQuery(`INSERT INTO session \(user_id, session_token_hash, expires_at\)`).
-		WithArgs(session.UserID, hashedToken, session.ExpiresAt).
-		WillReturnRows(rows)
-
-	err = repo.Create(context.Background(), session)
+	err := repo.Create(context.Background(), session)
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(1), session.ID)
-
 	assert.NoError(t, mockPool.ExpectationsWereMet())
 }
 

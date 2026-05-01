@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package album;
+
+option go_package = "guidely-app/pkg/pb/album";
+
+import "google/protobuf/empty.proto";
+
+service AlbumService {
+  rpc Create(CreateAlbumRequest) returns (Album);
+  rpc Get(GetAlbumRequest) returns (Album);
+  rpc Update(UpdateAlbumRequest) returns (Album);
+  rpc Delete(DeleteAlbumRequest) returns (google.protobuf.Empty);
+}
+
+message CreateAlbumRequest {
+  uint64 trip_id = 1;
+  string name = 2;
+  string description = 3;
+  int32 max_photos = 4;
+}
+
+message GetAlbumRequest {
+  uint64 id = 1;
+}
+
+message UpdateAlbumRequest {
+  uint64 id = 1;
+  string name = 2;
+  string description = 3;
+  int32 max_photos = 4;
+}
+
+message DeleteAlbumRequest {
+  uint64 id = 1;
+}
+
+message Album {
+  uint64 id = 1;
+  uint64 trip_id = 2;
+  string name = 3;
+  string description = 4;
+  optional uint64 cover_photo_id = 5;
+  int32 max_photos = 6;
+}

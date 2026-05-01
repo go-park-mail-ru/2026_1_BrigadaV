@@ -6,19 +6,24 @@ if ! command -v mockgen &> /dev/null; then
     exit 1
 fi
 
-mkdir -p internal/repository/mocks
-mkdir -p internal/service/mocks
+mkdir -p internal/auth/repository/mocks
+mockgen -destination internal/auth/repository/mocks/mock_repository.go \
+    -package mocks \
+    guidely-app/internal/auth/repository UserRepository,SessionRepository
 
-echo "Generating repository mocks..."
+mkdir -p internal/album/repository/mocks
+mockgen -destination internal/album/repository/mocks/mock_repository.go \
+    -package mocks \
+    guidely-app/internal/album/repository AlbumRepository
+
+mkdir -p internal/repository/mocks
 mockgen -destination internal/repository/mocks/mock_repository.go \
     -package mocks \
-    guidely-app/internal/repository UserRepository,SessionRepository,PlaceRepository,TripRepository,ReviewRepository
+    guidely-app/internal/repository PlaceRepository,TripRepository,ReviewRepository,CategoryRepository
 
-echo "Generating service mocks..."
-mockgen -destination internal/service/mocks/mock_auth_service.go -package mocks guidely-app/internal/service AuthService
-mockgen -destination internal/service/mocks/mock_place_service.go -package mocks guidely-app/internal/service PlaceService
-mockgen -destination internal/service/mocks/mock_profile_service.go -package mocks guidely-app/internal/service ProfileService
-mockgen -destination internal/service/mocks/mock_trip_service.go -package mocks guidely-app/internal/service TripService
-mockgen -destination internal/service/mocks/mock_review_service.go -package mocks guidely-app/internal/service ReviewService
+mkdir -p internal/service/mocks
+mockgen -destination internal/service/mocks/mock_service.go \
+    -package mocks \
+    guidely-app/internal/service PlaceService,ProfileService,TripService,ReviewService,CategoryService
 
 echo "Mocks generated successfully!"
