@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"guidely-app/internal/models"
+	"guidely-app/pkg/models"
 )
 
 type PlaceService interface {

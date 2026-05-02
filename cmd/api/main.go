@@ -99,8 +99,10 @@ func main() {
 	r.HandleFunc("/api/trips/{id:[0-9]+}/places", authMiddleware.Authenticate(tripHandler.AddPlace)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/trips/{id:[0-9]+}/places/{placeId:[0-9]+}", authMiddleware.Authenticate(tripHandler.RemovePlace)).Methods("DELETE", "OPTIONS")
 
-	r.HandleFunc("/api/albums/{id:[0-9]+}", authMiddleware.Authenticate(albumHandler.Update)).Methods("PUT", "OPTIONS")
-	r.HandleFunc("/api/albums/{id:[0-9]+}", authMiddleware.Authenticate(albumHandler.Delete)).Methods("DELETE", "OPTIONS")
+	r.HandleFunc("/api/trips/{tripID:[0-9]+}/album", authMiddleware.Authenticate(albumHandler.GetByTrip)).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/albums/{id:[0-9]+}/photos", authMiddleware.Authenticate(albumHandler.AddPhoto)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/albums/{id:[0-9]+}/photos/{photoId:[0-9]+}", authMiddleware.Authenticate(albumHandler.RemovePhoto)).Methods("DELETE", "OPTIONS")
+	r.HandleFunc("/api/albums/{id:[0-9]+}/photos", authMiddleware.Authenticate(albumHandler.GetPhotos)).Methods("GET", "OPTIONS")
 
 	r.HandleFunc("/api/categories", categoryHandler.List).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/categories/{id:[0-9]+}", categoryHandler.Get).Methods("GET", "OPTIONS")

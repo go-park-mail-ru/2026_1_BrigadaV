@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
-	"guidely-app/internal/models"
 	"guidely-app/internal/repository"
+	"guidely-app/pkg/models"
 )
 
 type categoryServiceImpl struct {

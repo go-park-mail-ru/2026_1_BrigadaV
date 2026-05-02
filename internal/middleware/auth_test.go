@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"guidely-app/internal/models"
-	"guidely-app/internal/repository/mocks"
+	"guidely-app/internal/auth/repository/mocks" // моки для SessionRepository теперь здесь
+	"guidely-app/pkg/models"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"

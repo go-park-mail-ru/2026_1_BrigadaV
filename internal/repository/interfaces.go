@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"guidely-app/internal/models"
+	"guidely-app/pkg/models"
 )
 
 type UserRepository interface {
@@ -18,7 +18,6 @@ type SessionRepository interface {
 	GetByToken(ctx context.Context, token string) (*models.Session, error)
 	DeleteByToken(ctx context.Context, token string) error
 }
-
 type PlaceRepository interface {
 	GetAll(ctx context.Context) ([]models.Place, error)
 	GetByID(ctx context.Context, id uint64) (*models.Place, error)

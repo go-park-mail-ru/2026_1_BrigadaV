@@ -8,7 +8,7 @@ import (
 	"guidely-app/internal/auth/repository"
 	"guidely-app/pkg/config"
 	"guidely-app/pkg/db"
-	"guidely-app/pkg/pb/auth"
+	pb "guidely-app/pkg/pb/auth"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -31,7 +31,7 @@ func main() {
 
 	lis, _ := net.Listen("tcp", ":50051")
 	s := grpc.NewServer()
-	auth.RegisterAuthServiceServer(s, server)
+	pb.RegisterAuthServiceServer(s, server)
 	reflection.Register(s)
 
 	log.Println("Auth service started on :50051")

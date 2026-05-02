@@ -3,20 +3,17 @@ package service
 import (
 	"context"
 	"errors"
-	"guidely-app/internal/logger"
-	"guidely-app/internal/models"
 	"guidely-app/internal/repository"
+	"guidely-app/pkg/models"
 	"time"
-
-	"github.com/sirupsen/logrus"
 )
 
-type reviewService struct {
+type reviewServiceImpl struct {
 	reviewRepo repository.ReviewRepository
 }
 
 func NewReviewService(reviewRepo repository.ReviewRepository) ReviewService {
-	return &reviewService{reviewRepo: reviewRepo}
+	return &reviewServiceImpl{reviewRepo: reviewRepo}
 }
 
 type CreateReviewInput struct {
@@ -28,8 +25,7 @@ type CreateReviewInput struct {
 	VisitDate *time.Time
 }
 
-func (s *reviewService) Create(ctx context.Context, input CreateReviewInput) (*models.Review, error) {
-	logger.Info(ctx, "CreateReview called", logrus.Fields{"place_id": input.PlaceID, "rating": input.Rating})
+func (s *reviewServiceImpl) Create(ctx context.Context, input CreateReviewInput) (*models.Review, error) {
 	if input.Rating < 1 || input.Rating > 5 {
 		return nil, errors.New("rating must be between 1 and 5")
 	}
@@ -44,12 +40,10 @@ func (s *reviewService) Create(ctx context.Context, input CreateReviewInput) (*m
 	if err := s.reviewRepo.Create(ctx, review); err != nil {
 		return nil, err
 	}
-	logger.Info(ctx, "CreateReview successful", logrus.Fields{"review_id": review.ID})
 	return review, nil
 }
 
-func (s *reviewService) Delete(ctx context.Context, userID, reviewID uint64) error {
-	logger.Info(ctx, "DeleteReview called", logrus.Fields{"user_id": userID, "review_id": reviewID})
+func (s *reviewServiceImpl) Delete(ctx context.Context, userID, reviewID uint64) error {
 	review, err := s.reviewRepo.GetByID(ctx, reviewID)
 	if err != nil || review == nil {
 		return errors.New("review not found")
