@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"guidely-app/internal/logger"
-	"guidely-app/internal/models"
 	"guidely-app/internal/repository"
+	"guidely-app/pkg/models"
 	"time"
 
 	"github.com/sirupsen/logrus"
