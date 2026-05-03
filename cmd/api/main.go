@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 	"net/http"
 
 	_ "guidely-app/docs"
@@ -41,19 +42,19 @@ func main() {
 	dbAdapter := &repository.PgxPoolAdapter{Pool: dbPool}
 	authAdapter := &authrepo.PgxPoolAdapter{Pool: dbPool}
 
-	authConn, err := grpc.Dial("localhost:8085", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	authConn, err := grpc.Dial(getEnv("AUTH_GRPC_ADDR", "localhost:8085"), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("failed to connect to auth service: %v", err)
 	}
 	authClient := pbauth.NewAuthServiceClient(authConn)
 
-	albumConn, err := grpc.Dial("localhost:8086", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	albumConn, err := grpc.Dial(getEnv("ALBUM_GRPC_ADDR", "localhost:8086"), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("failed to connect to album service: %v", err)
 	}
 	albumClient := pbalbum.NewAlbumServiceClient(albumConn)
 
-	reviewConn, err := grpc.Dial("localhost:8087", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	reviewConn, err := grpc.Dial(getEnv("REVIEW_GRPC_ADDR", "localhost:8087"), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("failed to connect to review service: %v", err)
 	}
@@ -132,4 +133,11 @@ func main() {
 
 	logger.Log.Info("Server started on :" + cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, r))
+}
+
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }
