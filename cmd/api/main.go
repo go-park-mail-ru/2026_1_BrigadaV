@@ -85,7 +85,7 @@ func main() {
 
 	r := mux.NewRouter()
 	r.Use(logger.Middleware)
-	r.Use(middleware.CORS(cfg.FrontendURL))
+	r.Use(middleware.CORS(cfg.AllowedOrigins...))
 
 	r.HandleFunc("/api/register", authHandler.Register).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/login", authHandler.Login).Methods("POST", "OPTIONS")
