@@ -22,14 +22,16 @@ type Place struct {
 }
 
 type PlaceWithRating struct {
-	ID          uint64  `json:"id"`
-	Name        string  `json:"name"`
-	Description string  `json:"description"`
-	PhotoURL    string  `json:"photo_url"`
-	Price       int64   `json:"price"`
-	Rating      float64 `json:"rating"`
-	ReviewCount int64   `json:"reviewCount"`
-	IsLiked     bool    `json:"is_liked"`
+	ID          uint64   `json:"id"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	PhotoURL    string   `json:"photo_url"`
+	Price       int64    `json:"price"`
+	Rating      float64  `json:"rating"`
+	ReviewCount int64    `json:"reviewCount"`
+	IsLiked     bool     `json:"is_liked"`
+	Locality    Locality `json:"locality"`
+	Category    *Category `json:"category,omitempty"`
 }
 
 type PlaceInTrip struct {
