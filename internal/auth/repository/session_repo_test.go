@@ -47,7 +47,7 @@ func TestSessionRepo_GetByToken_Found(t *testing.T) {
 		WithArgs(hashedToken).
 		WillReturnRows(rows)
 
-	session, err := repo.GetByToken(context.Background(), token)
+	session, err := repo.GetByToken(context.Background(), hashedToken)
 	assert.NoError(t, err)
 	assert.NotNil(t, session)
 	assert.Equal(t, uint64(1), session.UserID)
@@ -69,7 +69,7 @@ func TestSessionRepo_GetByToken_NotFound(t *testing.T) {
 		WithArgs(hashedToken).
 		WillReturnRows(mockPool.NewRows([]string{"id", "user_id", "session_token_hash", "expires_at", "created_at"}))
 
-	session, err := repo.GetByToken(context.Background(), token)
+	session, err := repo.GetByToken(context.Background(), hashedToken)
 	assert.NoError(t, err)
 	assert.Nil(t, session)
 
@@ -90,7 +90,7 @@ func TestSessionRepo_DeleteByToken(t *testing.T) {
 		WithArgs(hashedToken).
 		WillReturnResult(pgxmock.NewResult("DELETE", 1))
 
-	err = repo.DeleteByToken(context.Background(), token)
+	err = repo.DeleteByToken(context.Background(), hashedToken)
 	assert.NoError(t, err)
 
 	assert.NoError(t, mockPool.ExpectationsWereMet())
