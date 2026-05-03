@@ -8,6 +8,7 @@ import (
 type PlaceService interface {
 	GetAll(ctx context.Context) ([]models.Place, error)
 	GetDetails(ctx context.Context, placeID, userID uint64) (*models.PlaceWithRating, error)
+	GetReviews(ctx context.Context, placeID uint64) ([]models.ReviewWithAuthor, error)
 	IsPlaceInTrip(ctx context.Context, placeID, tripID uint64) (bool, error)
 }
 
@@ -31,14 +32,6 @@ type TripService interface {
 type ReviewService interface {
 	Create(ctx context.Context, input CreateReviewInput) (*models.Review, error)
 	Delete(ctx context.Context, userID, reviewID uint64) error
-}
-
-type AlbumService interface {
-	Create(ctx context.Context, album *models.Album) error
-	GetByID(ctx context.Context, id uint64) (*models.Album, error)
-	GetByTrip(ctx context.Context, tripID uint64) ([]models.Album, error)
-	Update(ctx context.Context, album *models.Album) error
-	Delete(ctx context.Context, id uint64) error
 }
 
 type CategoryService interface {

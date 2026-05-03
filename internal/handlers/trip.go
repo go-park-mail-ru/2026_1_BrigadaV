@@ -5,7 +5,7 @@ import (
 	"guidely-app/internal/dto"
 	"guidely-app/internal/logger"
 	"guidely-app/internal/service"
-	"guidely-app/internal/utils"
+	"guidely-app/pkg/utils"
 	"log"
 	"net/http"
 	"strconv"

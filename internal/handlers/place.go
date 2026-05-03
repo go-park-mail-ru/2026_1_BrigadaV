@@ -2,14 +2,13 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"guidely-app/internal/dto"
 	"guidely-app/internal/logger"
 	"guidely-app/internal/service"
-	pbReview "guidely-app/pkg/pb/review"
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -18,14 +17,12 @@ import (
 type PlaceHandler struct {
 	placeService service.PlaceService
 	tripService  service.TripService
-	reviewClient pbReview.ReviewServiceClient
 }
 
-func NewPlaceHandler(placeService service.PlaceService, tripService service.TripService, reviewClient pbReview.ReviewServiceClient) *PlaceHandler {
+func NewPlaceHandler(placeService service.PlaceService, tripService service.TripService) *PlaceHandler {
 	return &PlaceHandler{
 		placeService: placeService,
 		tripService:  tripService,
-		reviewClient: reviewClient,
 	}
 }
 
@@ -47,13 +44,12 @@ func (h *PlaceHandler) List(w http.ResponseWriter, r *http.Request) {
 	_ = userID
 	response := make([]dto.PlaceResponse, 0, len(places))
 	for _, p := range places {
-		liked := false
 		pr := dto.PlaceResponse{
 			ID:          p.ID,
 			Name:        p.Name,
 			Description: p.Description,
 			Price:       p.Price,
-			IsLiked:     liked,
+			IsLiked:     false,
 			Locality: dto.LocalityDTO{
 				ID:        p.Locality.ID,
 				Name:      p.Locality.Name,
@@ -105,13 +101,13 @@ func (h *PlaceHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
 	}
 	place, err := h.placeService.GetDetails(r.Context(), id, userID)
 	if err != nil {
-		log.Printf("place get details error: %v", err)
 		if err.Error() == "place not found" {
 			w.WriteHeader(http.StatusNotFound)
 			json.NewEncoder(w).Encode(map[string]string{"error": "place not found"})
 			return
 		}
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "internal error"})
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -125,42 +121,13 @@ func (h *PlaceHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid place id", http.StatusBadRequest)
 		return
 	}
-
-	resp, err := h.reviewClient.GetReviewsByPlace(r.Context(), &pbReview.GetReviewsByPlaceRequest{
-		PlaceId: placeID,
-	})
+	reviews, err := h.placeService.GetReviews(r.Context(), placeID)
 	if err != nil {
-		log.Printf("get reviews error: %v", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		logger.Error(r.Context(), "Failed to fetch reviews", logrus.Fields{"place_id": placeID, "error": err})
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch reviews"})
 		return
 	}
-
-	type reviewJSON struct {
-		ID        uint64 `json:"id"`
-		Rating    int    `json:"rating"`
-		Comment   string `json:"content"`
-		CreatedAt string `json:"createdAt"`
-		Author    struct {
-			ID       uint64  `json:"id"`
-			Nickname string  `json:"nickname"`
-			Avatar   *string `json:"avatar,omitempty"`
-		} `json:"author"`
-	}
-
-	var reviews []reviewJSON
-	for _, rv := range resp.Reviews {
-		rj := reviewJSON{
-			ID:        rv.Id,
-			Rating:    int(rv.Rating),
-			Comment:   rv.Comment,
-			CreatedAt: rv.CreatedAt,
-		}
-		rj.Author.ID = rv.Author.Id
-		rj.Author.Nickname = rv.Author.Nickname
-		rj.Author.Avatar = rv.Author.Avatar
-		reviews = append(reviews, rj)
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(reviews)
 }
@@ -191,7 +158,6 @@ func (h *PlaceHandler) CheckPlaceInTrip(w http.ResponseWriter, r *http.Request) 
 	}
 	tripID, err := strconv.ParseUint(tripIDStr, 10, 64)
 	if err != nil {
-		logger.Error(r.Context(), "Invalid trip_id in CheckPlaceInTrip", logrus.Fields{"trip_id": tripIDStr, "error": err})
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip_id"})
 		return
@@ -199,7 +165,6 @@ func (h *PlaceHandler) CheckPlaceInTrip(w http.ResponseWriter, r *http.Request) 
 
 	trip, _, err := h.tripService.GetTripDetails(r.Context(), tripID)
 	if err != nil || trip == nil || trip.CreatedBy != userID {
-		logger.Error(r.Context(), "Access denied or trip not found in CheckPlaceInTrip", logrus.Fields{"trip_id": tripID, "user_id": userID})
 		w.WriteHeader(http.StatusForbidden)
 		json.NewEncoder(w).Encode(map[string]string{"error": "trip not found or access denied"})
 		return
@@ -215,4 +180,49 @@ func (h *PlaceHandler) CheckPlaceInTrip(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"in_trip": inTrip})
+}
+
+func (h *PlaceHandler) Search(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+	if query == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "missing query parameter 'q'"})
+		return
+	}
+	places, err := h.placeService.GetAll(r.Context())
+	if err != nil {
+		logger.Error(r.Context(), "Failed to search places", logrus.Fields{"error": err})
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to search places"})
+		return
+	}
+	// Filter in memory by query (LIKE emulation; replace with repo.Search for DB-level search)
+	var filtered []dto.PlaceResponse
+	queryLower := strings.ToLower(query)
+	for _, p := range places {
+		if strings.Contains(strings.ToLower(p.Name), queryLower) ||
+			strings.Contains(strings.ToLower(p.Description), queryLower) {
+			pr := dto.PlaceResponse{
+				ID:          p.ID,
+				Name:        p.Name,
+				Description: p.Description,
+				Price:       p.Price,
+				Locality: dto.LocalityDTO{
+					ID:        p.Locality.ID,
+					Name:      p.Locality.Name,
+					Country:   p.Locality.Country,
+					Latitude:  p.Locality.Latitude,
+					Longitude: p.Locality.Longitude,
+				},
+				CreatedAt: p.CreatedAt,
+				UpdatedAt: p.UpdatedAt,
+			}
+			filtered = append(filtered, pr)
+		}
+	}
+	if filtered == nil {
+		filtered = []dto.PlaceResponse{}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(filtered)
 }

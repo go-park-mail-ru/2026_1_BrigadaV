@@ -46,3 +46,10 @@ type CategoryRepository interface {
 	Update(ctx context.Context, c *models.Category) error
 	Delete(ctx context.Context, id uint64) error
 }
+
+type ReviewRepository interface {
+	Create(ctx context.Context, review *models.Review) error
+	GetByID(ctx context.Context, id uint64) (*models.Review, error)
+	GetByPlaceIDWithAuthor(ctx context.Context, placeID uint64) ([]models.ReviewWithAuthor, error)
+	Delete(ctx context.Context, id uint64) error
+}

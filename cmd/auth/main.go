@@ -29,11 +29,11 @@ func main() {
 	svc := auth.NewService(userRepo, sessRepo)
 	server := auth.NewServer(svc)
 
-	lis, _ := net.Listen("tcp", ":50051")
+	lis, _ := net.Listen("tcp", ":8085")
 	s := grpc.NewServer()
 	pb.RegisterAuthServiceServer(s, server)
 	reflection.Register(s)
 
-	log.Println("Auth service started on :50051")
+	log.Println("Auth service started on :8085")
 	log.Fatal(s.Serve(lis))
 }

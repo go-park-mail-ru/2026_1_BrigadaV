@@ -3,16 +3,17 @@ package middleware
 import (
 	"context"
 	"encoding/json"
-	"guidely-app/internal/repository"
 	"net/http"
 	"time"
+
+	authrepo "guidely-app/internal/auth/repository"
 )
 
 type AuthMiddleware struct {
-	sessionRepo repository.SessionRepository
+	sessionRepo authrepo.SessionRepository
 }
 
-func NewAuthMiddleware(sessionRepo repository.SessionRepository) *AuthMiddleware {
+func NewAuthMiddleware(sessionRepo authrepo.SessionRepository) *AuthMiddleware {
 	return &AuthMiddleware{sessionRepo: sessionRepo}
 }
 
@@ -33,4 +34,12 @@ func (m *AuthMiddleware) Authenticate(next http.HandlerFunc) http.HandlerFunc {
 		ctx := context.WithValue(r.Context(), "user_id", session.UserID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
+}
+
+func GetUserIDFromContext(r *http.Request) uint64 {
+	val := r.Context().Value("user_id")
+	if id, ok := val.(uint64); ok {
+		return id
+	}
+	return 0
 }

@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"guidely-app/internal/dto"
-	"guidely-app/internal/models"
+	"guidely-app/pkg/models"
 	"guidely-app/internal/service/mocks"
 
 	"github.com/golang/mock/gomock"

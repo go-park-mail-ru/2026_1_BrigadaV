@@ -26,11 +26,11 @@ func main() {
 	svc := album.NewService(albumRepo)
 	server := album.NewServer(svc)
 
-	lis, _ := net.Listen("tcp", ":50052")
+	lis, _ := net.Listen("tcp", ":8086")
 	s := grpc.NewServer()
 	pb.RegisterAlbumServiceServer(s, server)
 	reflection.Register(s)
 
-	log.Println("Album service started on :50052")
+	log.Println("Album service started on :8086")
 	log.Fatal(s.Serve(lis))
 }

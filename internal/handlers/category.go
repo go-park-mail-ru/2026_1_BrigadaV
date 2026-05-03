@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"guidely-app/internal/models"
+	"guidely-app/pkg/models"
 	"guidely-app/internal/service"
 
 	"github.com/gorilla/mux"

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"guidely-app/internal/models"
+	"guidely-app/pkg/models"
 	"guidely-app/internal/testutil"
 
 	"github.com/pashagolub/pgxmock/v4"

@@ -17,7 +17,8 @@ func TestPlaceService_GetAll(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockPlaceRepo := mocks.NewMockPlaceRepository(ctrl)
-	svc := NewPlaceService(mockPlaceRepo)
+	mockReviewRepo := mocks.NewMockReviewRepository(ctrl)
+	svc := NewPlaceService(mockPlaceRepo, mockReviewRepo)
 
 	expectedPlaces := []models.Place{{ID: 1, Name: "Eiffel Tower"}}
 	mockPlaceRepo.EXPECT().GetAll(gomock.Any()).Return(expectedPlaces, nil)
@@ -33,7 +34,8 @@ func TestPlaceService_GetAll_Error(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockPlaceRepo := mocks.NewMockPlaceRepository(ctrl)
-	svc := NewPlaceService(mockPlaceRepo)
+	mockReviewRepo := mocks.NewMockReviewRepository(ctrl)
+	svc := NewPlaceService(mockPlaceRepo, mockReviewRepo)
 
 	mockPlaceRepo.EXPECT().GetAll(gomock.Any()).Return(nil, errors.New("db error"))
 
@@ -47,7 +49,8 @@ func TestPlaceService_GetDetails(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockPlaceRepo := mocks.NewMockPlaceRepository(ctrl)
-	svc := NewPlaceService(mockPlaceRepo)
+	mockReviewRepo := mocks.NewMockReviewRepository(ctrl)
+	svc := NewPlaceService(mockPlaceRepo, mockReviewRepo)
 
 	expected := &models.PlaceWithRating{ID: 1, Name: "Eiffel Tower", Rating: 4.5}
 	mockPlaceRepo.EXPECT().GetWithRatingAndLike(gomock.Any(), uint64(1), uint64(1)).Return(expected, nil)

@@ -14,6 +14,33 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+type mockReviewService struct {
+	createFn              func(ctx context.Context, input CreateReviewInput) (*models.Review, error)
+	deleteFn              func(ctx context.Context, userID, reviewID uint64) error
+	getByPlaceIDWithAuthorFn func(ctx context.Context, placeID uint64) ([]models.ReviewWithAuthor, error)
+}
+
+func (m *mockReviewService) Create(ctx context.Context, input CreateReviewInput) (*models.Review, error) {
+	if m.createFn != nil {
+		return m.createFn(ctx, input)
+	}
+	return nil, nil
+}
+
+func (m *mockReviewService) Delete(ctx context.Context, userID, reviewID uint64) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, userID, reviewID)
+	}
+	return nil
+}
+
+func (m *mockReviewService) GetByPlaceIDWithAuthor(ctx context.Context, placeID uint64) ([]models.ReviewWithAuthor, error) {
+	if m.getByPlaceIDWithAuthorFn != nil {
+		return m.getByPlaceIDWithAuthorFn(ctx, placeID)
+	}
+	return nil, nil
+}
+
 func TestServer_CreateReview_InvalidRating(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

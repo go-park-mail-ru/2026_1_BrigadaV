@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"guidely-app/internal/models"
+	"guidely-app/pkg/models"
 	"guidely-app/internal/repository/mocks"
 	"guidely-app/internal/testutil"
 

@@ -26,11 +26,11 @@ func main() {
 	svc := review.NewService(reviewRepo)
 	server := review.NewServer(svc)
 
-	lis, _ := net.Listen("tcp", ":50053")
+	lis, _ := net.Listen("tcp", ":8087")
 	s := grpc.NewServer()
 	pb.RegisterReviewServiceServer(s, server)
 	reflection.Register(s)
 
-	log.Println("Review service started on :50053")
+	log.Println("Review service started on :8087")
 	log.Fatal(s.Serve(lis))
 }
