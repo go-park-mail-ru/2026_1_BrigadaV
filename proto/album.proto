@@ -1,6 +1,6 @@
 syntax = "proto3";
 package album;
-option go_package = "guidely-app/pkg/pb/album";
+option go_package = "pkg/pb/album";
 
 import "google/protobuf/empty.proto";
 

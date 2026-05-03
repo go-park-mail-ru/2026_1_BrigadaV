@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package auth;
 
-option go_package = "guidely-app/pkg/pb/auth";
+option go_package = "pkg/pb/auth";
 
 import "google/protobuf/empty.proto";
 

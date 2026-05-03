@@ -1,6 +1,6 @@
 syntax = "proto3";
 package review;
-option go_package = "guidely-app/pkg/pb/review";
+option go_package = "pkg/pb/review";
 
 import "google/protobuf/empty.proto";
 
