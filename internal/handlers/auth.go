@@ -30,7 +30,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.client.Register(r.Context(), &pb.RegisterRequest{
+	_, err := h.client.Register(r.Context(), &pb.RegisterRequest{
 		Login:    req.Login,
 		Password: req.Password,
 		Nickname: req.Nickname,
@@ -45,10 +45,28 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set cookie before WriteHeader — headers must be set before status code
+	// After successful registration, log in to get a real session token.
+	// RegisterResponse cannot carry the token through gRPC (rawDesc doesn't include it),
+	// so we call Login explicitly — it creates a session and returns the token correctly.
+	loginResp, err := h.client.Login(r.Context(), &pb.LoginRequest{
+		Login:    req.Login,
+		Password: req.Password,
+	})
+	if err != nil {
+		log.Printf("auto-login after register gRPC error: %v", err)
+		// User was created but we couldn't create a session — still return 201,
+		// the client will need to log in manually.
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"message": "user created",
+		})
+		return
+	}
+
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
-		Value:    resp.Token,
+		Value:    loginResp.Token,
 		Expires:  time.Now().Add(7 * 24 * time.Hour),
 		HttpOnly: true,
 		Secure:   false,
@@ -58,8 +76,9 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"user_id": resp.UserId,
-		"message": resp.Message,
+		"user_id":  loginResp.UserId,
+		"nickname": loginResp.Nickname,
+		"message":  "user created",
 	})
 }
 
