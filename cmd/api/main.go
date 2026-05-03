@@ -10,6 +10,8 @@ import (
 	"guidely-app/internal/handlers"
 	"guidely-app/internal/logger"
 	"guidely-app/internal/middleware"
+	"guidely-app/internal/repository"
+	authrepo "guidely-app/internal/auth/repository"
 	"guidely-app/internal/service"
 
 	"github.com/gorilla/mux"
@@ -37,6 +39,7 @@ func main() {
 	defer dbPool.Close()
 
 	dbAdapter := &repository.PgxPoolAdapter{Pool: dbPool}
+	authAdapter := &authrepo.PgxPoolAdapter{Pool: dbPool}
 
 	authConn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -59,8 +62,8 @@ func main() {
 	placeRepo := repository.NewPlaceRepo(dbAdapter)
 	tripRepo := repository.NewTripRepo(dbAdapter)
 	categoryRepo := repository.NewCategoryRepo(dbPool)
-	userRepo := repository.NewUserRepo(dbAdapter)
-	sessionRepo := repository.NewSessionRepo(dbAdapter)
+	userRepo := authrepo.NewUserRepo(authAdapter)
+	sessionRepo := authrepo.NewSessionRepo(authAdapter)
 
 	placeService := service.NewPlaceService(placeRepo)
 	tripService := service.NewTripService(tripRepo)
@@ -76,7 +79,7 @@ func main() {
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
 	csrfHandler := handlers.NewCSRFHandler()
 
-	authMiddleware := middleware.NewAuthMiddleware(sessionRepo, userRepo)
+	authMiddleware := middleware.NewAuthMiddleware(sessionRepo)
 
 	r := mux.NewRouter()
 	r.Use(logger.Middleware)

@@ -21,6 +21,15 @@ func (m *mockAlbumService) GetByTrip(ctx context.Context, tripID uint64) ([]mode
 }
 func (m *mockAlbumService) Update(ctx context.Context, a *models.Album) error { return nil }
 func (m *mockAlbumService) Delete(ctx context.Context, id uint64) error       { return nil }
+func (m *mockAlbumService) AddPhoto(ctx context.Context, albumID, photoID uint64, order int16) error {
+	return nil
+}
+func (m *mockAlbumService) RemovePhoto(ctx context.Context, albumID, photoID uint64) error {
+	return nil
+}
+func (m *mockAlbumService) GetPhotos(ctx context.Context, albumID uint64) ([]models.AlbumPhoto, error) {
+	return nil, nil
+}
 
 func TestServer_Create(t *testing.T) {
 	svc := &mockAlbumService{}

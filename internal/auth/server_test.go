@@ -31,7 +31,7 @@ func TestServer_Register_InvalidArgument(t *testing.T) {
 		},
 	}
 	srv := NewServer(svc)
-	_, err := srv.Register(context.Background(), &pb.RegisterRequest{...})
+	_, err := srv.Register(context.Background(), &pb.RegisterRequest{Login: "x", Password: "y", Nickname: "z"})
 	st, _ := status.FromError(err)
 	assert.Equal(t, codes.InvalidArgument, st.Code())
 }

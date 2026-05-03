@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"guidely-app/internal/logger"
-	"guidely-app/internal/models"
+	"guidely-app/pkg/models"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/sirupsen/logrus"

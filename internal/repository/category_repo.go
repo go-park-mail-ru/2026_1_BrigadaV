@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
-	"guidely-app/internal/models"
+	"guidely-app/pkg/models"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/lib/pq"
