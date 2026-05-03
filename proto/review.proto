@@ -1,0 +1,60 @@
+syntax = "proto3";
+package review;
+option go_package = "guidely-app/pkg/pb/review";
+
+import "google/protobuf/empty.proto";
+
+service ReviewService {
+  rpc CreateReview(CreateReviewRequest) returns (ReviewResponse);
+  rpc DeleteReview(DeleteReviewRequest) returns (google.protobuf.Empty);
+  rpc GetReviewsByPlace(GetReviewsByPlaceRequest) returns (GetReviewsByPlaceResponse);
+}
+
+message CreateReviewRequest {
+  uint64 user_id = 1;
+  uint64 place_id = 2;
+  optional string title = 3;
+  int32 rating = 4;
+  string comment = 5;
+  optional string visit_date = 6;
+}
+
+message ReviewResponse {
+  uint64 id = 1;
+  uint64 user_id = 2;
+  uint64 place_id = 3;
+  optional string title = 4;
+  int32 rating = 5;
+  string comment = 6;
+  optional string visit_date = 7;
+  string created_at = 8;
+  string updated_at = 9;
+}
+
+message DeleteReviewRequest {
+  uint64 user_id = 1;
+  uint64 review_id = 2;
+}
+
+message GetReviewsByPlaceRequest {
+  uint64 place_id = 1;
+}
+
+message GetReviewsByPlaceResponse {
+  repeated ReviewWithAuthor reviews = 1;
+}
+
+message ReviewWithAuthor {
+  uint64 id = 1;
+  optional string title = 2;
+  int32 rating = 3;
+  string comment = 4;
+  string created_at = 5;
+  Author author = 6;
+}
+
+message Author {
+  uint64 id = 1;
+  string nickname = 2;
+  optional string avatar = 3;
+}

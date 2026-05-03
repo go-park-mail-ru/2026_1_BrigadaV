@@ -1,22 +1,25 @@
 package main
 
 import (
+	"log"
+	"net/http"
+
 	_ "guidely-app/docs"
 	"guidely-app/internal/config"
 	"guidely-app/internal/db"
 	"guidely-app/internal/handlers"
 	"guidely-app/internal/logger"
 	"guidely-app/internal/middleware"
-	"guidely-app/internal/repository"
 	"guidely-app/internal/service"
-	"log"
-	"net/http"
 
-	// "github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	pbalbum "guidely-app/pkg/pb/album"
+	pbauth "guidely-app/pkg/pb/auth"
+	pbreview "guidely-app/pkg/pb/review"
 )
 
 func main() {
@@ -47,25 +50,29 @@ func main() {
 	}
 	albumClient := pbalbum.NewAlbumServiceClient(albumConn)
 
+	reviewConn, err := grpc.Dial("localhost:50053", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("failed to connect to review service: %v", err)
+	}
+	reviewClient := pbreview.NewReviewServiceClient(reviewConn)
+
 	placeRepo := repository.NewPlaceRepo(dbAdapter)
-	reviewRepo := repository.NewReviewRepo(dbAdapter)
 	tripRepo := repository.NewTripRepo(dbAdapter)
 	categoryRepo := repository.NewCategoryRepo(dbPool)
 	userRepo := repository.NewUserRepo(dbAdapter)
 	sessionRepo := repository.NewSessionRepo(dbAdapter)
 
-	placeService := service.NewPlaceService(placeRepo, reviewRepo)
+	placeService := service.NewPlaceService(placeRepo)
 	tripService := service.NewTripService(tripRepo)
-	reviewService := service.NewReviewService(reviewRepo)
 	categoryService := service.NewCategoryService(categoryRepo)
 	profileService := service.NewProfileService(userRepo)
 
 	authHandler := handlers.NewAuthHandler(authClient)
 	albumHandler := handlers.NewAlbumHandler(albumClient)
-	placeHandler := handlers.NewPlaceHandler(placeService, tripService)
+	reviewHandler := handlers.NewReviewHandler(reviewClient)
+	placeHandler := handlers.NewPlaceHandler(placeService, tripService, reviewClient)
 	profileHandler := handlers.NewProfileHandler(profileService)
 	tripHandler := handlers.NewTripHandler(tripService)
-	reviewHandler := handlers.NewReviewHandler(reviewService)
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
 	csrfHandler := handlers.NewCSRFHandler()
 
@@ -90,6 +97,9 @@ func main() {
 	r.HandleFunc("/api/places/{id:[0-9]+}/reviews", placeHandler.GetReviews).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/places/{id:[0-9]+}/in-trip", authMiddleware.Authenticate(placeHandler.CheckPlaceInTrip)).Methods("GET", "OPTIONS")
 
+	r.HandleFunc("/api/reviews", authMiddleware.Authenticate(reviewHandler.Create)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/reviews/{id:[0-9]+}", authMiddleware.Authenticate(reviewHandler.Delete)).Methods("DELETE", "OPTIONS")
+
 	r.HandleFunc("/api/trips", authMiddleware.Authenticate(tripHandler.List)).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/trips", authMiddleware.Authenticate(tripHandler.Create)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/trips/{id:[0-9]+}", authMiddleware.Authenticate(tripHandler.GetDetails)).Methods("GET", "OPTIONS")
@@ -110,13 +120,9 @@ func main() {
 	r.HandleFunc("/api/categories/{id:[0-9]+}", authMiddleware.Authenticate(categoryHandler.Update)).Methods("PUT", "OPTIONS")
 	r.HandleFunc("/api/categories/{id:[0-9]+}", authMiddleware.Authenticate(categoryHandler.Delete)).Methods("DELETE", "OPTIONS")
 
-	r.HandleFunc("/api/reviews", authMiddleware.Authenticate(reviewHandler.Create)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/reviews/{id:[0-9]+}", authMiddleware.Authenticate(reviewHandler.Delete)).Methods("DELETE", "OPTIONS")
-
 	r.HandleFunc("/api/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
 
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
-
 	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 
 	// CSRF middleware (закомментирован)

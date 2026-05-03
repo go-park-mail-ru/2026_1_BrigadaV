@@ -18,6 +18,7 @@ type SessionRepository interface {
 	GetByToken(ctx context.Context, token string) (*models.Session, error)
 	DeleteByToken(ctx context.Context, token string) error
 }
+
 type PlaceRepository interface {
 	GetAll(ctx context.Context) ([]models.Place, error)
 	GetByID(ctx context.Context, id uint64) (*models.Place, error)
@@ -38,28 +39,10 @@ type TripRepository interface {
 	CheckPlaceInTrip(ctx context.Context, tripID, placeID uint64) (bool, error)
 }
 
-type ReviewRepository interface {
-	Create(ctx context.Context, review *models.Review) error
-	GetByID(ctx context.Context, id uint64) (*models.Review, error)
-	GetByPlaceIDWithAuthor(ctx context.Context, placeID uint64) ([]models.ReviewWithAuthor, error)
-	Delete(ctx context.Context, id uint64) error
-}
-
 type CategoryRepository interface {
 	GetAll(ctx context.Context) ([]models.Category, error)
 	GetByID(ctx context.Context, id uint64) (*models.Category, error)
 	Create(ctx context.Context, c *models.Category) error
 	Update(ctx context.Context, c *models.Category) error
 	Delete(ctx context.Context, id uint64) error
-}
-
-type AlbumRepository interface {
-	Create(ctx context.Context, album *models.Album) error
-	GetByID(ctx context.Context, id uint64) (*models.Album, error)
-	GetByTrip(ctx context.Context, tripID uint64) ([]models.Album, error)
-	Update(ctx context.Context, album *models.Album) error
-	Delete(ctx context.Context, id uint64) error
-	AddPhoto(ctx context.Context, albumID, photoID uint64, order int16) error
-	RemovePhoto(ctx context.Context, albumID, photoID uint64) error
-	GetPhotos(ctx context.Context, albumID uint64) ([]models.AlbumPhoto, error)
 }

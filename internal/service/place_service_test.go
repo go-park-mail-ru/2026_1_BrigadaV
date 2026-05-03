@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"guidely-app/internal/models"
 	"guidely-app/internal/repository/mocks"
+	"guidely-app/pkg/models"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -17,9 +17,7 @@ func TestPlaceService_GetAll(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockPlaceRepo := mocks.NewMockPlaceRepository(ctrl)
-	mockReviewRepo := mocks.NewMockReviewRepository(ctrl)
-
-	svc := NewPlaceService(mockPlaceRepo, mockReviewRepo)
+	svc := NewPlaceService(mockPlaceRepo)
 
 	expectedPlaces := []models.Place{{ID: 1, Name: "Eiffel Tower"}}
 	mockPlaceRepo.EXPECT().GetAll(gomock.Any()).Return(expectedPlaces, nil)
@@ -35,9 +33,7 @@ func TestPlaceService_GetAll_Error(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockPlaceRepo := mocks.NewMockPlaceRepository(ctrl)
-	mockReviewRepo := mocks.NewMockReviewRepository(ctrl)
-
-	svc := NewPlaceService(mockPlaceRepo, mockReviewRepo)
+	svc := NewPlaceService(mockPlaceRepo)
 
 	mockPlaceRepo.EXPECT().GetAll(gomock.Any()).Return(nil, errors.New("db error"))
 
@@ -51,9 +47,7 @@ func TestPlaceService_GetDetails(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockPlaceRepo := mocks.NewMockPlaceRepository(ctrl)
-	mockReviewRepo := mocks.NewMockReviewRepository(ctrl)
-
-	svc := NewPlaceService(mockPlaceRepo, mockReviewRepo)
+	svc := NewPlaceService(mockPlaceRepo)
 
 	expected := &models.PlaceWithRating{ID: 1, Name: "Eiffel Tower", Rating: 4.5}
 	mockPlaceRepo.EXPECT().GetWithRatingAndLike(gomock.Any(), uint64(1), uint64(1)).Return(expected, nil)
@@ -61,21 +55,4 @@ func TestPlaceService_GetDetails(t *testing.T) {
 	result, err := svc.GetDetails(context.Background(), 1, 1)
 	assert.NoError(t, err)
 	assert.Equal(t, "Eiffel Tower", result.Name)
-}
-
-func TestPlaceService_GetReviews(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockPlaceRepo := mocks.NewMockPlaceRepository(ctrl)
-	mockReviewRepo := mocks.NewMockReviewRepository(ctrl)
-
-	svc := NewPlaceService(mockPlaceRepo, mockReviewRepo)
-
-	expectedReviews := []models.ReviewWithAuthor{{ID: 1, Rating: 5}}
-	mockReviewRepo.EXPECT().GetByPlaceIDWithAuthor(gomock.Any(), uint64(1)).Return(expectedReviews, nil)
-
-	reviews, err := svc.GetReviews(context.Background(), 1)
-	assert.NoError(t, err)
-	assert.Len(t, reviews, 1)
 }

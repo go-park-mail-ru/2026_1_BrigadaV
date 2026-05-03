@@ -2,12 +2,14 @@ package handlers
 
 import (
 	"encoding/json"
-	"guidely-app/internal/dto"
-	"guidely-app/internal/logger"
-	"guidely-app/internal/service"
 	"log"
 	"net/http"
 	"strconv"
+
+	"guidely-app/internal/dto"
+	"guidely-app/internal/logger"
+	"guidely-app/internal/service"
+	pbReview "guidely-app/pkg/pb/review"
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -16,12 +18,14 @@ import (
 type PlaceHandler struct {
 	placeService service.PlaceService
 	tripService  service.TripService
+	reviewClient pbReview.ReviewServiceClient
 }
 
-func NewPlaceHandler(placeService service.PlaceService, tripService service.TripService) *PlaceHandler {
+func NewPlaceHandler(placeService service.PlaceService, tripService service.TripService, reviewClient pbReview.ReviewServiceClient) *PlaceHandler {
 	return &PlaceHandler{
 		placeService: placeService,
 		tripService:  tripService,
+		reviewClient: reviewClient,
 	}
 }
 
@@ -116,20 +120,47 @@ func (h *PlaceHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
 
 func (h *PlaceHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, err := strconv.ParseUint(vars["id"], 10, 64)
+	placeID, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
-		logger.Error(r.Context(), "Invalid place id in GetReviews", logrus.Fields{"id": vars["id"], "error": err})
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid place id"})
+		http.Error(w, "invalid place id", http.StatusBadRequest)
 		return
 	}
-	reviews, err := h.placeService.GetReviews(r.Context(), id)
+
+	resp, err := h.reviewClient.GetReviewsByPlace(r.Context(), &pbReview.GetReviewsByPlaceRequest{
+		PlaceId: placeID,
+	})
 	if err != nil {
-		logger.Error(r.Context(), "Failed to fetch reviews", logrus.Fields{"place_id": id, "error": err})
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch reviews"})
+		log.Printf("get reviews error: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+
+	type reviewJSON struct {
+		ID        uint64 `json:"id"`
+		Rating    int    `json:"rating"`
+		Comment   string `json:"content"`
+		CreatedAt string `json:"createdAt"`
+		Author    struct {
+			ID       uint64  `json:"id"`
+			Nickname string  `json:"nickname"`
+			Avatar   *string `json:"avatar,omitempty"`
+		} `json:"author"`
+	}
+
+	var reviews []reviewJSON
+	for _, rv := range resp.Reviews {
+		rj := reviewJSON{
+			ID:        rv.Id,
+			Rating:    int(rv.Rating),
+			Comment:   rv.Comment,
+			CreatedAt: rv.CreatedAt,
+		}
+		rj.Author.ID = rv.Author.Id
+		rj.Author.Nickname = rv.Author.Nickname
+		rj.Author.Avatar = rv.Author.Avatar
+		reviews = append(reviews, rj)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(reviews)
 }
