@@ -7,6 +7,8 @@ import (
 	"time"
 
 	pb "guidely-app/pkg/pb/auth"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type AuthHandler struct {
@@ -35,10 +37,25 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Printf("register gRPC error: %v", err)
+		if st, ok := status.FromError(err); ok && st.Code() == codes.InvalidArgument {
+			http.Error(w, st.Message(), http.StatusBadRequest)
+			return
+		}
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
+	// Set cookie before WriteHeader — headers must be set before status code
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_token",
+		Value:    resp.Token,
+		Expires:  time.Now().Add(7 * 24 * time.Hour),
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+	})
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"user_id": resp.UserId,
@@ -62,7 +79,11 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Printf("login gRPC error: %v", err)
-		http.Error(w, "invalid credentials", http.StatusUnauthorized)
+		if st, ok := status.FromError(err); ok && st.Code() == codes.Unauthenticated {
+			http.Error(w, "invalid credentials", http.StatusUnauthorized)
+			return
+		}
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 

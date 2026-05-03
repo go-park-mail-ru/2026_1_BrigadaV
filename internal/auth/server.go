@@ -19,11 +19,11 @@ func NewServer(svc AuthService) *Server {
 	return &Server{svc: svc}
 }
 func (s *Server) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
-	user, _, err := s.svc.Register(ctx, RegisterInput{Login: req.Login, Password: req.Password, Nickname: req.Nickname})
+	user, token, err := s.svc.Register(ctx, RegisterInput{Login: req.Login, Password: req.Password, Nickname: req.Nickname})
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	return &pb.RegisterResponse{UserId: user.ID, Message: "user created"}, nil
+	return &pb.RegisterResponse{UserId: user.ID, Message: "user created", Token: token}, nil
 }
 
 func (s *Server) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {

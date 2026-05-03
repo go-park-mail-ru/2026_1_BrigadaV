@@ -25,6 +25,7 @@ message RegisterRequest {
 message RegisterResponse {
   uint64 user_id = 1;
   string message = 2;
+  string token = 3;
 }
 
 message LoginRequest {
