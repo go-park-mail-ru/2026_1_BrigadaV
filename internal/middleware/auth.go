@@ -7,6 +7,7 @@ import (
 	"time"
 
 	authrepo "guidely-app/internal/auth/repository"
+	"guidely-app/pkg/utils"
 )
 
 type AuthMiddleware struct {
@@ -25,7 +26,7 @@ func (m *AuthMiddleware) Authenticate(next http.HandlerFunc) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized", "message": "missing session cookie"})
 			return
 		}
-		session, err := m.sessionRepo.GetByToken(r.Context(), cookie.Value)
+		session, err := m.sessionRepo.GetByToken(r.Context(), utils.HashToken(cookie.Value))
 		if err != nil || session == nil || session.ExpiresAt.Before(time.Now()) {
 			w.WriteHeader(http.StatusUnauthorized)
 			json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized", "message": "invalid or expired session"})
