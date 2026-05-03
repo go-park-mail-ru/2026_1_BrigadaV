@@ -22,15 +22,20 @@ func TestPlaceRepo_GetAll(t *testing.T) {
 	longitude := 2.3522
 	categoryName := "Museum"
 	categoryDesc := "Art museum"
+	photoFilePath := "/photos/eiffel.jpg"
+	placePhotoID := uint64(1)
+	isMain := true
 
 	rows := mockPool.NewRows([]string{
 		"id", "name", "description", "photo_url", "price", "created_at", "updated_at",
 		"locality_id", "locality_name", "country_name", "latitude", "longitude",
 		"category_id", "category_name", "category_description",
+		"place_photo_id", "file_path", "is_main",
 	}).AddRow(
 		uint64(1), "Eiffel Tower", "Famous tower", nil, 1500, time.Now(), time.Now(),
 		nil, &localityName, &countryName, &latitude, &longitude,
 		nil, &categoryName, &categoryDesc,
+		&placePhotoID, &photoFilePath, &isMain,
 	)
 
 	mockPool.ExpectQuery(`SELECT p\.id, p\.name, p\.description, p\.photo_url, p\.price, p\.created_at, p\.updated_at,`).
@@ -85,34 +90,18 @@ func TestPlaceRepo_GetWithRatingAndLike(t *testing.T) {
 
 	repo := NewPlaceRepo(mockPool)
 
-	ratingRows := mockPool.NewRows([]string{"avg", "count"}).AddRow(4.5, int64(10))
-	mockPool.ExpectQuery(`SELECT COALESCE\(AVG\(rating\), 0\), COUNT\(\*\) FROM review WHERE place_id = \$1`).
-		WithArgs(uint64(1)).
-		WillReturnRows(ratingRows)
-
-	likeRows := mockPool.NewRows([]string{"exists"}).AddRow(true)
-	mockPool.ExpectQuery(`SELECT EXISTS\(SELECT 1 FROM favorite WHERE user_id = \$1 AND place_id = \$2\)`).
-		WithArgs(uint64(1), uint64(1)).
-		WillReturnRows(likeRows)
-
-	localityName := "Paris"
-	countryName := "France"
-	latitude := 48.8566
-	longitude := 2.3522
-	categoryName := "Museum"
-	categoryDesc := "Art museum"
-
 	placeRows := mockPool.NewRows([]string{
-		"id", "name", "description", "photo_url", "price", "created_at", "updated_at",
-		"locality_id", "locality_name", "country_name", "latitude", "longitude",
-		"category_id", "category_name", "category_description",
-	}).AddRow(uint64(1), "Eiffel Tower", "Famous tower", nil, 1500, time.Now(), time.Now(),
-		nil, &localityName, &countryName, &latitude, &longitude,
-		nil, &categoryName, &categoryDesc)
+		"id", "name", "description", "photo_url", "price", "rating", "review_count",
+	}).AddRow(uint64(1), "Eiffel Tower", "Famous tower", nil, 1500, 4.5, int64(10))
 
-	mockPool.ExpectQuery(`SELECT p\.id, p\.name, p\.description, p\.photo_url, p\.price, p\.created_at, p\.updated_at,`).
+	mockPool.ExpectQuery(`SELECT id, name, description, photo_url, price, rating, review_count FROM place WHERE id = \$1`).
 		WithArgs(uint64(1)).
 		WillReturnRows(placeRows)
+
+	likeRows := mockPool.NewRows([]string{"exists"}).AddRow(true)
+	mockPool.ExpectQuery(`SELECT EXISTS\(SELECT 1 FROM favorite WHERE user_id=\$1 AND place_id=\$2\)`).
+		WithArgs(uint64(1), uint64(1)).
+		WillReturnRows(likeRows)
 
 	result, err := repo.GetWithRatingAndLike(context.Background(), 1, 1)
 	assert.NoError(t, err)
