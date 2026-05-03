@@ -115,6 +115,35 @@ func TestPlaceHandler_GetDetails_NotFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
+func TestPlaceHandler_Search_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockPlaceService := mocks.NewMockPlaceService(ctrl)
+	mockTripService := mocks.NewMockTripService(ctrl)
+	handler := NewPlaceHandler(mockPlaceService, mockTripService)
+
+	expectedPlaces := []models.Place{
+		{ID: 1, Name: "Eiffel Tower", Description: "Famous tower in Paris", Price: 1500,
+			Locality: models.Locality{ID: 1, Name: "Paris", Country: "France", Latitude: ptr(48.8566), Longitude: ptr(2.3522)}},
+	}
+
+	mockPlaceService.EXPECT().Search(gomock.Any(), "eiffel").Return(expectedPlaces, nil)
+
+	req := httptest.NewRequest("GET", "/api/places?q=eiffel", nil)
+	req.URL.RawQuery = "q=eiffel"
+	w := httptest.NewRecorder()
+
+	handler.Search(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp []dto.PlaceResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	assert.Len(t, resp, 1)
+	assert.Equal(t, "Eiffel Tower", resp[0].Name)
+}
+
 func TestPlaceHandler_GetReviews(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -146,3 +175,5 @@ func TestPlaceHandler_GetReviews(t *testing.T) {
 	assert.Len(t, resp, 1)
 	assert.Equal(t, "Great!", resp[0].Comment)
 }
+
+func ptr(f float64) *float64 { return &f }
