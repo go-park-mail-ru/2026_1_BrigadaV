@@ -6,6 +6,6 @@ type Category struct {
 	ID              uint64
 	Name            string
 	Description     string
-	ApplicableTypes []string
+	ApplicableTypes *[]string
 	CreatedAt       time.Time
 }
