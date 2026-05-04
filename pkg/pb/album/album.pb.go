@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v7.34.1
-// source: proto/album.proto
+// source: album.proto
 
 package album
 
@@ -34,7 +34,7 @@ type CreateAlbumRequest struct {
 
 func (x *CreateAlbumRequest) Reset() {
 	*x = CreateAlbumRequest{}
-	mi := &file_proto_album_proto_msgTypes[0]
+	mi := &file_album_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -46,7 +46,7 @@ func (x *CreateAlbumRequest) String() string {
 func (*CreateAlbumRequest) ProtoMessage() {}
 
 func (x *CreateAlbumRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_album_proto_msgTypes[0]
+	mi := &file_album_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -59,7 +59,7 @@ func (x *CreateAlbumRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateAlbumRequest.ProtoReflect.Descriptor instead.
 func (*CreateAlbumRequest) Descriptor() ([]byte, []int) {
-	return file_proto_album_proto_rawDescGZIP(), []int{0}
+	return file_album_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *CreateAlbumRequest) GetTripId() uint64 {
@@ -99,7 +99,7 @@ type GetAlbumRequest struct {
 
 func (x *GetAlbumRequest) Reset() {
 	*x = GetAlbumRequest{}
-	mi := &file_proto_album_proto_msgTypes[1]
+	mi := &file_album_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -111,7 +111,7 @@ func (x *GetAlbumRequest) String() string {
 func (*GetAlbumRequest) ProtoMessage() {}
 
 func (x *GetAlbumRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_album_proto_msgTypes[1]
+	mi := &file_album_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -124,7 +124,7 @@ func (x *GetAlbumRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAlbumRequest.ProtoReflect.Descriptor instead.
 func (*GetAlbumRequest) Descriptor() ([]byte, []int) {
-	return file_proto_album_proto_rawDescGZIP(), []int{1}
+	return file_album_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *GetAlbumRequest) GetId() uint64 {
@@ -143,7 +143,7 @@ type GetAlbumByTripRequest struct {
 
 func (x *GetAlbumByTripRequest) Reset() {
 	*x = GetAlbumByTripRequest{}
-	mi := &file_proto_album_proto_msgTypes[2]
+	mi := &file_album_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -155,7 +155,7 @@ func (x *GetAlbumByTripRequest) String() string {
 func (*GetAlbumByTripRequest) ProtoMessage() {}
 
 func (x *GetAlbumByTripRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_album_proto_msgTypes[2]
+	mi := &file_album_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -168,7 +168,7 @@ func (x *GetAlbumByTripRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAlbumByTripRequest.ProtoReflect.Descriptor instead.
 func (*GetAlbumByTripRequest) Descriptor() ([]byte, []int) {
-	return file_proto_album_proto_rawDescGZIP(), []int{2}
+	return file_album_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *GetAlbumByTripRequest) GetTripId() uint64 {
@@ -190,7 +190,7 @@ type UpdateAlbumRequest struct {
 
 func (x *UpdateAlbumRequest) Reset() {
 	*x = UpdateAlbumRequest{}
-	mi := &file_proto_album_proto_msgTypes[3]
+	mi := &file_album_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -202,7 +202,7 @@ func (x *UpdateAlbumRequest) String() string {
 func (*UpdateAlbumRequest) ProtoMessage() {}
 
 func (x *UpdateAlbumRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_album_proto_msgTypes[3]
+	mi := &file_album_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -215,7 +215,7 @@ func (x *UpdateAlbumRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateAlbumRequest.ProtoReflect.Descriptor instead.
 func (*UpdateAlbumRequest) Descriptor() ([]byte, []int) {
-	return file_proto_album_proto_rawDescGZIP(), []int{3}
+	return file_album_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *UpdateAlbumRequest) GetId() uint64 {
@@ -255,7 +255,7 @@ type DeleteAlbumRequest struct {
 
 func (x *DeleteAlbumRequest) Reset() {
 	*x = DeleteAlbumRequest{}
-	mi := &file_proto_album_proto_msgTypes[4]
+	mi := &file_album_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -267,7 +267,7 @@ func (x *DeleteAlbumRequest) String() string {
 func (*DeleteAlbumRequest) ProtoMessage() {}
 
 func (x *DeleteAlbumRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_album_proto_msgTypes[4]
+	mi := &file_album_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -280,7 +280,7 @@ func (x *DeleteAlbumRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAlbumRequest.ProtoReflect.Descriptor instead.
 func (*DeleteAlbumRequest) Descriptor() ([]byte, []int) {
-	return file_proto_album_proto_rawDescGZIP(), []int{4}
+	return file_album_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *DeleteAlbumRequest) GetId() uint64 {
@@ -304,7 +304,7 @@ type Album struct {
 
 func (x *Album) Reset() {
 	*x = Album{}
-	mi := &file_proto_album_proto_msgTypes[5]
+	mi := &file_album_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -316,7 +316,7 @@ func (x *Album) String() string {
 func (*Album) ProtoMessage() {}
 
 func (x *Album) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_album_proto_msgTypes[5]
+	mi := &file_album_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -329,7 +329,7 @@ func (x *Album) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Album.ProtoReflect.Descriptor instead.
 func (*Album) Descriptor() ([]byte, []int) {
-	return file_proto_album_proto_rawDescGZIP(), []int{5}
+	return file_album_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Album) GetId() uint64 {
@@ -385,7 +385,7 @@ type AddPhotoRequest struct {
 
 func (x *AddPhotoRequest) Reset() {
 	*x = AddPhotoRequest{}
-	mi := &file_proto_album_proto_msgTypes[6]
+	mi := &file_album_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -397,7 +397,7 @@ func (x *AddPhotoRequest) String() string {
 func (*AddPhotoRequest) ProtoMessage() {}
 
 func (x *AddPhotoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_album_proto_msgTypes[6]
+	mi := &file_album_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -410,7 +410,7 @@ func (x *AddPhotoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddPhotoRequest.ProtoReflect.Descriptor instead.
 func (*AddPhotoRequest) Descriptor() ([]byte, []int) {
-	return file_proto_album_proto_rawDescGZIP(), []int{6}
+	return file_album_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *AddPhotoRequest) GetAlbumId() uint64 {
@@ -434,6 +434,111 @@ func (x *AddPhotoRequest) GetOrder() int32 {
 	return 0
 }
 
+// UploadPhotoRequest: путь к уже сохранённому файлу, album_id для связки
+type UploadPhotoRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AlbumId       uint64                 `protobuf:"varint,1,opt,name=album_id,json=albumId,proto3" json:"album_id,omitempty"`
+	FilePath      string                 `protobuf:"bytes,2,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UploadPhotoRequest) Reset() {
+	*x = UploadPhotoRequest{}
+	mi := &file_album_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UploadPhotoRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UploadPhotoRequest) ProtoMessage() {}
+
+func (x *UploadPhotoRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_album_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UploadPhotoRequest.ProtoReflect.Descriptor instead.
+func (*UploadPhotoRequest) Descriptor() ([]byte, []int) {
+	return file_album_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *UploadPhotoRequest) GetAlbumId() uint64 {
+	if x != nil {
+		return x.AlbumId
+	}
+	return 0
+}
+
+func (x *UploadPhotoRequest) GetFilePath() string {
+	if x != nil {
+		return x.FilePath
+	}
+	return ""
+}
+
+type UploadPhotoResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PhotoId       uint64                 `protobuf:"varint,1,opt,name=photo_id,json=photoId,proto3" json:"photo_id,omitempty"`
+	FileUrl       string                 `protobuf:"bytes,2,opt,name=file_url,json=fileUrl,proto3" json:"file_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UploadPhotoResponse) Reset() {
+	*x = UploadPhotoResponse{}
+	mi := &file_album_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UploadPhotoResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UploadPhotoResponse) ProtoMessage() {}
+
+func (x *UploadPhotoResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_album_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UploadPhotoResponse.ProtoReflect.Descriptor instead.
+func (*UploadPhotoResponse) Descriptor() ([]byte, []int) {
+	return file_album_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *UploadPhotoResponse) GetPhotoId() uint64 {
+	if x != nil {
+		return x.PhotoId
+	}
+	return 0
+}
+
+func (x *UploadPhotoResponse) GetFileUrl() string {
+	if x != nil {
+		return x.FileUrl
+	}
+	return ""
+}
+
 type RemovePhotoRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AlbumId       uint64                 `protobuf:"varint,1,opt,name=album_id,json=albumId,proto3" json:"album_id,omitempty"`
@@ -444,7 +549,7 @@ type RemovePhotoRequest struct {
 
 func (x *RemovePhotoRequest) Reset() {
 	*x = RemovePhotoRequest{}
-	mi := &file_proto_album_proto_msgTypes[7]
+	mi := &file_album_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -456,7 +561,7 @@ func (x *RemovePhotoRequest) String() string {
 func (*RemovePhotoRequest) ProtoMessage() {}
 
 func (x *RemovePhotoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_album_proto_msgTypes[7]
+	mi := &file_album_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -469,7 +574,7 @@ func (x *RemovePhotoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemovePhotoRequest.ProtoReflect.Descriptor instead.
 func (*RemovePhotoRequest) Descriptor() ([]byte, []int) {
-	return file_proto_album_proto_rawDescGZIP(), []int{7}
+	return file_album_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *RemovePhotoRequest) GetAlbumId() uint64 {
@@ -499,7 +604,7 @@ type AlbumPhoto struct {
 
 func (x *AlbumPhoto) Reset() {
 	*x = AlbumPhoto{}
-	mi := &file_proto_album_proto_msgTypes[8]
+	mi := &file_album_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -511,7 +616,7 @@ func (x *AlbumPhoto) String() string {
 func (*AlbumPhoto) ProtoMessage() {}
 
 func (x *AlbumPhoto) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_album_proto_msgTypes[8]
+	mi := &file_album_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -524,7 +629,7 @@ func (x *AlbumPhoto) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AlbumPhoto.ProtoReflect.Descriptor instead.
 func (*AlbumPhoto) Descriptor() ([]byte, []int) {
-	return file_proto_album_proto_rawDescGZIP(), []int{8}
+	return file_album_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *AlbumPhoto) GetAlbumId() uint64 {
@@ -571,7 +676,7 @@ type GetAlbumPhotosRequest struct {
 
 func (x *GetAlbumPhotosRequest) Reset() {
 	*x = GetAlbumPhotosRequest{}
-	mi := &file_proto_album_proto_msgTypes[9]
+	mi := &file_album_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -583,7 +688,7 @@ func (x *GetAlbumPhotosRequest) String() string {
 func (*GetAlbumPhotosRequest) ProtoMessage() {}
 
 func (x *GetAlbumPhotosRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_album_proto_msgTypes[9]
+	mi := &file_album_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -596,7 +701,7 @@ func (x *GetAlbumPhotosRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAlbumPhotosRequest.ProtoReflect.Descriptor instead.
 func (*GetAlbumPhotosRequest) Descriptor() ([]byte, []int) {
-	return file_proto_album_proto_rawDescGZIP(), []int{9}
+	return file_album_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetAlbumPhotosRequest) GetAlbumId() uint64 {
@@ -615,7 +720,7 @@ type GetAlbumPhotosResponse struct {
 
 func (x *GetAlbumPhotosResponse) Reset() {
 	*x = GetAlbumPhotosResponse{}
-	mi := &file_proto_album_proto_msgTypes[10]
+	mi := &file_album_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -627,7 +732,7 @@ func (x *GetAlbumPhotosResponse) String() string {
 func (*GetAlbumPhotosResponse) ProtoMessage() {}
 
 func (x *GetAlbumPhotosResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_album_proto_msgTypes[10]
+	mi := &file_album_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -640,7 +745,7 @@ func (x *GetAlbumPhotosResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAlbumPhotosResponse.ProtoReflect.Descriptor instead.
 func (*GetAlbumPhotosResponse) Descriptor() ([]byte, []int) {
-	return file_proto_album_proto_rawDescGZIP(), []int{10}
+	return file_album_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetAlbumPhotosResponse) GetPhotos() []*AlbumPhoto {
@@ -650,11 +755,11 @@ func (x *GetAlbumPhotosResponse) GetPhotos() []*AlbumPhoto {
 	return nil
 }
 
-var File_proto_album_proto protoreflect.FileDescriptor
+var File_album_proto protoreflect.FileDescriptor
 
-const file_proto_album_proto_rawDesc = "" +
+const file_album_proto_rawDesc = "" +
 	"\n" +
-	"\x11proto/album.proto\x12\x05album\x1a\x1bgoogle/protobuf/empty.proto\"\x82\x01\n" +
+	"\valbum.proto\x12\x05album\x1a\x1bgoogle/protobuf/empty.proto\"\x82\x01\n" +
 	"\x12CreateAlbumRequest\x12\x17\n" +
 	"\atrip_id\x18\x01 \x01(\x04R\x06tripId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -685,7 +790,13 @@ const file_proto_album_proto_rawDesc = "" +
 	"\x0fAddPhotoRequest\x12\x19\n" +
 	"\balbum_id\x18\x01 \x01(\x04R\aalbumId\x12\x19\n" +
 	"\bphoto_id\x18\x02 \x01(\x04R\aphotoId\x12\x14\n" +
-	"\x05order\x18\x03 \x01(\x05R\x05order\"J\n" +
+	"\x05order\x18\x03 \x01(\x05R\x05order\"L\n" +
+	"\x12UploadPhotoRequest\x12\x19\n" +
+	"\balbum_id\x18\x01 \x01(\x04R\aalbumId\x12\x1b\n" +
+	"\tfile_path\x18\x02 \x01(\tR\bfilePath\"K\n" +
+	"\x13UploadPhotoResponse\x12\x19\n" +
+	"\bphoto_id\x18\x01 \x01(\x04R\aphotoId\x12\x19\n" +
+	"\bfile_url\x18\x02 \x01(\tR\afileUrl\"J\n" +
 	"\x12RemovePhotoRequest\x12\x19\n" +
 	"\balbum_id\x18\x01 \x01(\x04R\aalbumId\x12\x19\n" +
 	"\bphoto_id\x18\x02 \x01(\x04R\aphotoId\"\x9d\x01\n" +
@@ -696,35 +807,37 @@ const file_proto_album_proto_rawDesc = "" +
 	"\vorder_index\x18\x03 \x01(\x05R\n" +
 	"orderIndex\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\x04 \x01(\tR\tcreatedAt\x12\x19\nfile_url\x18\x05 \x01(\tR\afileUrl\"2\n" +
+	"created_at\x18\x04 \x01(\tR\tcreatedAt\x12\x19\n" +
+	"\bfile_url\x18\x05 \x01(\tR\afileUrl\"2\n" +
 	"\x15GetAlbumPhotosRequest\x12\x19\n" +
 	"\balbum_id\x18\x01 \x01(\x04R\aalbumId\"C\n" +
 	"\x16GetAlbumPhotosResponse\x12)\n" +
-	"\x06photos\x18\x01 \x03(\v2\x11.album.AlbumPhotoR\x06photos2\xda\x03\n" +
+	"\x06photos\x18\x01 \x03(\v2\x11.album.AlbumPhotoR\x06photos2\xa0\x04\n" +
 	"\fAlbumService\x121\n" +
 	"\x06Create\x12\x19.album.CreateAlbumRequest\x1a\f.album.Album\x12+\n" +
 	"\x03Get\x12\x16.album.GetAlbumRequest\x1a\f.album.Album\x127\n" +
 	"\tGetByTrip\x12\x1c.album.GetAlbumByTripRequest\x1a\f.album.Album\x121\n" +
 	"\x06Update\x12\x19.album.UpdateAlbumRequest\x1a\f.album.Album\x12;\n" +
-	"\x06Delete\x12\x19.album.DeleteAlbumRequest\x1a\x16.google.protobuf.Empty\x125\n" +
+	"\x06Delete\x12\x19.album.DeleteAlbumRequest\x1a\x16.google.protobuf.Empty\x12D\n" +
+	"\vUploadPhoto\x12\x19.album.UploadPhotoRequest\x1a\x1a.album.UploadPhotoResponse\x125\n" +
 	"\bAddPhoto\x12\x16.album.AddPhotoRequest\x1a\x11.album.AlbumPhoto\x12@\n" +
 	"\vRemovePhoto\x12\x19.album.RemovePhotoRequest\x1a\x16.google.protobuf.Empty\x12H\n" +
 	"\tGetPhotos\x12\x1c.album.GetAlbumPhotosRequest\x1a\x1d.album.GetAlbumPhotosResponseB\x0eZ\fpkg/pb/albumb\x06proto3"
 
 var (
-	file_proto_album_proto_rawDescOnce sync.Once
-	file_proto_album_proto_rawDescData []byte
+	file_album_proto_rawDescOnce sync.Once
+	file_album_proto_rawDescData []byte
 )
 
-func file_proto_album_proto_rawDescGZIP() []byte {
-	file_proto_album_proto_rawDescOnce.Do(func() {
-		file_proto_album_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_album_proto_rawDesc), len(file_proto_album_proto_rawDesc)))
+func file_album_proto_rawDescGZIP() []byte {
+	file_album_proto_rawDescOnce.Do(func() {
+		file_album_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_album_proto_rawDesc), len(file_album_proto_rawDesc)))
 	})
-	return file_proto_album_proto_rawDescData
+	return file_album_proto_rawDescData
 }
 
-var file_proto_album_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
-var file_proto_album_proto_goTypes = []any{
+var file_album_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_album_proto_goTypes = []any{
 	(*CreateAlbumRequest)(nil),     // 0: album.CreateAlbumRequest
 	(*GetAlbumRequest)(nil),        // 1: album.GetAlbumRequest
 	(*GetAlbumByTripRequest)(nil),  // 2: album.GetAlbumByTripRequest
@@ -732,58 +845,62 @@ var file_proto_album_proto_goTypes = []any{
 	(*DeleteAlbumRequest)(nil),     // 4: album.DeleteAlbumRequest
 	(*Album)(nil),                  // 5: album.Album
 	(*AddPhotoRequest)(nil),        // 6: album.AddPhotoRequest
-	(*RemovePhotoRequest)(nil),     // 7: album.RemovePhotoRequest
-	(*AlbumPhoto)(nil),             // 8: album.AlbumPhoto
-	(*GetAlbumPhotosRequest)(nil),  // 9: album.GetAlbumPhotosRequest
-	(*GetAlbumPhotosResponse)(nil), // 10: album.GetAlbumPhotosResponse
-	(*emptypb.Empty)(nil),          // 11: google.protobuf.Empty
+	(*UploadPhotoRequest)(nil),     // 7: album.UploadPhotoRequest
+	(*UploadPhotoResponse)(nil),    // 8: album.UploadPhotoResponse
+	(*RemovePhotoRequest)(nil),     // 9: album.RemovePhotoRequest
+	(*AlbumPhoto)(nil),             // 10: album.AlbumPhoto
+	(*GetAlbumPhotosRequest)(nil),  // 11: album.GetAlbumPhotosRequest
+	(*GetAlbumPhotosResponse)(nil), // 12: album.GetAlbumPhotosResponse
+	(*emptypb.Empty)(nil),          // 13: google.protobuf.Empty
 }
-var file_proto_album_proto_depIdxs = []int32{
-	8,  // 0: album.GetAlbumPhotosResponse.photos:type_name -> album.AlbumPhoto
+var file_album_proto_depIdxs = []int32{
+	10, // 0: album.GetAlbumPhotosResponse.photos:type_name -> album.AlbumPhoto
 	0,  // 1: album.AlbumService.Create:input_type -> album.CreateAlbumRequest
 	1,  // 2: album.AlbumService.Get:input_type -> album.GetAlbumRequest
 	2,  // 3: album.AlbumService.GetByTrip:input_type -> album.GetAlbumByTripRequest
 	3,  // 4: album.AlbumService.Update:input_type -> album.UpdateAlbumRequest
 	4,  // 5: album.AlbumService.Delete:input_type -> album.DeleteAlbumRequest
-	6,  // 6: album.AlbumService.AddPhoto:input_type -> album.AddPhotoRequest
-	7,  // 7: album.AlbumService.RemovePhoto:input_type -> album.RemovePhotoRequest
-	9,  // 8: album.AlbumService.GetPhotos:input_type -> album.GetAlbumPhotosRequest
-	5,  // 9: album.AlbumService.Create:output_type -> album.Album
-	5,  // 10: album.AlbumService.Get:output_type -> album.Album
-	5,  // 11: album.AlbumService.GetByTrip:output_type -> album.Album
-	5,  // 12: album.AlbumService.Update:output_type -> album.Album
-	11, // 13: album.AlbumService.Delete:output_type -> google.protobuf.Empty
-	8,  // 14: album.AlbumService.AddPhoto:output_type -> album.AlbumPhoto
-	11, // 15: album.AlbumService.RemovePhoto:output_type -> google.protobuf.Empty
-	10, // 16: album.AlbumService.GetPhotos:output_type -> album.GetAlbumPhotosResponse
-	9,  // [9:17] is the sub-list for method output_type
-	1,  // [1:9] is the sub-list for method input_type
+	7,  // 6: album.AlbumService.UploadPhoto:input_type -> album.UploadPhotoRequest
+	6,  // 7: album.AlbumService.AddPhoto:input_type -> album.AddPhotoRequest
+	9,  // 8: album.AlbumService.RemovePhoto:input_type -> album.RemovePhotoRequest
+	11, // 9: album.AlbumService.GetPhotos:input_type -> album.GetAlbumPhotosRequest
+	5,  // 10: album.AlbumService.Create:output_type -> album.Album
+	5,  // 11: album.AlbumService.Get:output_type -> album.Album
+	5,  // 12: album.AlbumService.GetByTrip:output_type -> album.Album
+	5,  // 13: album.AlbumService.Update:output_type -> album.Album
+	13, // 14: album.AlbumService.Delete:output_type -> google.protobuf.Empty
+	8,  // 15: album.AlbumService.UploadPhoto:output_type -> album.UploadPhotoResponse
+	10, // 16: album.AlbumService.AddPhoto:output_type -> album.AlbumPhoto
+	13, // 17: album.AlbumService.RemovePhoto:output_type -> google.protobuf.Empty
+	12, // 18: album.AlbumService.GetPhotos:output_type -> album.GetAlbumPhotosResponse
+	10, // [10:19] is the sub-list for method output_type
+	1,  // [1:10] is the sub-list for method input_type
 	1,  // [1:1] is the sub-list for extension type_name
 	1,  // [1:1] is the sub-list for extension extendee
 	0,  // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_proto_album_proto_init() }
-func file_proto_album_proto_init() {
-	if File_proto_album_proto != nil {
+func init() { file_album_proto_init() }
+func file_album_proto_init() {
+	if File_album_proto != nil {
 		return
 	}
-	file_proto_album_proto_msgTypes[5].OneofWrappers = []any{}
+	file_album_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_album_proto_rawDesc), len(file_proto_album_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_album_proto_rawDesc), len(file_album_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_proto_album_proto_goTypes,
-		DependencyIndexes: file_proto_album_proto_depIdxs,
-		MessageInfos:      file_proto_album_proto_msgTypes,
+		GoTypes:           file_album_proto_goTypes,
+		DependencyIndexes: file_album_proto_depIdxs,
+		MessageInfos:      file_album_proto_msgTypes,
 	}.Build()
-	File_proto_album_proto = out.File
-	file_proto_album_proto_goTypes = nil
-	file_proto_album_proto_depIdxs = nil
+	File_album_proto = out.File
+	file_album_proto_goTypes = nil
+	file_album_proto_depIdxs = nil
 }
