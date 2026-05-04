@@ -209,7 +209,7 @@ func (h *AlbumHandler) AddPhoto(w http.ResponseWriter, r *http.Request) {
 	}
 	filename := fmt.Sprintf("%d_%d%s", albumID, time.Now().UnixNano(), ext)
 	savePath := filepath.Join(uploadDir, filename)
-	relativePath := "uploads/photos/" + filename
+	relativePath := "/uploads/photos/" + filename
 
 	// Сохраняем файл
 	dst, err := os.Create(savePath)
