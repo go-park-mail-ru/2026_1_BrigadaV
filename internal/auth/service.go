@@ -55,19 +55,7 @@ func (s *authService) Register(ctx context.Context, in RegisterInput) (*models.U
 	if err := s.userRepo.Create(ctx, user); err != nil {
 		return nil, "", err
 	}
-	token, err := utils.GenerateSessionToken()
-	if err != nil {
-		return nil, "", err
-	}
-	session := &models.Session{
-		UserID:    user.ID,
-		TokenHash: utils.HashToken(token),
-		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
-	}
-	if err := s.sessionRepo.Create(ctx, session); err != nil {
-		return nil, "", err
-	}
-	return user, token, nil
+	return user, "", nil
 }
 
 func (s *authService) Login(ctx context.Context, in LoginInput) (*models.User, string, error) {

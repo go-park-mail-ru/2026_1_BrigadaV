@@ -45,17 +45,12 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// After successful registration, log in to get a real session token.
-	// RegisterResponse cannot carry the token through gRPC (rawDesc doesn't include it),
-	// so we call Login explicitly — it creates a session and returns the token correctly.
 	loginResp, err := h.client.Login(r.Context(), &pb.LoginRequest{
 		Login:    req.Login,
 		Password: req.Password,
 	})
 	if err != nil {
 		log.Printf("auto-login after register gRPC error: %v", err)
-		// User was created but we couldn't create a session — still return 201,
-		// the client will need to log in manually.
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -67,6 +62,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
 		Value:    loginResp.Token,
+		MaxAge:   7 * 24 * 60 * 60, // 7 days in seconds
 		Expires:  time.Now().Add(7 * 24 * time.Hour),
 		HttpOnly: true,
 		Secure:   false,
@@ -109,6 +105,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
 		Value:    resp.Token,
+		MaxAge:   7 * 24 * 60 * 60, // 7 days in seconds
 		Expires:  time.Now().Add(7 * 24 * time.Hour),
 		HttpOnly: true,
 		Secure:   false,
@@ -135,10 +132,12 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.SetCookie(w, &http.Cookie{
-		Name:   "session_token",
-		Value:  "",
-		Path:   "/",
-		MaxAge: -1,
+		Name:     "session_token",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
 	})
 	w.WriteHeader(http.StatusNoContent)
 }
