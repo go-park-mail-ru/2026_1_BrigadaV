@@ -59,6 +59,7 @@ func (h *PlaceHandler) List(w http.ResponseWriter, r *http.Request) {
 			},
 			CreatedAt: p.CreatedAt,
 			UpdatedAt: p.UpdatedAt,
+			PhotoURL: p.PhotoURL,
 		}
 		if p.Category.ID != 0 {
 			pr.Category = &dto.CategoryDTO{
@@ -216,6 +217,7 @@ func (h *PlaceHandler) Search(w http.ResponseWriter, r *http.Request) {
 				},
 				CreatedAt: p.CreatedAt,
 				UpdatedAt: p.UpdatedAt,
+				PhotoURL: p.PhotoURL,
 			}
 			filtered = append(filtered, pr)
 		}
