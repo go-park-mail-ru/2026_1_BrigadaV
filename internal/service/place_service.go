@@ -19,6 +19,10 @@ func (s *placeServiceImpl) GetAll(ctx context.Context) ([]models.Place, error) {
 	return s.placeRepo.GetAll(ctx)
 }
 
+func (s *placeServiceImpl) GetByCategory(ctx context.Context, categoryID uint64) ([]models.Place, error) {
+	return s.placeRepo.GetByCategory(ctx, categoryID)
+}
+
 func (s *placeServiceImpl) GetDetails(ctx context.Context, placeID, userID uint64) (*models.PlaceWithRating, error) {
 	return s.placeRepo.GetWithRatingAndLike(ctx, placeID, userID)
 }

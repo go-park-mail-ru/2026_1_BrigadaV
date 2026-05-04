@@ -9,6 +9,7 @@ import (
 	"guidely-app/internal/dto"
 	"guidely-app/internal/logger"
 	"guidely-app/internal/service"
+	"guidely-app/pkg/models"
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -27,7 +28,22 @@ func NewPlaceHandler(placeService service.PlaceService, tripService service.Trip
 }
 
 func (h *PlaceHandler) List(w http.ResponseWriter, r *http.Request) {
-	places, err := h.placeService.GetAll(r.Context())
+	var places []models.Place
+	var err error
+
+	categoryIDStr := r.URL.Query().Get("category_id")
+	if categoryIDStr != "" {
+		categoryID, parseErr := strconv.ParseUint(categoryIDStr, 10, 64)
+		if parseErr != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid category_id"})
+			return
+		}
+		places, err = h.placeService.GetByCategory(r.Context(), categoryID)
+	} else {
+		places, err = h.placeService.GetAll(r.Context())
+	}
+
 	if err != nil {
 		logger.Error(r.Context(), "Failed to fetch places", logrus.Fields{"error": err})
 		w.WriteHeader(http.StatusInternalServerError)
@@ -196,7 +212,6 @@ func (h *PlaceHandler) Search(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "failed to search places"})
 		return
 	}
-	// Filter in memory by query (LIKE emulation; replace with repo.Search for DB-level search)
 	var filtered []dto.PlaceResponse
 	queryLower := strings.ToLower(query)
 	for _, p := range places {

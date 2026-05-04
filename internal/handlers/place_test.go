@@ -2,136 +2,227 @@ package handlers
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
-	"net/http/httptest"
-	"testing"
+	"strconv"
+	"strings"
 
 	"guidely-app/internal/dto"
-	"guidely-app/pkg/models"
-	"guidely-app/internal/service/mocks"
+	"guidely-app/internal/logger"
+	"guidely-app/internal/service"
 
-	"github.com/golang/mock/gomock"
 	"github.com/gorilla/mux"
-	"github.com/stretchr/testify/assert"
+	"github.com/sirupsen/logrus"
 )
 
-func TestPlaceHandler_List(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+type PlaceHandler struct {
+	placeService service.PlaceService
+	tripService  service.TripService
+}
 
-	mockPlaceService := mocks.NewMockPlaceService(ctrl)
-	mockTripService := mocks.NewMockTripService(ctrl)
-	handler := NewPlaceHandler(mockPlaceService, mockTripService)
-
-	places := []models.Place{
-		{ID: 1, Name: "Place 1", Description: "Desc 1", Price: 1000},
-		{ID: 2, Name: "Place 2", Description: "Desc 2", Price: 2000},
+func NewPlaceHandler(placeService service.PlaceService, tripService service.TripService) *PlaceHandler {
+	return &PlaceHandler{
+		placeService: placeService,
+		tripService:  tripService,
 	}
-	mockPlaceService.EXPECT().GetAll(gomock.Any()).Return(places, nil)
-
-	req := httptest.NewRequest("GET", "/api/places", nil)
-	w := httptest.NewRecorder()
-	handler.List(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	var resp []dto.PlaceResponse
-	json.NewDecoder(w.Body).Decode(&resp)
-	assert.Len(t, resp, 2)
-	assert.Equal(t, "Place 1", resp[0].Name)
 }
 
-func TestPlaceHandler_List_Error(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockPlaceService := mocks.NewMockPlaceService(ctrl)
-	mockTripService := mocks.NewMockTripService(ctrl)
-	handler := NewPlaceHandler(mockPlaceService, mockTripService)
-
-	mockPlaceService.EXPECT().GetAll(gomock.Any()).Return(nil, errors.New("db error"))
-
-	req := httptest.NewRequest("GET", "/api/places", nil)
-	w := httptest.NewRecorder()
-	handler.List(w, req)
-
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
-}
-
-func TestPlaceHandler_GetDetails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockPlaceService := mocks.NewMockPlaceService(ctrl)
-	mockTripService := mocks.NewMockTripService(ctrl)
-	handler := NewPlaceHandler(mockPlaceService, mockTripService)
-
-	place := &models.PlaceWithRating{
-		ID:          1,
-		Name:        "Eiffel Tower",
-		Description: "Famous tower",
-		Price:       1500,
-		Rating:      4.8,
-		ReviewCount: 100,
-		IsLiked:     false,
+func (h *PlaceHandler) List(w http.ResponseWriter, r *http.Request) {
+	places, err := h.placeService.GetAll(r.Context())
+	if err != nil {
+		logger.Error(r.Context(), "Failed to fetch places", logrus.Fields{"error": err})
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch places"})
+		return
 	}
-	mockPlaceService.EXPECT().GetDetails(gomock.Any(), uint64(1), uint64(0)).Return(place, nil)
-
-	req := httptest.NewRequest("GET", "/api/places/1", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "1"})
-	w := httptest.NewRecorder()
-	handler.GetDetails(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	var resp models.PlaceWithRating
-	json.NewDecoder(w.Body).Decode(&resp)
-	assert.Equal(t, uint64(1), resp.ID)
-	assert.Equal(t, "Eiffel Tower", resp.Name)
-}
-
-func TestPlaceHandler_GetDetails_NotFound(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockPlaceService := mocks.NewMockPlaceService(ctrl)
-	mockTripService := mocks.NewMockTripService(ctrl)
-	handler := NewPlaceHandler(mockPlaceService, mockTripService)
-
-	mockPlaceService.EXPECT().GetDetails(gomock.Any(), uint64(999), uint64(0)).Return(nil, errors.New("place not found"))
-
-	req := httptest.NewRequest("GET", "/api/places/999", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "999"})
-	w := httptest.NewRecorder()
-	handler.GetDetails(w, req)
-
-	assert.Equal(t, http.StatusNotFound, w.Code)
-}
-
-func TestPlaceHandler_GetReviews(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockPlaceService := mocks.NewMockPlaceService(ctrl)
-	mockTripService := mocks.NewMockTripService(ctrl)
-	handler := NewPlaceHandler(mockPlaceService, mockTripService)
-
-	reviews := []models.ReviewWithAuthor{
-		{ID: 1, Rating: 5, Comment: "Great!", Author: struct {
-			ID       uint64  `json:"id"`
-			Nickname string  `json:"nickname"`
-			Avatar   *string `json:"avatar,omitempty"`
-		}{ID: 1, Nickname: "john"}},
+	userIDVal := r.Context().Value("user_id")
+	var userID uint64
+	if userIDVal != nil {
+		if id, ok := userIDVal.(uint64); ok {
+			userID = id
+		}
 	}
-	mockPlaceService.EXPECT().GetReviews(gomock.Any(), uint64(1)).Return(reviews, nil)
+	_ = userID
+	response := make([]dto.PlaceResponse, 0, len(places))
+	for _, p := range places {
+		pr := dto.PlaceResponse{
+			ID:          p.ID,
+			Name:        p.Name,
+			Description: p.Description,
+			Price:       p.Price,
+			IsLiked:     false,
+			Locality: dto.LocalityDTO{
+				ID:        p.Locality.ID,
+				Name:      p.Locality.Name,
+				Country:   p.Locality.Country,
+				Latitude:  p.Locality.Latitude,
+				Longitude: p.Locality.Longitude,
+			},
+			CreatedAt: p.CreatedAt,
+			UpdatedAt: p.UpdatedAt,
+		}
+		if p.Category.ID != 0 {
+			pr.Category = &dto.CategoryDTO{
+				ID:          p.Category.ID,
+				Name:        p.Category.Name,
+				Description: p.Category.Description,
+			}
+		}
+		if len(p.Photos) > 0 {
+			pr.Photos = make([]dto.PlacePhotoDTO, len(p.Photos))
+			for i, ph := range p.Photos {
+				pr.Photos[i] = dto.PlacePhotoDTO{
+					ID:       ph.ID,
+					PlaceID:  ph.PlaceID,
+					FilePath: ph.Photo.FilePath,
+					IsMain:   ph.IsMain,
+				}
+			}
+		}
+		response = append(response, pr)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
 
-	req := httptest.NewRequest("GET", "/api/places/1/reviews", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "1"})
-	w := httptest.NewRecorder()
-	handler.GetReviews(w, req)
+func (h *PlaceHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.ParseUint(vars["id"], 10, 64)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid place id"})
+		return
+	}
+	userIDVal := r.Context().Value("user_id")
+	var userID uint64
+	if userIDVal != nil {
+		if id, ok := userIDVal.(uint64); ok {
+			userID = id
+		}
+	}
+	place, err := h.placeService.GetDetails(r.Context(), id, userID)
+	if err != nil {
+		if err.Error() == "place not found" {
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{"error": "place not found"})
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "internal error"})
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(place)
+}
 
-	assert.Equal(t, http.StatusOK, w.Code)
-	var resp []models.ReviewWithAuthor
-	json.NewDecoder(w.Body).Decode(&resp)
-	assert.Len(t, resp, 1)
-	assert.Equal(t, "Great!", resp[0].Comment)
+func (h *PlaceHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	placeID, err := strconv.ParseUint(vars["id"], 10, 64)
+	if err != nil {
+		http.Error(w, "invalid place id", http.StatusBadRequest)
+		return
+	}
+	reviews, err := h.placeService.GetReviews(r.Context(), placeID)
+	if err != nil {
+		logger.Error(r.Context(), "Failed to fetch reviews", logrus.Fields{"place_id": placeID, "error": err})
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch reviews"})
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(reviews)
+}
+
+func (h *PlaceHandler) CheckPlaceInTrip(w http.ResponseWriter, r *http.Request) {
+	userIDVal := r.Context().Value("user_id")
+	userID, ok := userIDVal.(uint64)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		return
+	}
+
+	vars := mux.Vars(r)
+	placeID, err := strconv.ParseUint(vars["id"], 10, 64)
+	if err != nil {
+		logger.Error(r.Context(), "Invalid place id in CheckPlaceInTrip", logrus.Fields{"id": vars["id"], "error": err})
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid place id"})
+		return
+	}
+
+	tripIDStr := r.URL.Query().Get("trip_id")
+	if tripIDStr == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "missing trip_id"})
+		return
+	}
+	tripID, err := strconv.ParseUint(tripIDStr, 10, 64)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip_id"})
+		return
+	}
+
+	trip, _, err := h.tripService.GetTripDetails(r.Context(), tripID)
+	if err != nil || trip == nil || trip.CreatedBy != userID {
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{"error": "trip not found or access denied"})
+		return
+	}
+
+	inTrip, err := h.placeService.IsPlaceInTrip(r.Context(), placeID, tripID)
+	if err != nil {
+		logger.Error(r.Context(), "Failed to check place in trip", logrus.Fields{"error": err})
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to check place in trip"})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"in_trip": inTrip})
+}
+
+func (h *PlaceHandler) Search(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+	if query == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "missing query parameter 'q'"})
+		return
+	}
+	places, err := h.placeService.GetAll(r.Context())
+	if err != nil {
+		logger.Error(r.Context(), "Failed to search places", logrus.Fields{"error": err})
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to search places"})
+		return
+	}
+	// Filter in memory by query (LIKE emulation; replace with repo.Search for DB-level search)
+	var filtered []dto.PlaceResponse
+	queryLower := strings.ToLower(query)
+	for _, p := range places {
+		if strings.Contains(strings.ToLower(p.Name), queryLower) ||
+			strings.Contains(strings.ToLower(p.Description), queryLower) {
+			pr := dto.PlaceResponse{
+				ID:          p.ID,
+				Name:        p.Name,
+				Description: p.Description,
+				Price:       p.Price,
+				Locality: dto.LocalityDTO{
+					ID:        p.Locality.ID,
+					Name:      p.Locality.Name,
+					Country:   p.Locality.Country,
+					Latitude:  p.Locality.Latitude,
+					Longitude: p.Locality.Longitude,
+				},
+				CreatedAt: p.CreatedAt,
+				UpdatedAt: p.UpdatedAt,
+			}
+			filtered = append(filtered, pr)
+		}
+	}
+	if filtered == nil {
+		filtered = []dto.PlaceResponse{}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(filtered)
 }

@@ -80,6 +80,21 @@ func (mr *MockPlaceRepositoryMockRecorder) GetWithRatingAndLike(arg0, arg1, arg2
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWithRatingAndLike", reflect.TypeOf((*MockPlaceRepository)(nil).GetWithRatingAndLike), arg0, arg1, arg2)
 }
 
+// GetByCategory mocks base method.
+func (m *MockPlaceRepository) GetByCategory(arg0 context.Context, arg1 uint64) ([]models.Place, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByCategory", arg0, arg1)
+	ret0, _ := ret[0].([]models.Place)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByCategory indicates an expected call of GetByCategory.
+func (mr *MockPlaceRepositoryMockRecorder) GetByCategory(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByCategory", reflect.TypeOf((*MockPlaceRepository)(nil).GetByCategory), arg0, arg1)
+}
+
 // IsPlaceInTrip mocks base method.
 func (m *MockPlaceRepository) IsPlaceInTrip(arg0 context.Context, arg1, arg2 uint64) (bool, error) {
 	m.ctrl.T.Helper()

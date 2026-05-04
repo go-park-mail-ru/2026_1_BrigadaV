@@ -4,8 +4,8 @@ package mocks
 
 import (
 	context "context"
-	models "guidely-app/pkg/models"
 	service "guidely-app/internal/service"
+	models "guidely-app/pkg/models"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -42,6 +42,19 @@ func (m *MockPlaceService) GetAll(arg0 context.Context) ([]models.Place, error) 
 func (mr *MockPlaceServiceMockRecorder) GetAll(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockPlaceService)(nil).GetAll), arg0)
+}
+
+func (m *MockPlaceService) GetByCategory(arg0 context.Context, arg1 uint64) ([]models.Place, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByCategory", arg0, arg1)
+	ret0, _ := ret[0].([]models.Place)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (mr *MockPlaceServiceMockRecorder) GetByCategory(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByCategory", reflect.TypeOf((*MockPlaceService)(nil).GetByCategory), arg0, arg1)
 }
 
 func (m *MockPlaceService) GetDetails(arg0 context.Context, arg1, arg2 uint64) (*models.PlaceWithRating, error) {
