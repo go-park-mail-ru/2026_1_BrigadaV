@@ -27,7 +27,7 @@ func (r *CategoryRepo) GetAll(ctx context.Context) ([]models.Category, error) {
 	var categories []models.Category
 	for rows.Next() {
 		var c models.Category
-		if err := rows.Scan(&c.ID, &c.Name, &c.Description, pq.Array(&c.ApplicableTypes), &c.CreatedAt); err != nil {
+		if err := rows.Scan(&c.ID, &c.Name, &c.Description, pq.Array(c.ApplicableTypes), &c.CreatedAt); err != nil {
 			return nil, err
 		}
 		categories = append(categories, c)
@@ -38,7 +38,7 @@ func (r *CategoryRepo) GetAll(ctx context.Context) ([]models.Category, error) {
 func (r *CategoryRepo) GetByID(ctx context.Context, id uint64) (*models.Category, error) {
 	query := `SELECT id, name, description, applicable_types, created_at FROM category WHERE id = $1`
 	var c models.Category
-	err := r.db.QueryRow(ctx, query, id).Scan(&c.ID, &c.Name, &c.Description, pq.Array(&c.ApplicableTypes), &c.CreatedAt)
+	err := r.db.QueryRow(ctx, query, id).Scan(&c.ID, &c.Name, &c.Description, pq.Array(c.ApplicableTypes), &c.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
