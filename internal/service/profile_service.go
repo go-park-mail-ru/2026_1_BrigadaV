@@ -1,8 +1,8 @@
 package service
 
 import (
-	"errors"
 	"context"
+	"errors"
 	"guidely-app/internal/logger"
 	"guidely-app/internal/models"
 	"guidely-app/internal/repository"
@@ -49,7 +49,7 @@ func (s *profileService) UpdateProfile(ctx context.Context, userID uint64, input
 		user.Login = *input.Login
 	}
 
-if input.Nickname != nil && *input.Nickname != user.Nickname {
+	if input.Nickname != nil && *input.Nickname != user.Nickname {
 		existing, err := s.userRepo.GetByNickname(ctx, *input.Nickname)
 		if err != nil {
 			return nil, err
@@ -60,9 +60,6 @@ if input.Nickname != nil && *input.Nickname != user.Nickname {
 		user.Nickname = *input.Nickname
 	}
 
-	if input.Nickname != nil {
-		user.Nickname = *input.Nickname
-	}
 	if input.AvatarURL != nil {
 		user.AvatarURL = *input.AvatarURL
 	}
@@ -75,6 +72,7 @@ if input.Nickname != nil && *input.Nickname != user.Nickname {
 	if input.About != nil {
 		user.About = input.About
 	}
+
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		return nil, err
 	}

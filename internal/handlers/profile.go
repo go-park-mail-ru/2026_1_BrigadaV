@@ -6,8 +6,8 @@ import (
 	"guidely-app/internal/logger"
 	"guidely-app/internal/service"
 	"guidely-app/internal/storage"
-	"path/filepath"
 	"net/http"
+	"path/filepath"
 	"strings"
 
 	"github.com/sirupsen/logrus"
@@ -43,6 +43,7 @@ func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	response := dto.ProfileResponse{
 		ID:         user.ID,
 		Nickname:   user.Nickname,
+		Login:      user.Login,
 		AvatarURL:  user.AvatarURL,
 		Country:    user.Country,
 		City:       user.City,
@@ -71,6 +72,7 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	input := service.UpdateProfileInput{
 		Nickname:  req.Nickname,
+		Login:     req.Login,
 		AvatarURL: req.AvatarURL,
 		Country:   req.Country,
 		City:      req.City,
@@ -79,14 +81,24 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	user, err := h.profileService.UpdateProfile(r.Context(), userID, input)
 	if err != nil {
 		logger.Error(r.Context(), "UpdateProfile failed", logrus.Fields{"error": err, "user_id": userID})
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		status := http.StatusBadRequest
+		resp := map[string]string{"error": err.Error()}
+		if err.Error() == "login already exists" {
+			resp["field"] = "login"
+		} else if err.Error() == "nickname already exists" {
+			resp["field"] = "nickname"
+		}
+		if resp["field"] != "" {
+			status = http.StatusConflict
+		}
+		w.WriteHeader(status)
+		json.NewEncoder(w).Encode(resp)
 		return
 	}
 	response := dto.ProfileResponse{
 		ID:         user.ID,
 		Nickname:   user.Nickname,
-		Login: 			user.Login,
+		Login:      user.Login,
 		AvatarURL:  user.AvatarURL,
 		Country:    user.Country,
 		City:       user.City,
@@ -159,7 +171,7 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	response := dto.ProfileResponse{
 		ID:         updatedUser.ID,
 		Nickname:   updatedUser.Nickname,
-		Login: 			updatedUser.Login,
+		Login:      updatedUser.Login,
 		AvatarURL:  updatedUser.AvatarURL,
 		Country:    updatedUser.Country,
 		City:       updatedUser.City,
@@ -200,7 +212,7 @@ func (h *ProfileHandler) GetAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filePath := strings.TrimPrefix(user.AvatarURL, "/uploads/")
-	fullPath := "./uploads/" + filePath
+	fullPath := filepath.Join("./uploads", filePath)
 
 	ext := strings.ToLower(filepath.Ext(fullPath))
 	contentType := "image/jpeg"
