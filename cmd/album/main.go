@@ -8,6 +8,7 @@ import (
 	"guidely-app/internal/album/repository"
 	"guidely-app/pkg/config"
 	"guidely-app/pkg/db"
+	"guidely-app/pkg/metrics"
 	pb "guidely-app/pkg/pb/album"
 
 	"google.golang.org/grpc"
@@ -22,15 +23,19 @@ func main() {
 	}
 	defer pool.Close()
 
+	metrics.StartMetricsServer("9102")
+
 	albumRepo := repository.NewAlbumRepo(pool)
 	svc := album.NewService(albumRepo)
 	server := album.NewServer(svc)
 
 	lis, _ := net.Listen("tcp", ":8086")
-	s := grpc.NewServer()
+	s := grpc.NewServer(
+		grpc.UnaryInterceptor(metrics.UnaryServerInterceptor()),
+	)
 	pb.RegisterAlbumServiceServer(s, server)
 	reflection.Register(s)
 
-	log.Println("Album service started on :8086")
+	log.Println("Album service started on :8086, metrics :9102")
 	log.Fatal(s.Serve(lis))
 }
