@@ -71,6 +71,47 @@ func (r *AlbumRepo) Delete(ctx context.Context, id uint64) error {
 	return err
 }
 
+// UploadPhoto: создаёт запись в таблице photo, затем связывает с альбомом в album_photo.
+// Возвращает id созданной записи photo.
+func (r *AlbumRepo) UploadPhoto(ctx context.Context, albumID uint64, filePath string) (uint64, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+
+	// 1. Создаём запись в таблице photo
+	var photoID uint64
+	err = tx.QueryRow(ctx,
+		`INSERT INTO photo (file_path, created_at) VALUES ($1, NOW()) RETURNING id`,
+		filePath,
+	).Scan(&photoID)
+	if err != nil {
+		return 0, err
+	}
+
+	// 2. Определяем следующий order_index
+	var maxOrder int
+	_ = tx.QueryRow(ctx,
+		`SELECT COALESCE(MAX(order_index), 0) FROM album_photo WHERE album_id = $1`,
+		albumID,
+	).Scan(&maxOrder)
+
+	// 3. Связываем с альбомом
+	_, err = tx.Exec(ctx,
+		`INSERT INTO album_photo (album_id, photo_id, order_index, created_at) VALUES ($1, $2, $3, NOW())`,
+		albumID, photoID, maxOrder+1,
+	)
+	if err != nil {
+		return 0, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return photoID, nil
+}
+
 func (r *AlbumRepo) AddPhoto(ctx context.Context, albumID, photoID uint64, order int16) error {
 	_, err := r.db.Exec(ctx, `INSERT INTO album_photo (album_id, photo_id, order_index, created_at)
 		VALUES ($1, $2, $3, NOW())`, albumID, photoID, order)
@@ -82,9 +123,14 @@ func (r *AlbumRepo) RemovePhoto(ctx context.Context, albumID, photoID uint64) er
 	return err
 }
 
+// GetPhotos возвращает фото альбома с file_path из таблицы photo.
 func (r *AlbumRepo) GetPhotos(ctx context.Context, albumID uint64) ([]models.AlbumPhoto, error) {
-	query := `SELECT album_id, photo_id, order_index, created_at
-	          FROM album_photo WHERE album_id = $1 ORDER BY order_index`
+	query := `
+		SELECT ap.album_id, ap.photo_id, ap.order_index, ap.created_at, p.file_path
+		FROM album_photo ap
+		JOIN photo p ON p.id = ap.photo_id
+		WHERE ap.album_id = $1
+		ORDER BY ap.order_index`
 	rows, err := r.db.Query(ctx, query, albumID)
 	if err != nil {
 		return nil, err
@@ -93,7 +139,7 @@ func (r *AlbumRepo) GetPhotos(ctx context.Context, albumID uint64) ([]models.Alb
 	var photos []models.AlbumPhoto
 	for rows.Next() {
 		var p models.AlbumPhoto
-		if err := rows.Scan(&p.AlbumID, &p.PhotoID, &p.OrderIndex, &p.CreatedAt); err != nil {
+		if err := rows.Scan(&p.AlbumID, &p.PhotoID, &p.OrderIndex, &p.CreatedAt, &p.FilePath); err != nil {
 			return nil, err
 		}
 		photos = append(photos, p)

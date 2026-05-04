@@ -120,6 +120,24 @@ func (mr *MockAlbumServiceClientMockRecorder) Delete(ctx, in interface{}, opts .
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockAlbumServiceClient)(nil).Delete), varargs...)
 }
 
+func (m *MockAlbumServiceClient) UploadPhoto(ctx context.Context, in *UploadPhotoRequest, opts ...grpc.CallOption) (*UploadPhotoResponse, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "UploadPhoto", varargs...)
+	ret0, _ := ret[0].(*UploadPhotoResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (mr *MockAlbumServiceClientMockRecorder) UploadPhoto(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UploadPhoto", reflect.TypeOf((*MockAlbumServiceClient)(nil).UploadPhoto), varargs...)
+}
+
 func (m *MockAlbumServiceClient) AddPhoto(ctx context.Context, in *AddPhotoRequest, opts ...grpc.CallOption) (*AlbumPhoto, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}

@@ -20,14 +20,15 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AlbumService_Create_FullMethodName      = "/album.AlbumService/Create"
-	AlbumService_Get_FullMethodName         = "/album.AlbumService/Get"
-	AlbumService_GetByTrip_FullMethodName   = "/album.AlbumService/GetByTrip"
-	AlbumService_Update_FullMethodName      = "/album.AlbumService/Update"
-	AlbumService_Delete_FullMethodName      = "/album.AlbumService/Delete"
-	AlbumService_AddPhoto_FullMethodName    = "/album.AlbumService/AddPhoto"
-	AlbumService_RemovePhoto_FullMethodName = "/album.AlbumService/RemovePhoto"
-	AlbumService_GetPhotos_FullMethodName   = "/album.AlbumService/GetPhotos"
+	AlbumService_Create_FullMethodName       = "/album.AlbumService/Create"
+	AlbumService_Get_FullMethodName          = "/album.AlbumService/Get"
+	AlbumService_GetByTrip_FullMethodName    = "/album.AlbumService/GetByTrip"
+	AlbumService_Update_FullMethodName       = "/album.AlbumService/Update"
+	AlbumService_Delete_FullMethodName       = "/album.AlbumService/Delete"
+	AlbumService_UploadPhoto_FullMethodName  = "/album.AlbumService/UploadPhoto"
+	AlbumService_AddPhoto_FullMethodName     = "/album.AlbumService/AddPhoto"
+	AlbumService_RemovePhoto_FullMethodName  = "/album.AlbumService/RemovePhoto"
+	AlbumService_GetPhotos_FullMethodName    = "/album.AlbumService/GetPhotos"
 )
 
 // AlbumServiceClient is the client API for AlbumService service.
@@ -39,6 +40,7 @@ type AlbumServiceClient interface {
 	GetByTrip(ctx context.Context, in *GetAlbumByTripRequest, opts ...grpc.CallOption) (*Album, error)
 	Update(ctx context.Context, in *UpdateAlbumRequest, opts ...grpc.CallOption) (*Album, error)
 	Delete(ctx context.Context, in *DeleteAlbumRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	UploadPhoto(ctx context.Context, in *UploadPhotoRequest, opts ...grpc.CallOption) (*UploadPhotoResponse, error)
 	AddPhoto(ctx context.Context, in *AddPhotoRequest, opts ...grpc.CallOption) (*AlbumPhoto, error)
 	RemovePhoto(ctx context.Context, in *RemovePhotoRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	GetPhotos(ctx context.Context, in *GetAlbumPhotosRequest, opts ...grpc.CallOption) (*GetAlbumPhotosResponse, error)
@@ -102,6 +104,16 @@ func (c *albumServiceClient) Delete(ctx context.Context, in *DeleteAlbumRequest,
 	return out, nil
 }
 
+func (c *albumServiceClient) UploadPhoto(ctx context.Context, in *UploadPhotoRequest, opts ...grpc.CallOption) (*UploadPhotoResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UploadPhotoResponse)
+	err := c.cc.Invoke(ctx, AlbumService_UploadPhoto_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *albumServiceClient) AddPhoto(ctx context.Context, in *AddPhotoRequest, opts ...grpc.CallOption) (*AlbumPhoto, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(AlbumPhoto)
@@ -141,6 +153,7 @@ type AlbumServiceServer interface {
 	GetByTrip(context.Context, *GetAlbumByTripRequest) (*Album, error)
 	Update(context.Context, *UpdateAlbumRequest) (*Album, error)
 	Delete(context.Context, *DeleteAlbumRequest) (*emptypb.Empty, error)
+	UploadPhoto(context.Context, *UploadPhotoRequest) (*UploadPhotoResponse, error)
 	AddPhoto(context.Context, *AddPhotoRequest) (*AlbumPhoto, error)
 	RemovePhoto(context.Context, *RemovePhotoRequest) (*emptypb.Empty, error)
 	GetPhotos(context.Context, *GetAlbumPhotosRequest) (*GetAlbumPhotosResponse, error)
@@ -168,6 +181,9 @@ func (UnimplementedAlbumServiceServer) Update(context.Context, *UpdateAlbumReque
 }
 func (UnimplementedAlbumServiceServer) Delete(context.Context, *DeleteAlbumRequest) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method Delete not implemented")
+}
+func (UnimplementedAlbumServiceServer) UploadPhoto(context.Context, *UploadPhotoRequest) (*UploadPhotoResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UploadPhoto not implemented")
 }
 func (UnimplementedAlbumServiceServer) AddPhoto(context.Context, *AddPhotoRequest) (*AlbumPhoto, error) {
 	return nil, status.Error(codes.Unimplemented, "method AddPhoto not implemented")
@@ -289,6 +305,24 @@ func _AlbumService_Delete_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AlbumService_UploadPhoto_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UploadPhotoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AlbumServiceServer).UploadPhoto(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AlbumService_UploadPhoto_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AlbumServiceServer).UploadPhoto(ctx, req.(*UploadPhotoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AlbumService_AddPhoto_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AddPhotoRequest)
 	if err := dec(in); err != nil {
@@ -369,6 +403,10 @@ var AlbumService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Delete",
 			Handler:    _AlbumService_Delete_Handler,
+		},
+		{
+			MethodName: "UploadPhoto",
+			Handler:    _AlbumService_UploadPhoto_Handler,
 		},
 		{
 			MethodName: "AddPhoto",

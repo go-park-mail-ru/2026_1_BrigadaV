@@ -12,6 +12,7 @@ type AlbumService interface {
 	GetByTrip(ctx context.Context, tripID uint64) ([]models.Album, error)
 	Update(ctx context.Context, a *models.Album) error
 	Delete(ctx context.Context, id uint64) error
+	UploadPhoto(ctx context.Context, albumID uint64, filePath string) (uint64, error)
 	AddPhoto(ctx context.Context, albumID, photoID uint64, order int16) error
 	RemovePhoto(ctx context.Context, albumID, photoID uint64) error
 	GetPhotos(ctx context.Context, albumID uint64) ([]models.AlbumPhoto, error)
@@ -43,6 +44,10 @@ func (s *albumServiceImpl) Update(ctx context.Context, a *models.Album) error {
 
 func (s *albumServiceImpl) Delete(ctx context.Context, id uint64) error {
 	return s.repo.Delete(ctx, id)
+}
+
+func (s *albumServiceImpl) UploadPhoto(ctx context.Context, albumID uint64, filePath string) (uint64, error) {
+	return s.repo.UploadPhoto(ctx, albumID, filePath)
 }
 
 func (s *albumServiceImpl) AddPhoto(ctx context.Context, albumID, photoID uint64, order int16) error {

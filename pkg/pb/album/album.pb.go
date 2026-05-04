@@ -492,6 +492,7 @@ type AlbumPhoto struct {
 	PhotoId       uint64                 `protobuf:"varint,2,opt,name=photo_id,json=photoId,proto3" json:"photo_id,omitempty"`
 	OrderIndex    int32                  `protobuf:"varint,3,opt,name=order_index,json=orderIndex,proto3" json:"order_index,omitempty"`
 	CreatedAt     string                 `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	FileUrl       string                 `protobuf:"bytes,5,opt,name=file_url,json=fileUrl,proto3" json:"file_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -550,6 +551,13 @@ func (x *AlbumPhoto) GetOrderIndex() int32 {
 func (x *AlbumPhoto) GetCreatedAt() string {
 	if x != nil {
 		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *AlbumPhoto) GetFileUrl() string {
+	if x != nil {
+		return x.FileUrl
 	}
 	return ""
 }

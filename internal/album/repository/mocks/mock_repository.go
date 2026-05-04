@@ -136,6 +136,21 @@ func (mr *MockAlbumRepositoryMockRecorder) RemovePhoto(arg0, arg1, arg2 interfac
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemovePhoto", reflect.TypeOf((*MockAlbumRepository)(nil).RemovePhoto), arg0, arg1, arg2)
 }
 
+// UploadPhoto mocks base method.
+func (m *MockAlbumRepository) UploadPhoto(arg0 context.Context, arg1 uint64, arg2 string) (uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UploadPhoto", arg0, arg1, arg2)
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UploadPhoto indicates an expected call of UploadPhoto.
+func (mr *MockAlbumRepositoryMockRecorder) UploadPhoto(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UploadPhoto", reflect.TypeOf((*MockAlbumRepository)(nil).UploadPhoto), arg0, arg1, arg2)
+}
+
 // Update mocks base method.
 func (m *MockAlbumRepository) Update(arg0 context.Context, arg1 *models.Album) error {
 	m.ctrl.T.Helper()

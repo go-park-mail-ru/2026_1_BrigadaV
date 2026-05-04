@@ -36,6 +36,7 @@ func toAlbumPhoto(ap *models.AlbumPhoto) *pb.AlbumPhoto {
 		PhotoId:    ap.PhotoID,
 		OrderIndex: int32(ap.OrderIndex),
 		CreatedAt:  ap.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		FileUrl:    ap.FilePath,
 	}
 }
 
@@ -86,6 +87,18 @@ func (s *Server) Delete(ctx context.Context, req *pb.DeleteAlbumRequest) (*empty
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &emptypb.Empty{}, nil
+}
+
+// UploadPhoto: сохраняет file_path в photo, создаёт album_photo, возвращает photo_id и url.
+func (s *Server) UploadPhoto(ctx context.Context, req *pb.UploadPhotoRequest) (*pb.UploadPhotoResponse, error) {
+	photoID, err := s.svc.UploadPhoto(ctx, req.AlbumId, req.FilePath)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &pb.UploadPhotoResponse{
+		PhotoId: photoID,
+		FileUrl: req.FilePath,
+	}, nil
 }
 
 func (s *Server) AddPhoto(ctx context.Context, req *pb.AddPhotoRequest) (*pb.AlbumPhoto, error) {
