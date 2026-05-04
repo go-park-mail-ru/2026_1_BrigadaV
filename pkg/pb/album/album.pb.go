@@ -688,7 +688,7 @@ const file_proto_album_proto_rawDesc = "" +
 	"\x05order\x18\x03 \x01(\x05R\x05order\"J\n" +
 	"\x12RemovePhotoRequest\x12\x19\n" +
 	"\balbum_id\x18\x01 \x01(\x04R\aalbumId\x12\x19\n" +
-	"\bphoto_id\x18\x02 \x01(\x04R\aphotoId\"\x82\x01\n" +
+	"\bphoto_id\x18\x02 \x01(\x04R\aphotoId\"\x9d\x01\n" +
 	"\n" +
 	"AlbumPhoto\x12\x19\n" +
 	"\balbum_id\x18\x01 \x01(\x04R\aalbumId\x12\x19\n" +
@@ -696,7 +696,7 @@ const file_proto_album_proto_rawDesc = "" +
 	"\vorder_index\x18\x03 \x01(\x05R\n" +
 	"orderIndex\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\x04 \x01(\tR\tcreatedAt\"2\n" +
+	"created_at\x18\x04 \x01(\tR\tcreatedAt\x12\x19\nfile_url\x18\x05 \x01(\tR\afileUrl\"2\n" +
 	"\x15GetAlbumPhotosRequest\x12\x19\n" +
 	"\balbum_id\x18\x01 \x01(\x04R\aalbumId\"C\n" +
 	"\x16GetAlbumPhotosResponse\x12)\n" +
