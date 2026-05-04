@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"guidely-app/internal/dto"
-	"guidely-app/pkg/models"
 	"guidely-app/internal/service/mocks"
+	"guidely-app/pkg/models"
 
 	"github.com/golang/mock/gomock"
 	"github.com/gorilla/mux"
