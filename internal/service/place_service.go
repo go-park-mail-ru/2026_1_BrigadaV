@@ -35,6 +35,6 @@ func (s *placeServiceImpl) IsPlaceInTrip(ctx context.Context, placeID, tripID ui
 	return s.placeRepo.IsPlaceInTrip(ctx, placeID, tripID)
 }
 
-func (s *placeService) Search(ctx context.Context, query string) ([]models.Place, error) {
+func (s *placeServiceImpl) Search(ctx context.Context, query string) ([]models.Place, error) {
 	return s.placeRepo.Search(ctx, query)
 }
