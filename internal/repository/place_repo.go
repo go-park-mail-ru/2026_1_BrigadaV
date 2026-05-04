@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"guidely-app/internal/logger"
-	"guidely-app/internal/models"
+	"guidely-app/pkg/models"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/sirupsen/logrus"
@@ -24,14 +24,11 @@ func (r *PlaceRepo) GetAll(ctx context.Context) ([]models.Place, error) {
 	query := `
         SELECT p.id, p.name, p.description, p.photo_url, p.price, p.created_at, p.updated_at,
                l.id, l.name, c.name as country_name, l.latitude, l.longitude,
-               cat.id, cat.name, cat.description,
-               pp.id as place_photo_id, ph.file_path, pp.is_main
+               cat.id, cat.name, cat.description
         FROM place p
         LEFT JOIN locality l ON p.locality_id = l.id
         LEFT JOIN country c ON l.country_id = c.id
         LEFT JOIN category cat ON p.category_id = cat.id
-        LEFT JOIN place_photo pp ON p.id = pp.place_id
-        LEFT JOIN photo ph ON pp.photo_id = ph.id
         ORDER BY p.id`
 	rows, err := r.db.Query(ctx, query)
 	if err != nil {
@@ -40,67 +37,40 @@ func (r *PlaceRepo) GetAll(ctx context.Context) ([]models.Place, error) {
 	}
 	defer rows.Close()
 
-	placesMap := make(map[uint64]*models.Place)
-
+	var places []models.Place
 	for rows.Next() {
 		var p models.Place
 		var locID, catID *uint64
 		var locName, countryName *string
 		var locLat, locLng *float64
 		var catName, catDesc *string
-		var placePhotoID *uint64
-		var photoFilePath *string
-		var isMain *bool
 
 		err := rows.Scan(
 			&p.ID, &p.Name, &p.Description, &p.PhotoURL, &p.Price, &p.CreatedAt, &p.UpdatedAt,
 			&locID, &locName, &countryName, &locLat, &locLng,
 			&catID, &catName, &catDesc,
-			&placePhotoID, &photoFilePath, &isMain,
 		)
 		if err != nil {
 			logger.Error(ctx, "failed to scan place row", logrus.Fields{"error": err})
 			return nil, err
 		}
-
-		if _, exists := placesMap[p.ID]; !exists {
-			if locID != nil {
-				p.Locality = models.Locality{
-					ID:        *locID,
-					Name:      *locName,
-					Country:   *countryName,
-					Latitude:  locLat,
-					Longitude: locLng,
-				}
+		if locID != nil {
+			p.Locality = models.Locality{
+				ID:        *locID,
+				Name:      *locName,
+				Country:   *countryName,
+				Latitude:  locLat,
+				Longitude: locLng,
 			}
-			if catID != nil {
-				p.Category = models.Category{
-					ID:          *catID,
-					Name:        *catName,
-					Description: *catDesc,
-				}
-			}
-			placesMap[p.ID] = &p
 		}
-
-		if placePhotoID != nil && photoFilePath != nil {
-			photo := models.PlacePhoto{
-				ID:      *placePhotoID,
-				PlaceID: p.ID,
-				PhotoID: *placePhotoID,
-				Photo: models.Photo{
-					ID:       *placePhotoID,
-					FilePath: *photoFilePath,
-				},
-				IsMain: isMain != nil && *isMain,
+		if catID != nil {
+			p.Category = models.Category{
+				ID:          *catID,
+				Name:        *catName,
+				Description: *catDesc,
 			}
-			placesMap[p.ID].Photos = append(placesMap[p.ID].Photos, photo)
 		}
-	}
-
-	var places []models.Place
-	for _, p := range placesMap {
-		places = append(places, *p)
+		places = append(places, p)
 	}
 
 	logger.Debug(ctx, "places retrieved", logrus.Fields{"count": len(places)})
@@ -181,7 +151,7 @@ func (r *PlaceRepo) GetWithRatingAndLike(ctx context.Context, placeID, userID ui
 	if place == nil {
 		return nil, fmt.Errorf("place with id %d not found", placeID)
 	}
-	return &models.PlaceWithRating{
+	result := &models.PlaceWithRating{
 		ID:          place.ID,
 		Name:        place.Name,
 		Description: place.Description,
@@ -190,7 +160,13 @@ func (r *PlaceRepo) GetWithRatingAndLike(ctx context.Context, placeID, userID ui
 		Rating:      rating,
 		ReviewCount: reviewCount,
 		IsLiked:     isLiked,
-	}, nil
+		Locality:    place.Locality,
+	}
+	if place.Category.ID != 0 {
+		cat := place.Category
+		result.Category = &cat
+	}
+	return result, nil
 }
 
 func (r *PlaceRepo) IsPlaceInTrip(ctx context.Context, placeID, tripID uint64) (bool, error) {
@@ -208,19 +184,75 @@ func (r *PlaceRepo) IsPlaceInTrip(ctx context.Context, placeID, tripID uint64) (
 	return exists, nil
 }
 
+func (r *PlaceRepo) GetByCategory(ctx context.Context, categoryID uint64) ([]models.Place, error) {
+	logger.Debug(ctx, "getting places by category", logrus.Fields{"category_id": categoryID})
+	q := `
+        SELECT p.id, p.name, p.description, p.photo_url, p.price, p.created_at, p.updated_at,
+               l.id, l.name, c.name as country_name, l.latitude, l.longitude,
+               cat.id, cat.name, cat.description
+        FROM place p
+        LEFT JOIN locality l ON p.locality_id = l.id
+        LEFT JOIN country c ON l.country_id = c.id
+        LEFT JOIN category cat ON p.category_id = cat.id
+        WHERE p.category_id = $1
+        ORDER BY p.id`
+	rows, err := r.db.Query(ctx, q, categoryID)
+	if err != nil {
+		logger.Error(ctx, "failed to get places by category", logrus.Fields{"error": err})
+		return nil, err
+	}
+	defer rows.Close()
+
+	var places []models.Place
+	for rows.Next() {
+		var p models.Place
+		var locID, catID *uint64
+		var locName, countryName *string
+		var locLat, locLng *float64
+		var catName, catDesc *string
+
+		err := rows.Scan(
+			&p.ID, &p.Name, &p.Description, &p.PhotoURL, &p.Price, &p.CreatedAt, &p.UpdatedAt,
+			&locID, &locName, &countryName, &locLat, &locLng,
+			&catID, &catName, &catDesc,
+		)
+		if err != nil {
+			logger.Error(ctx, "failed to scan place row in GetByCategory", logrus.Fields{"error": err})
+			return nil, err
+		}
+		if locID != nil {
+			p.Locality = models.Locality{
+				ID:        *locID,
+				Name:      *locName,
+				Country:   *countryName,
+				Latitude:  locLat,
+				Longitude: locLng,
+			}
+		}
+		if catID != nil {
+			p.Category = models.Category{
+				ID:          *catID,
+				Name:        *catName,
+				Description: *catDesc,
+			}
+		}
+		places = append(places, p)
+	}
+
+	logger.Debug(ctx, "places by category retrieved", logrus.Fields{"count": len(places)})
+	return places, nil
+}
+
 func (r *PlaceRepo) Search(ctx context.Context, query string) ([]models.Place, error) {
 	logger.Debug(ctx, "searching places", logrus.Fields{"query": query})
 	q := `
         SELECT p.id, p.name, p.description, p.photo_url, p.price, p.created_at, p.updated_at,
                l.id, l.name, c.name as country_name, l.latitude, l.longitude,
-               cat.id, cat.name, cat.description,
-               pp.id as place_photo_id, ph.file_path, pp.is_main
+               cat.id, cat.name, cat.description
         FROM place p
         LEFT JOIN locality l ON p.locality_id = l.id
         LEFT JOIN country c ON l.country_id = c.id
         LEFT JOIN category cat ON p.category_id = cat.id
-        LEFT JOIN place_photo pp ON p.id = pp.place_id
-        LEFT JOIN photo ph ON pp.photo_id = ph.id
         WHERE p.name ILIKE $1 OR p.description ILIKE $1
         ORDER BY p.id`
 	pattern := "%" + query + "%"
@@ -231,67 +263,40 @@ func (r *PlaceRepo) Search(ctx context.Context, query string) ([]models.Place, e
 	}
 	defer rows.Close()
 
-	placesMap := make(map[uint64]*models.Place)
-
+	var places []models.Place
 	for rows.Next() {
 		var p models.Place
 		var locID, catID *uint64
 		var locName, countryName *string
 		var locLat, locLng *float64
 		var catName, catDesc *string
-		var placePhotoID *uint64
-		var photoFilePath *string
-		var isMain *bool
 
 		err := rows.Scan(
 			&p.ID, &p.Name, &p.Description, &p.PhotoURL, &p.Price, &p.CreatedAt, &p.UpdatedAt,
 			&locID, &locName, &countryName, &locLat, &locLng,
 			&catID, &catName, &catDesc,
-			&placePhotoID, &photoFilePath, &isMain,
 		)
 		if err != nil {
 			logger.Error(ctx, "failed to scan place row in search", logrus.Fields{"error": err})
 			return nil, err
 		}
-
-		if _, exists := placesMap[p.ID]; !exists {
-			if locID != nil {
-				p.Locality = models.Locality{
-					ID:        *locID,
-					Name:      *locName,
-					Country:   *countryName,
-					Latitude:  locLat,
-					Longitude: locLng,
-				}
+		if locID != nil {
+			p.Locality = models.Locality{
+				ID:        *locID,
+				Name:      *locName,
+				Country:   *countryName,
+				Latitude:  locLat,
+				Longitude: locLng,
 			}
-			if catID != nil {
-				p.Category = models.Category{
-					ID:          *catID,
-					Name:        *catName,
-					Description: *catDesc,
-				}
-			}
-			placesMap[p.ID] = &p
 		}
-
-		if placePhotoID != nil && photoFilePath != nil {
-			photo := models.PlacePhoto{
-				ID:      *placePhotoID,
-				PlaceID: p.ID,
-				PhotoID: *placePhotoID,
-				Photo: models.Photo{
-					ID:       *placePhotoID,
-					FilePath: *photoFilePath,
-				},
-				IsMain: isMain != nil && *isMain,
+		if catID != nil {
+			p.Category = models.Category{
+				ID:          *catID,
+				Name:        *catName,
+				Description: *catDesc,
 			}
-			placesMap[p.ID].Photos = append(placesMap[p.ID].Photos, photo)
 		}
-	}
-
-	var places []models.Place
-	for _, p := range placesMap {
-		places = append(places, *p)
+		places = append(places, p)
 	}
 
 	logger.Debug(ctx, "search completed", logrus.Fields{"count": len(places)})

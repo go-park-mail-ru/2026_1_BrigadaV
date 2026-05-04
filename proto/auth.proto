@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+package auth;
+
+option go_package = "pkg/pb/auth";
+
+import "google/protobuf/empty.proto";
+
+service AuthService {
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Logout(LogoutRequest) returns (google.protobuf.Empty);
+  rpc GetUser(GetUserRequest) returns (User);
+  rpc UpdateProfile(UpdateProfileRequest) returns (User);
+  rpc UploadAvatar(stream UploadAvatarRequest) returns (User);
+  rpc GetAvatar(GetAvatarRequest) returns (stream GetAvatarResponse);
+}
+
+message RegisterRequest {
+  string login = 1;
+  string password = 2;
+  string nickname = 3;
+}
+
+message RegisterResponse {
+  uint64 user_id = 1;
+  string message = 2;
+  string token = 3;
+}
+
+message LoginRequest {
+  string login = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  uint64 user_id = 1;
+  string token = 2;
+  string nickname = 3;
+  string avatar_url = 4;
+}
+
+message LogoutRequest {
+  string token = 1;
+}
+
+message GetUserRequest {
+  uint64 user_id = 1;
+}
+
+message User {
+  uint64 id = 1;
+  string login = 2;
+  string nickname = 3;
+  string avatar_url = 4;
+  string role = 5;
+  optional string country = 6;
+  optional string city = 7;
+  optional string about = 8;
+  bool has_reviews = 9;
+  string created_at = 10;
+  string updated_at = 11;
+}
+
+message UpdateProfileRequest {
+  uint64 user_id = 1;
+  optional string nickname = 2;
+  optional string avatar_url = 3;
+  optional string country = 4;
+  optional string city = 5;
+  optional string about = 6;
+}
+
+message UploadAvatarRequest {
+  uint64 user_id = 1;
+  bytes chunk = 2;
+  string file_name = 3;
+}
+
+message GetAvatarRequest {
+  uint64 user_id = 1;
+}
+
+message GetAvatarResponse {
+  bytes chunk = 1;
+}

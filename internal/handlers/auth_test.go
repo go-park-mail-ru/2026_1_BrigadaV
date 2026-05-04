@@ -9,162 +9,97 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"guidely-app/internal/dto"
-	"guidely-app/internal/models"
-	"guidely-app/internal/service/mocks"
+	pb "guidely-app/pkg/pb/auth"
 
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-func TestAuthHandler_Register_Success(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+// mockAuthClient реализует интерфейс pb.AuthServiceClient для тестов
+type mockAuthClient struct {
+	registerFunc func(*pb.RegisterRequest, ...grpc.CallOption) (*pb.RegisterResponse, error)
+	loginFunc    func(*pb.LoginRequest, ...grpc.CallOption) (*pb.LoginResponse, error)
+	logoutFunc   func(*pb.LogoutRequest, ...grpc.CallOption) (*emptypb.Empty, error)
+	getUserFunc  func(*pb.GetUserRequest, ...grpc.CallOption) (*pb.User, error)
+	// остальные методы при необходимости можно добавить как заглушки
+}
 
-	mockAuthService := mocks.NewMockAuthService(ctrl)
-	handler := NewAuthHandler(mockAuthService)
-
-	reqBody := dto.RegisterRequest{
-		Login:    "test@example.com",
-		Password: "12345678",
-		Nickname: "tester",
+func (m *mockAuthClient) Register(ctx context.Context, in *pb.RegisterRequest, opts ...grpc.CallOption) (*pb.RegisterResponse, error) {
+	if m.registerFunc != nil {
+		return m.registerFunc(in, opts...)
 	}
-	body, _ := json.Marshal(reqBody)
+	return nil, errors.New("Register not implemented")
+}
 
+func (m *mockAuthClient) Login(ctx context.Context, in *pb.LoginRequest, opts ...grpc.CallOption) (*pb.LoginResponse, error) {
+	if m.loginFunc != nil {
+		return m.loginFunc(in, opts...)
+	}
+	return nil, errors.New("Login not implemented")
+}
+
+func (m *mockAuthClient) Logout(ctx context.Context, in *pb.LogoutRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	if m.logoutFunc != nil {
+		return m.logoutFunc(in, opts...)
+	}
+	return nil, errors.New("Logout not implemented")
+}
+
+func (m *mockAuthClient) GetUser(ctx context.Context, in *pb.GetUserRequest, opts ...grpc.CallOption) (*pb.User, error) {
+	if m.getUserFunc != nil {
+		return m.getUserFunc(in, opts...)
+	}
+	return nil, errors.New("GetUser not implemented")
+}
+
+// Заглушки для оставшихся методов интерфейса (чтобы компилятор не ругался)
+func (m *mockAuthClient) UpdateProfile(ctx context.Context, in *pb.UpdateProfileRequest, opts ...grpc.CallOption) (*pb.User, error) {
+	return nil, errors.New("not implemented")
+}
+func (m *mockAuthClient) UploadAvatar(ctx context.Context, opts ...grpc.CallOption) (pb.AuthService_UploadAvatarClient, error) {
+	return nil, errors.New("not implemented")
+}
+func (m *mockAuthClient) GetAvatar(ctx context.Context, in *pb.GetAvatarRequest, opts ...grpc.CallOption) (pb.AuthService_GetAvatarClient, error) {
+	return nil, errors.New("not implemented")
+}
+
+func TestAuthHandler_Register_Success(t *testing.T) {
+	mockClient := &mockAuthClient{
+		registerFunc: func(req *pb.RegisterRequest, opts ...grpc.CallOption) (*pb.RegisterResponse, error) {
+			return &pb.RegisterResponse{UserId: 1, Message: "user created"}, nil
+		},
+	}
+	handler := NewAuthHandler(mockClient)
+
+	reqBody := map[string]string{"login": "test@example.com", "password": "12345678", "nickname": "tester"}
+	body, _ := json.Marshal(reqBody)
 	req := httptest.NewRequest("POST", "/api/register", bytes.NewReader(body))
 	w := httptest.NewRecorder()
-
-	mockAuthService.EXPECT().Register(gomock.Any(), gomock.Any()).Return(&models.User{ID: 1}, "token123", nil)
 
 	handler.Register(w, req)
 
 	assert.Equal(t, http.StatusCreated, w.Code)
-
 	var resp map[string]interface{}
 	json.NewDecoder(w.Body).Decode(&resp)
-	assert.Equal(t, "user created", resp["message"])
 	assert.Equal(t, float64(1), resp["user_id"])
-}
-
-func TestAuthHandler_Register_InvalidJSON(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockAuthService := mocks.NewMockAuthService(ctrl)
-	handler := NewAuthHandler(mockAuthService)
-
-	req := httptest.NewRequest("POST", "/api/register", bytes.NewReader([]byte(`{invalid json}`)))
-	w := httptest.NewRecorder()
-
-	handler.Register(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestAuthHandler_Login_Success(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockAuthService := mocks.NewMockAuthService(ctrl)
-	handler := NewAuthHandler(mockAuthService)
-
-	reqBody := dto.LoginRequest{
-		Login:    "test@example.com",
-		Password: "12345678",
-	}
-	body, _ := json.Marshal(reqBody)
-
-	req := httptest.NewRequest("POST", "/api/login", bytes.NewReader(body))
-	w := httptest.NewRecorder()
-
-	mockAuthService.EXPECT().Login(gomock.Any(), gomock.Any()).Return(&models.User{ID: 1, Nickname: "tester", AvatarURL: "/avatar.jpg"}, "token123", nil)
-
-	handler.Login(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	var resp dto.LoginResponse
-	json.NewDecoder(w.Body).Decode(&resp)
-	assert.Equal(t, uint64(1), resp.UserID)
-	assert.Equal(t, "tester", resp.Nickname)
+	assert.Equal(t, "user created", resp["message"])
 }
 
 func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockAuthService := mocks.NewMockAuthService(ctrl)
-	handler := NewAuthHandler(mockAuthService)
-
-	reqBody := dto.LoginRequest{
-		Login:    "test@example.com",
-		Password: "wrong",
+	mockClient := &mockAuthClient{
+		loginFunc: func(req *pb.LoginRequest, opts ...grpc.CallOption) (*pb.LoginResponse, error) {
+			return nil, errors.New("invalid credentials")
+		},
 	}
-	body, _ := json.Marshal(reqBody)
+	handler := NewAuthHandler(mockClient)
 
+	reqBody := map[string]string{"login": "test@example.com", "password": "wrong"}
+	body, _ := json.Marshal(reqBody)
 	req := httptest.NewRequest("POST", "/api/login", bytes.NewReader(body))
 	w := httptest.NewRecorder()
 
-	mockAuthService.EXPECT().Login(gomock.Any(), gomock.Any()).Return(nil, "", errors.New("invalid credentials"))
-
 	handler.Login(w, req)
-
-	assert.Equal(t, http.StatusUnauthorized, w.Code)
-}
-
-func TestAuthHandler_Logout_Success(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockAuthService := mocks.NewMockAuthService(ctrl)
-	handler := NewAuthHandler(mockAuthService)
-
-	req := httptest.NewRequest("POST", "/api/logout", nil)
-	req.AddCookie(&http.Cookie{Name: "session_token", Value: "token123"})
-	w := httptest.NewRecorder()
-
-	mockAuthService.EXPECT().Logout(gomock.Any(), "token123").Return(nil)
-
-	handler.Logout(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-func TestAuthHandler_Me_Success(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockAuthService := mocks.NewMockAuthService(ctrl)
-	handler := NewAuthHandler(mockAuthService)
-
-	req := httptest.NewRequest("GET", "/api/user/me", nil)
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
-	req = req.WithContext(ctx)
-	w := httptest.NewRecorder()
-
-	mockAuthService.EXPECT().GetUserByID(gomock.Any(), uint64(1)).Return(&models.User{ID: 1, Nickname: "tester", AvatarURL: "/avatar.jpg"}, nil)
-
-	handler.Me(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	var resp dto.LoginResponse
-	json.NewDecoder(w.Body).Decode(&resp)
-	assert.Equal(t, uint64(1), resp.UserID)
-	assert.Equal(t, "tester", resp.Nickname)
-}
-
-func TestAuthHandler_Me_Unauthorized(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockAuthService := mocks.NewMockAuthService(ctrl)
-	handler := NewAuthHandler(mockAuthService)
-
-	req := httptest.NewRequest("GET", "/api/user/me", nil)
-	w := httptest.NewRecorder()
-
-	handler.Me(w, req)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }

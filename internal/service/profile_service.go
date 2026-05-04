@@ -2,20 +2,9 @@ package service
 
 import (
 	"context"
-	"guidely-app/internal/logger"
-	"guidely-app/internal/models"
 	"guidely-app/internal/repository"
-
-	"github.com/sirupsen/logrus"
+	"guidely-app/pkg/models"
 )
-
-type profileService struct {
-	userRepo repository.UserRepository
-}
-
-func NewProfileService(userRepo repository.UserRepository) ProfileService {
-	return &profileService{userRepo: userRepo}
-}
 
 type UpdateProfileInput struct {
 	Nickname  *string
@@ -25,12 +14,19 @@ type UpdateProfileInput struct {
 	About     *string
 }
 
-func (s *profileService) GetProfile(ctx context.Context, userID uint64) (*models.User, error) {
+type profileServiceImpl struct {
+	userRepo repository.UserRepository
+}
+
+func NewProfileService(userRepo repository.UserRepository) ProfileService {
+	return &profileServiceImpl{userRepo: userRepo}
+}
+
+func (s *profileServiceImpl) GetProfile(ctx context.Context, userID uint64) (*models.User, error) {
 	return s.userRepo.GetByID(ctx, userID)
 }
 
-func (s *profileService) UpdateProfile(ctx context.Context, userID uint64, input UpdateProfileInput) (*models.User, error) {
-	logger.Info(ctx, "UpdateProfile called", logrus.Fields{"user_id": userID})
+func (s *profileServiceImpl) UpdateProfile(ctx context.Context, userID uint64, input UpdateProfileInput) (*models.User, error) {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -53,12 +49,10 @@ func (s *profileService) UpdateProfile(ctx context.Context, userID uint64, input
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		return nil, err
 	}
-	logger.Info(ctx, "UpdateProfile successful", logrus.Fields{"user_id": user.ID})
 	return user, nil
 }
 
-func (s *profileService) UpdateAvatar(ctx context.Context, userID uint64, avatarURL string) (*models.User, error) {
-	logger.Info(ctx, "UpdateAvatar called", logrus.Fields{"user_id": userID, "avatar_url": avatarURL})
+func (s *profileServiceImpl) UpdateAvatar(ctx context.Context, userID uint64, avatarURL string) (*models.User, error) {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, err

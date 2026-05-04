@@ -2,151 +2,159 @@ package handlers
 
 import (
 	"encoding/json"
-	"guidely-app/internal/dto"
-	"guidely-app/internal/logger"
-	"guidely-app/internal/service"
 	"log"
 	"net/http"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	pb "guidely-app/pkg/pb/auth"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type AuthHandler struct {
-	authService service.AuthService
+	client pb.AuthServiceClient
 }
 
-func NewAuthHandler(authService service.AuthService) *AuthHandler {
-	return &AuthHandler{authService: authService}
+func NewAuthHandler(client pb.AuthServiceClient) *AuthHandler {
+	return &AuthHandler{client: client}
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
-	log.Println("Register called")
-
-	var req dto.RegisterRequest
+	var req struct {
+		Login    string `json:"login"`
+		Password string `json:"password"`
+		Nickname string `json:"nickname"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("Failed to decode request: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
 
-	log.Printf("Register request: email=%s, nickname=%s", req.Login, req.Nickname)
-	user, token, err := h.authService.Register(r.Context(), service.RegisterInput{
+	_, err := h.client.Register(r.Context(), &pb.RegisterRequest{
 		Login:    req.Login,
 		Password: req.Password,
 		Nickname: req.Nickname,
 	})
 	if err != nil {
-		log.Printf("Registration failed: %v", err)
-		status := http.StatusBadRequest
-		resp := map[string]string{"error": err.Error()}
-		switch err.Error() {
-		case "login already exists":
-			status = http.StatusConflict
-			resp["field"] = "login"
-		case "nickname already exists":
-			status = http.StatusConflict
-			resp["field"] = "nickname"
+		log.Printf("register gRPC error: %v", err)
+		if st, ok := status.FromError(err); ok && st.Code() == codes.InvalidArgument {
+			http.Error(w, st.Message(), http.StatusBadRequest)
+			return
 		}
-		w.WriteHeader(status)
-		json.NewEncoder(w).Encode(resp)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	log.Printf("User registered: id=%d, email=%s", user.ID, user.Login)
-	logger.Info(r.Context(), "User registered", logrus.Fields{"user_id": user.ID, "login": user.Login})
 
-	http.SetCookie(w, &http.Cookie{
-		Name:     "session_token",
-		Value:    token,
-		Expires:  time.Now().Add(7 * 24 * time.Hour),
-		HttpOnly: true,
-		Secure:   false,
-		SameSite: http.SameSiteLaxMode,
-		Path:     "/",
-	})
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"message": "user created",
-		"user_id": user.ID,
-	})
-}
-
-func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var req dto.LoginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
-		return
-	}
-	user, token, err := h.authService.Login(r.Context(), service.LoginInput{
+	loginResp, err := h.client.Login(r.Context(), &pb.LoginRequest{
 		Login:    req.Login,
 		Password: req.Password,
 	})
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid credentials"})
+		log.Printf("auto-login after register gRPC error: %v", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"message": "user created",
+		})
 		return
 	}
-	logger.Info(r.Context(), "User logged in", logrus.Fields{"user_id": user.ID})
+
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
-		Value:    token,
+		Value:    loginResp.Token,
+		MaxAge:   7 * 24 * 60 * 60, // 7 days in seconds
 		Expires:  time.Now().Add(7 * 24 * time.Hour),
 		HttpOnly: true,
 		Secure:   false,
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 	})
-	json.NewEncoder(w).Encode(dto.LoginResponse{
-		UserID:    user.ID,
-		Nickname:  user.Nickname,
-		AvatarURL: user.AvatarURL,
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"user_id":  loginResp.UserId,
+		"nickname": loginResp.Nickname,
+		"message":  "user created",
+	})
+}
+
+func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Login    string `json:"login"`
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+
+	resp, err := h.client.Login(r.Context(), &pb.LoginRequest{
+		Login:    req.Login,
+		Password: req.Password,
+	})
+	if err != nil {
+		log.Printf("login gRPC error: %v", err)
+		if st, ok := status.FromError(err); ok && st.Code() == codes.Unauthenticated {
+			http.Error(w, "invalid credentials", http.StatusUnauthorized)
+			return
+		}
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_token",
+		Value:    resp.Token,
+		MaxAge:   7 * 24 * 60 * 60, // 7 days in seconds
+		Expires:  time.Now().Add(7 * 24 * time.Hour),
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"user_id":  resp.UserId,
+		"nickname": resp.Nickname,
 	})
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("session_token")
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-	if err := h.authService.Logout(r.Context(), cookie.Value); err != nil {
-		logger.Error(r.Context(), "Logout failed", logrus.Fields{"error": err.Error()})
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "logout failed"})
+	if _, err := h.client.Logout(r.Context(), &pb.LogoutRequest{Token: cookie.Value}); err != nil {
+		log.Printf("logout gRPC error: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	logger.Info(r.Context(), "User logged out", nil)
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
 		Value:    "",
-		Expires:  time.Unix(0, 0),
-		HttpOnly: true,
 		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
 	})
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "logged out"})
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	userIDVal := r.Context().Value("user_id")
 	userID, ok := userIDVal.(uint64)
 	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-	user, err := h.authService.GetUserByID(r.Context(), userID)
+	resp, err := h.client.GetUser(r.Context(), &pb.GetUserRequest{UserId: userID})
 	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
+		log.Printf("get user gRPC error: %v", err)
+		http.Error(w, "user not found", http.StatusNotFound)
 		return
 	}
-	json.NewEncoder(w).Encode(dto.LoginResponse{
-		UserID:    user.ID,
-		Nickname:  user.Nickname,
-		AvatarURL: user.AvatarURL,
-	})
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
 }

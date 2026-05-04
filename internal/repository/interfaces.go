@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"guidely-app/internal/models"
+	"guidely-app/pkg/models"
 )
 
 type UserRepository interface {
@@ -25,6 +25,7 @@ type PlaceRepository interface {
 	GetWithRatingAndLike(ctx context.Context, placeID, userID uint64) (*models.PlaceWithRating, error)
 	IsPlaceInTrip(ctx context.Context, placeID, tripID uint64) (bool, error)
 	Search(ctx context.Context, query string) ([]models.Place, error)
+	GetByCategory(ctx context.Context, categoryID uint64) ([]models.Place, error)
 }
 
 type TripRepository interface {
@@ -38,6 +39,14 @@ type TripRepository interface {
 	GetPlaceIDs(ctx context.Context, tripID uint64) ([]uint64, error)
 	RemoveAttraction(ctx context.Context, tripID, placeID uint64) error
 	CheckPlaceInTrip(ctx context.Context, tripID, placeID uint64) (bool, error)
+}
+
+type CategoryRepository interface {
+	GetAll(ctx context.Context) ([]models.Category, error)
+	GetByID(ctx context.Context, id uint64) (*models.Category, error)
+	Create(ctx context.Context, c *models.Category) error
+	Update(ctx context.Context, c *models.Category) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type ReviewRepository interface {

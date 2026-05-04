@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"guidely-app/internal/models"
 	"guidely-app/internal/testutil"
+	"guidely-app/pkg/models"
 
 	"github.com/pashagolub/pgxmock/v4"
 	"github.com/stretchr/testify/assert"
@@ -163,10 +163,8 @@ func TestTripRepo_GetAttractions(t *testing.T) {
 	repo := NewTripRepo(mockPool)
 
 	photoURL := "/photos/eiffel.jpg"
-	// В коде GetAttractions сканирование: &pl.ID, &pl.Name, &pl.Description, &pl.PhotoURL, &pl.Rating.
-	// PhotoURL — string, не указатель, поэтому в AddRow передаём саму строку (не &photoURL).
-	rows := mockPool.NewRows([]string{"id", "name", "description", "photo_url", "rating"}).
-		AddRow(uint64(1), "Eiffel Tower", "Famous tower", photoURL, 4.5)
+	rows := mockPool.NewRows([]string{"id", "name", "description", "rating", "photo_url"}).
+		AddRow(uint64(1), "Eiffel Tower", "Famous tower", 4.5, photoURL)
 
 	mockPool.ExpectQuery(`SELECT p\.id, p\.name, p\.description, COALESCE\(AVG\(r\.rating\), 0\) as rating,`).
 		WithArgs(uint64(1)).

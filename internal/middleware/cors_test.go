@@ -1,78 +1,80 @@
 package middleware
 
-// import (
-// 	"net/http"
-// 	"net/http/httptest"
-// 	"testing"
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
 
-// 	"github.com/stretchr/testify/assert"
-// )
+	"github.com/stretchr/testify/assert"
+)
 
-// func TestCORS(t *testing.T) {
-// 	allowedOrigin := "http://example.com"
-// 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 		w.WriteHeader(http.StatusOK)
-// 		w.Write([]byte("OK"))
-// 	})
+func TestCORS_AllowedOrigin(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
 
-// 	middleware := CORS(allowedOrigin)
-// 	wrappedHandler := middleware(handler)
+	wrapped := CORS("http://guidely.ru", "https://guidely.ru")(handler)
 
-// 	tests := []struct {
-// 		name            string
-// 		method          string
-// 		origin          string
-// 		expectedStatus  int
-// 		expectedHeaders map[string]string
-// 	}{
-// 		{
-// 			name:           "OPTIONS request",
-// 			method:         http.MethodOptions,
-// 			origin:         allowedOrigin,
-// 			expectedStatus: http.StatusOK,
-// 			expectedHeaders: map[string]string{
-// 				"Access-Control-Allow-Origin":  allowedOrigin,
-// 				"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-// 				"Access-Control-Allow-Headers": "Content-Type, Authorization",
-// 			},
-// 		},
-// 		{
-// 			name:           "GET request",
-// 			method:         http.MethodGet,
-// 			origin:         allowedOrigin,
-// 			expectedStatus: http.StatusOK,
-// 			expectedHeaders: map[string]string{
-// 				"Access-Control-Allow-Origin": allowedOrigin,
-// 			},
-// 		},
-// 		{
-// 			name:           "POST request with different origin",
-// 			method:         http.MethodPost,
-// 			origin:         "http://other.com",
-// 			expectedStatus: http.StatusOK,
-// 			expectedHeaders: map[string]string{
-// 				"Access-Control-Allow-Origin": allowedOrigin,
-// 			},
-// 		},
-// 	}
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Header.Set("Origin", "http://guidely.ru")
+	w := httptest.NewRecorder()
 
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			req := httptest.NewRequest(tt.method, "/", nil)
-// 			req.Header.Set("Origin", tt.origin)
-// 			rec := httptest.NewRecorder()
+	wrapped.ServeHTTP(w, req)
 
-// 			wrappedHandler.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "http://guidely.ru", w.Header().Get("Access-Control-Allow-Origin"))
+	assert.Equal(t, "true", w.Header().Get("Access-Control-Allow-Credentials"))
+}
 
-// 			assert.Equal(t, tt.expectedStatus, rec.Code)
+func TestCORS_DisallowedOrigin(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
 
-// 			for header, expectedValue := range tt.expectedHeaders {
-// 				assert.Equal(t, expectedValue, rec.Header().Get(header))
-// 			}
+	wrapped := CORS("http://guidely.ru")(handler)
 
-// 			if tt.method != http.MethodOptions {
-// 				assert.Equal(t, "OK", rec.Body.String())
-// 			}
-// 		})
-// 	}
-// }
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Header.Set("Origin", "http://evil.com")
+	w := httptest.NewRecorder()
+
+	wrapped.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Empty(t, w.Header().Get("Access-Control-Allow-Origin"))
+}
+
+func TestCORS_Preflight(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	wrapped := CORS("http://guidely.ru")(handler)
+
+	req := httptest.NewRequest("OPTIONS", "/api/login", nil)
+	req.Header.Set("Origin", "http://guidely.ru")
+	w := httptest.NewRecorder()
+
+	wrapped.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "http://guidely.ru", w.Header().Get("Access-Control-Allow-Origin"))
+	assert.Equal(t, "GET, POST, PUT, DELETE, OPTIONS", w.Header().Get("Access-Control-Allow-Methods"))
+}
+
+func TestCORS_MultipleOrigins(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	wrapped := CORS("http://guidely.ru", "https://guidely.ru", "http://localhost:3000")(handler)
+
+	for _, origin := range []string{"http://guidely.ru", "https://guidely.ru", "http://localhost:3000"} {
+		req := httptest.NewRequest("GET", "/", nil)
+		req.Header.Set("Origin", origin)
+		w := httptest.NewRecorder()
+
+		wrapped.ServeHTTP(w, req)
+
+		assert.Equal(t, origin, w.Header().Get("Access-Control-Allow-Origin"), "origin: %s", origin)
+	}
+}

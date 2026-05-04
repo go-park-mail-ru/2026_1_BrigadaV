@@ -5,7 +5,8 @@ import (
 	"guidely-app/internal/dto"
 	"guidely-app/internal/logger"
 	"guidely-app/internal/service"
-	"guidely-app/internal/utils"
+	"guidely-app/pkg/utils"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -186,18 +187,22 @@ func (h *TripHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
-		logger.Error(r.Context(), "Invalid trip id in Delete", logrus.Fields{"id": vars["id"], "error": err})
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip id"})
 		return
 	}
 	if err := h.tripService.Delete(r.Context(), id, userID); err != nil {
-		logger.Error(r.Context(), "DeleteTrip failed", logrus.Fields{"error": err, "trip_id": id})
-		w.WriteHeader(http.StatusForbidden)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		log.Printf("trip delete error: %v", err)
+		switch {
+		case err.Error() == "trip not found":
+			http.Error(w, "trip not found", http.StatusNotFound)
+		case err.Error() == "not authorized":
+			http.Error(w, "forbidden", http.StatusForbidden)
+		default:
+			http.Error(w, "internal error", http.StatusInternalServerError)
+		}
 		return
 	}
-	logger.Info(r.Context(), "Trip deleted", logrus.Fields{"trip_id": id})
 	w.WriteHeader(http.StatusNoContent)
 }
 

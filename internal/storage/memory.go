@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"guidely-app/internal/models"
+	"guidely-app/pkg/models"
 	"sync"
 )
 

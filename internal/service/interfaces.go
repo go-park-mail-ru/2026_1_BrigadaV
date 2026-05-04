@@ -2,18 +2,12 @@ package service
 
 import (
 	"context"
-	"guidely-app/internal/models"
+	"guidely-app/pkg/models"
 )
-
-type AuthService interface {
-	Register(ctx context.Context, input RegisterInput) (*models.User, string, error)
-	Login(ctx context.Context, input LoginInput) (*models.User, string, error)
-	Logout(ctx context.Context, token string) error
-	GetUserByID(ctx context.Context, id uint64) (*models.User, error)
-}
 
 type PlaceService interface {
 	GetAll(ctx context.Context) ([]models.Place, error)
+	GetByCategory(ctx context.Context, categoryID uint64) ([]models.Place, error)
 	GetDetails(ctx context.Context, placeID, userID uint64) (*models.PlaceWithRating, error)
 	GetReviews(ctx context.Context, placeID uint64) ([]models.ReviewWithAuthor, error)
 	IsPlaceInTrip(ctx context.Context, placeID, tripID uint64) (bool, error)
@@ -40,4 +34,12 @@ type TripService interface {
 type ReviewService interface {
 	Create(ctx context.Context, input CreateReviewInput) (*models.Review, error)
 	Delete(ctx context.Context, userID, reviewID uint64) error
+}
+
+type CategoryService interface {
+	GetAll(ctx context.Context) ([]models.Category, error)
+	GetByID(ctx context.Context, id uint64) (*models.Category, error)
+	Create(ctx context.Context, c *models.Category) error
+	Update(ctx context.Context, c *models.Category) error
+	Delete(ctx context.Context, id uint64) error
 }

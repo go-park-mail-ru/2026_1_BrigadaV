@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"guidely-app/internal/dto"
-	"guidely-app/internal/models"
+	"guidely-app/pkg/models"
 	"guidely-app/internal/service/mocks"
 	"guidely-app/internal/testutil"
 

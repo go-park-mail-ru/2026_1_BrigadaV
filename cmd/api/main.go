@@ -1,20 +1,28 @@
 package main
 
 import (
+	"log"
+	"os"
+	"net/http"
+
 	_ "guidely-app/docs"
-	"guidely-app/internal/config"
-	"guidely-app/internal/db"
+	authrepo "guidely-app/internal/auth/repository"
 	"guidely-app/internal/handlers"
 	"guidely-app/internal/logger"
 	"guidely-app/internal/middleware"
 	"guidely-app/internal/repository"
 	"guidely-app/internal/service"
-	"log"
-	"net/http"
+	"guidely-app/pkg/config"
+	"guidely-app/pkg/db"
 
-	// "github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
+	pbalbum "guidely-app/pkg/pb/album"
+	pbauth "guidely-app/pkg/pb/auth"
+	pbreview "guidely-app/pkg/pb/review"
 )
 
 func main() {
@@ -32,31 +40,52 @@ func main() {
 	defer dbPool.Close()
 
 	dbAdapter := &repository.PgxPoolAdapter{Pool: dbPool}
+	authAdapter := &authrepo.PgxPoolAdapter{Pool: dbPool}
 
-	userRepo := repository.NewUserRepo(dbAdapter)
-	sessionRepo := repository.NewSessionRepo(dbAdapter)
+	authConn, err := grpc.Dial(getEnv("AUTH_GRPC_ADDR", "localhost:8085"), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("failed to connect to auth service: %v", err)
+	}
+	authClient := pbauth.NewAuthServiceClient(authConn)
+
+	albumConn, err := grpc.Dial(getEnv("ALBUM_GRPC_ADDR", "localhost:8086"), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("failed to connect to album service: %v", err)
+	}
+	albumClient := pbalbum.NewAlbumServiceClient(albumConn)
+
+	reviewConn, err := grpc.Dial(getEnv("REVIEW_GRPC_ADDR", "localhost:8087"), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("failed to connect to review service: %v", err)
+	}
+	reviewClient := pbreview.NewReviewServiceClient(reviewConn)
+
 	placeRepo := repository.NewPlaceRepo(dbAdapter)
 	tripRepo := repository.NewTripRepo(dbAdapter)
+	categoryRepo := repository.NewCategoryRepo(dbPool)
 	reviewRepo := repository.NewReviewRepo(dbAdapter)
+	userRepo := authrepo.NewUserRepo(authAdapter)
+	sessionRepo := authrepo.NewSessionRepo(authAdapter)
 
-	authService := service.NewAuthService(userRepo, sessionRepo)
 	placeService := service.NewPlaceService(placeRepo, reviewRepo)
-	profileService := service.NewProfileService(userRepo)
 	tripService := service.NewTripService(tripRepo)
-	reviewService := service.NewReviewService(reviewRepo)
+	categoryService := service.NewCategoryService(categoryRepo)
+	profileService := service.NewProfileService(userRepo)
 
-	authHandler := handlers.NewAuthHandler(authService)
+	authHandler := handlers.NewAuthHandler(authClient)
+	albumHandler := handlers.NewAlbumHandler(albumClient)
+	reviewHandler := handlers.NewReviewHandler(reviewClient)
 	placeHandler := handlers.NewPlaceHandler(placeService, tripService)
 	profileHandler := handlers.NewProfileHandler(profileService)
 	tripHandler := handlers.NewTripHandler(tripService)
-	reviewHandler := handlers.NewReviewHandler(reviewService)
+	categoryHandler := handlers.NewCategoryHandler(categoryService)
 	csrfHandler := handlers.NewCSRFHandler()
 
 	authMiddleware := middleware.NewAuthMiddleware(sessionRepo)
 
 	r := mux.NewRouter()
-
 	r.Use(logger.Middleware)
+	r.Use(middleware.CORS(cfg.AllowedOrigins...))
 
 	r.HandleFunc("/api/register", authHandler.Register).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/login", authHandler.Login).Methods("POST", "OPTIONS")
@@ -74,6 +103,9 @@ func main() {
 	r.HandleFunc("/api/places/{id:[0-9]+}/reviews", placeHandler.GetReviews).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/places/{id:[0-9]+}/in-trip", authMiddleware.Authenticate(placeHandler.CheckPlaceInTrip)).Methods("GET", "OPTIONS")
 
+	r.HandleFunc("/api/reviews", authMiddleware.Authenticate(reviewHandler.Create)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/reviews/{id:[0-9]+}", authMiddleware.Authenticate(reviewHandler.Delete)).Methods("DELETE", "OPTIONS")
+
 	r.HandleFunc("/api/trips", authMiddleware.Authenticate(tripHandler.List)).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/trips", authMiddleware.Authenticate(tripHandler.Create)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/trips/{id:[0-9]+}", authMiddleware.Authenticate(tripHandler.GetDetails)).Methods("GET", "OPTIONS")
@@ -83,33 +115,29 @@ func main() {
 	r.HandleFunc("/api/trips/{id:[0-9]+}/places", authMiddleware.Authenticate(tripHandler.AddPlace)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/trips/{id:[0-9]+}/places/{placeId:[0-9]+}", authMiddleware.Authenticate(tripHandler.RemovePlace)).Methods("DELETE", "OPTIONS")
 
-	r.HandleFunc("/api/reviews", authMiddleware.Authenticate(reviewHandler.Create)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/reviews/{id:[0-9]+}", authMiddleware.Authenticate(reviewHandler.Delete)).Methods("DELETE", "OPTIONS")
+	r.HandleFunc("/api/trips/{tripID:[0-9]+}/album", authMiddleware.Authenticate(albumHandler.GetByTrip)).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/albums/{id:[0-9]+}/photos", authMiddleware.Authenticate(albumHandler.AddPhoto)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/albums/{id:[0-9]+}/photos/{photoId:[0-9]+}", authMiddleware.Authenticate(albumHandler.RemovePhoto)).Methods("DELETE", "OPTIONS")
+	r.HandleFunc("/api/albums/{id:[0-9]+}/photos", authMiddleware.Authenticate(albumHandler.GetPhotos)).Methods("GET", "OPTIONS")
+
+	r.HandleFunc("/api/categories", categoryHandler.List).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/categories/{id:[0-9]+}", categoryHandler.Get).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/categories", authMiddleware.Authenticate(categoryHandler.Create)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/categories/{id:[0-9]+}", authMiddleware.Authenticate(categoryHandler.Update)).Methods("PUT", "OPTIONS")
+	r.HandleFunc("/api/categories/{id:[0-9]+}", authMiddleware.Authenticate(categoryHandler.Delete)).Methods("DELETE", "OPTIONS")
 
 	r.HandleFunc("/api/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
 
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
-
 	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
-
-	// csrfMiddleware := csrf.Protect(
-	// 		[]byte(cfg.JWTSecret),
-	// 		csrf.Secure(false),
-	// 		csrf.HttpOnly(true),
-	// 		csrf.Path("/"),
-	// 		csrf.TrustedOrigins([]string{"guidely.ru"}),
-	// 	)
-	// 	r.Use(csrfMiddleware)
-
-	allowedOrigins := []string{
-	"http://localhost:80",
-	"http://localhost:8080",
-	"https://guidely.ru",
-	"http://localhost:5173",
-	cfg.FrontendURL,
-}
-		r.Use(middleware.CORS(allowedOrigins))
 
 	logger.Log.Info("Server started on :" + cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, r))
+}
+
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }

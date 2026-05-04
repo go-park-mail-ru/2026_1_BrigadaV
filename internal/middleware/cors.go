@@ -1,42 +1,33 @@
 package middleware
 
 import (
-    "log"
-    "net/http"
+	"net/http"
+	"strings"
 )
 
-func CORS(allowedOrigins []string) func(http.Handler) http.Handler {
-    return func(next http.Handler) http.Handler {
-        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-            origin := r.Header.Get("Origin")
+func CORS(allowedOrigins ...string) func(http.Handler) http.Handler {
+	originSet := make(map[string]struct{}, len(allowedOrigins))
+	for _, o := range allowedOrigins {
+		originSet[strings.TrimRight(o, "/")] = struct{}{}
+	}
 
-            log.Printf("[CORS] Request Origin: %s", origin)
-            log.Printf("[CORS] Allowed origins: %v", allowedOrigins)
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
 
-            allowed := false
-            for _, ao := range allowedOrigins {
-                if origin == ao {
-                    allowed = true
-                    break
-                }
-            }
+			if _, ok := originSet[origin]; ok {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-CSRF-Token")
+				w.Header().Add("Vary", "Origin")
+			}
 
-            if allowed {
-                w.Header().Set("Access-Control-Allow-Origin", origin)
-                log.Printf("[CORS] Allowed origin: %s", origin)
-            } else if origin != "" {
-                log.Printf("[CORS] Rejected origin: %s", origin)
-            }
-
-            w.Header().Set("Access-Control-Allow-Credentials", "true")
-            w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
-            w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-CSRF-Token")
-
-            if r.Method == "OPTIONS" {
-                w.WriteHeader(http.StatusOK)
-                return
-            }
-            next.ServeHTTP(w, r)
-        })
-    }
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
