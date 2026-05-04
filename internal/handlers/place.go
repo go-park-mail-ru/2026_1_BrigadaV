@@ -225,6 +225,9 @@ func (h *PlaceHandler) Search(w http.ResponseWriter, r *http.Request) {
 				Name:        p.Name,
 				Description: p.Description,
 				Price:       p.Price,
+				Latitude:    p.Latitude,
+				Longitude:   p.Longitude,
+				IsLiked:     false,
 				Locality: dto.LocalityDTO{
 					ID:        p.Locality.ID,
 					Name:      p.Locality.Name,
@@ -235,6 +238,13 @@ func (h *PlaceHandler) Search(w http.ResponseWriter, r *http.Request) {
 				CreatedAt: p.CreatedAt,
 				UpdatedAt: p.UpdatedAt,
 				PhotoURL:  p.PhotoURL,
+			}
+			if p.Category.ID != 0 {
+				pr.Category = &dto.CategoryDTO{
+					ID:          p.Category.ID,
+					Name:        p.Category.Name,
+					Description: p.Category.Description,
+				}
 			}
 			filtered = append(filtered, pr)
 		}
