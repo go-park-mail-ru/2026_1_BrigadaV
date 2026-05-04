@@ -60,7 +60,7 @@ message AddPhotoRequest {
 // UploadPhotoRequest: путь к уже сохранённому файлу, album_id для связки
 message UploadPhotoRequest {
   uint64 album_id = 1;
-  string file_path = 2;
+  string file_url = 2;
 }
 
 message UploadPhotoResponse {
