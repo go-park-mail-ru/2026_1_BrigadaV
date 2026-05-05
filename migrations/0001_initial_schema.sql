@@ -270,6 +270,7 @@ INSERT INTO "user" (login, nickname, avatar_url, password_hash) VALUES
     ('jane@example.com', 'jane', '/mock/user-avatar/jane.jpg', 'argon2id$v=19$m=65536,t=1,p=4$LFU4f51KpaFJ85VzwIXZ2Q$NjKqQ4SfxdTnOJz22q+B8sYtNiTcOA4eozfj7mNJtnY')
 ON CONFLICT (nickname) DO NOTHING;
 
+
 -- +goose StatementEnd
 
 -- +goose Down

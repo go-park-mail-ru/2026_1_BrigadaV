@@ -330,3 +330,57 @@ func (r *PlaceRepo) Search(ctx context.Context, query string) ([]models.Place, e
 	logger.Debug(ctx, "search completed", logrus.Fields{"count": len(places)})
 	return places, nil
 }
+
+func (r *PlaceRepo) GetByCategory(ctx context.Context, categoryID uint64) ([]models.Place, error) {
+	query := `
+        SELECT p.id, p.name, p.description, p.photo_url, p.price, p.created_at, p.updated_at,
+               p.latitude, p.longitude,
+               l.id, l.name, c.name as country_name, l.latitude, l.longitude,
+               cat.id, cat.name, cat.description
+        FROM place p
+        LEFT JOIN locality l ON p.locality_id = l.id
+        LEFT JOIN country c ON l.country_id = c.id
+        LEFT JOIN category cat ON p.category_id = cat.id
+        WHERE p.category_id = $1
+        ORDER BY p.id`
+	rows, err := r.db.Query(ctx, query, categoryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var places []models.Place
+	for rows.Next() {
+		var p models.Place
+		var locID, catID *uint64
+		var locName, countryName *string
+		var locLat, locLng *float64
+		var catName, catDesc *string
+		err := rows.Scan(
+			&p.ID, &p.Name, &p.Description, &p.PhotoURL, &p.Price, &p.CreatedAt, &p.UpdatedAt,
+			&p.Latitude, &p.Longitude,
+			&locID, &locName, &countryName, &locLat, &locLng,
+			&catID, &catName, &catDesc,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if locID != nil {
+			p.Locality = models.Locality{
+				ID:        *locID,
+				Name:      *locName,
+				Country:   *countryName,
+				Latitude:  locLat,
+				Longitude: locLng,
+			}
+		}
+		if catID != nil {
+			p.Category = models.Category{
+				ID:          *catID,
+				Name:        *catName,
+				Description: *catDesc,
+			}
+		}
+		places = append(places, p)
+	}
+	return places, nil
+}

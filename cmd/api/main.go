@@ -2,8 +2,8 @@ package main
 
 import (
 	"log"
-	"os"
 	"net/http"
+	"os"
 
 	_ "guidely-app/docs"
 	authrepo "guidely-app/internal/auth/repository"
@@ -62,7 +62,7 @@ func main() {
 
 	placeRepo := repository.NewPlaceRepo(dbAdapter)
 	tripRepo := repository.NewTripRepo(dbAdapter)
-	categoryRepo := repository.NewCategoryRepo(dbPool)
+	categoryRepo := repository.NewCategoryRepo(dbAdapter)
 	reviewRepo := repository.NewReviewRepo(dbAdapter)
 	userRepo := authrepo.NewUserRepo(authAdapter)
 	sessionRepo := authrepo.NewSessionRepo(authAdapter)
