@@ -108,6 +108,8 @@ services:
         condition: service_started
     ports:
       - "8080:8080"
+    volumes:
+      - uploads_data:/root/uploads
     networks:
       - guidely-network
     restart: unless-stopped
@@ -131,3 +133,4 @@ networks:
 
 volumes:
   postgres_data:
+  uploads_data:
