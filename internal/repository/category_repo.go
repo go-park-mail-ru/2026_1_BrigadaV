@@ -6,7 +6,7 @@ import (
 	"guidely-app/pkg/models"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type CategoryRepo struct {
@@ -27,9 +27,11 @@ func (r *CategoryRepo) GetAll(ctx context.Context) ([]models.Category, error) {
 	var categories []models.Category
 	for rows.Next() {
 		var c models.Category
-		if err := rows.Scan(&c.ID, &c.Name, &c.Description, pq.Array(&c.ApplicableTypes), &c.CreatedAt); err != nil {
+		var arr pgtype.FlatArray[string]
+		if err := rows.Scan(&c.ID, &c.Name, &c.Description, &arr, &c.CreatedAt); err != nil {
 			return nil, err
 		}
+		c.ApplicableTypes = arr
 		categories = append(categories, c)
 	}
 	return categories, nil
@@ -38,24 +40,26 @@ func (r *CategoryRepo) GetAll(ctx context.Context) ([]models.Category, error) {
 func (r *CategoryRepo) GetByID(ctx context.Context, id uint64) (*models.Category, error) {
 	query := `SELECT id, name, description, applicable_types, created_at FROM category WHERE id = $1`
 	var c models.Category
-	err := r.db.QueryRow(ctx, query, id).Scan(&c.ID, &c.Name, &c.Description, pq.Array(&c.ApplicableTypes), &c.CreatedAt)
+	var arr pgtype.FlatArray[string]
+	err := r.db.QueryRow(ctx, query, id).Scan(&c.ID, &c.Name, &c.Description, &arr, &c.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
+	c.ApplicableTypes = arr
 	return &c, nil
 }
 
 func (r *CategoryRepo) Create(ctx context.Context, c *models.Category) error {
 	query := `INSERT INTO category (name, description, applicable_types) VALUES ($1, $2, $3) RETURNING id, created_at`
-	return r.db.QueryRow(ctx, query, c.Name, c.Description, pq.Array(c.ApplicableTypes)).Scan(&c.ID, &c.CreatedAt)
+	return r.db.QueryRow(ctx, query, c.Name, c.Description, c.ApplicableTypes).Scan(&c.ID, &c.CreatedAt)
 }
 
 func (r *CategoryRepo) Update(ctx context.Context, c *models.Category) error {
 	query := `UPDATE category SET name=$1, description=$2, applicable_types=$3 WHERE id=$4`
-	_, err := r.db.Exec(ctx, query, c.Name, c.Description, pq.Array(c.ApplicableTypes), c.ID)
+	_, err := r.db.Exec(ctx, query, c.Name, c.Description, c.ApplicableTypes, c.ID)
 	return err
 }
 
