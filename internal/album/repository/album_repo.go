@@ -6,14 +6,13 @@ import (
 	"guidely-app/pkg/models"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type AlbumRepo struct {
-	db *pgxpool.Pool
+	db DB
 }
 
-func NewAlbumRepo(db *pgxpool.Pool) *AlbumRepo {
+func NewAlbumRepo(db DB) *AlbumRepo {
 	return &AlbumRepo{db: db}
 }
 
@@ -71,8 +70,6 @@ func (r *AlbumRepo) Delete(ctx context.Context, id uint64) error {
 	return err
 }
 
-// UploadPhoto: создаёт запись в таблице photo, затем связывает с альбомом в album_photo.
-// Возвращает id созданной записи photo.
 func (r *AlbumRepo) UploadPhoto(ctx context.Context, albumID uint64, filePath string) (uint64, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -80,7 +77,6 @@ func (r *AlbumRepo) UploadPhoto(ctx context.Context, albumID uint64, filePath st
 	}
 	defer tx.Rollback(ctx)
 
-	// 1. Создаём запись в таблице photo
 	var photoID uint64
 	err = tx.QueryRow(ctx,
 		`INSERT INTO photo (file_path, created_at) VALUES ($1, NOW()) RETURNING id`,
@@ -90,14 +86,12 @@ func (r *AlbumRepo) UploadPhoto(ctx context.Context, albumID uint64, filePath st
 		return 0, err
 	}
 
-	// 2. Определяем следующий order_index
 	var maxOrder int
 	_ = tx.QueryRow(ctx,
 		`SELECT COALESCE(MAX(order_index), 0) FROM album_photo WHERE album_id = $1`,
 		albumID,
 	).Scan(&maxOrder)
 
-	// 3. Связываем с альбомом
 	_, err = tx.Exec(ctx,
 		`INSERT INTO album_photo (album_id, photo_id, order_index, created_at) VALUES ($1, $2, $3, NOW())`,
 		albumID, photoID, maxOrder+1,
@@ -123,7 +117,6 @@ func (r *AlbumRepo) RemovePhoto(ctx context.Context, albumID, photoID uint64) er
 	return err
 }
 
-// GetPhotos возвращает фото альбома с file_path из таблицы photo.
 func (r *AlbumRepo) GetPhotos(ctx context.Context, albumID uint64) ([]models.AlbumPhoto, error) {
 	query := `
 		SELECT ap.album_id, ap.photo_id, ap.order_index, ap.created_at, p.file_path
