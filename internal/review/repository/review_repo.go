@@ -9,14 +9,12 @@ import (
 )
 
 type ReviewRepo struct {
-	db DB // изменено: теперь интерфейс DB
+	db DB
 }
 
-func NewReviewRepo(db DB) *ReviewRepo { // изменено: принимает DB
+func NewReviewRepo(db DB) *ReviewRepo {
 	return &ReviewRepo{db: db}
 }
-
-// все методы остаются без изменений, используют r.db.Query/QueryRow/Exec
 
 func (r *ReviewRepo) Create(ctx context.Context, review *models.Review) error {
 	query := `INSERT INTO review (user_id, place_id, title, rating, comment, visit_date)
