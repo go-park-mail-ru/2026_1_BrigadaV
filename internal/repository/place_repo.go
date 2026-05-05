@@ -216,6 +216,7 @@ func (r *PlaceRepo) GetByCategory(ctx context.Context, categoryID uint64) ([]mod
 	logger.Debug(ctx, "getting places by category", logrus.Fields{"category_id": categoryID})
 	q := `
         SELECT p.id, p.name, p.description, p.photo_url, p.price, p.created_at, p.updated_at,
+               p.latitude, p.longitude,
                l.id, l.name, c.name as country_name, l.latitude, l.longitude,
                cat.id, cat.name, cat.description
         FROM place p
@@ -241,6 +242,7 @@ func (r *PlaceRepo) GetByCategory(ctx context.Context, categoryID uint64) ([]mod
 
 		err := rows.Scan(
 			&p.ID, &p.Name, &p.Description, &p.PhotoURL, &p.Price, &p.CreatedAt, &p.UpdatedAt,
+			&p.Latitude, &p.Longitude,
 			&locID, &locName, &countryName, &locLat, &locLng,
 			&catID, &catName, &catDesc,
 		)
@@ -275,6 +277,7 @@ func (r *PlaceRepo) Search(ctx context.Context, query string) ([]models.Place, e
 	logger.Debug(ctx, "searching places", logrus.Fields{"query": query})
 	q := `
         SELECT p.id, p.name, p.description, p.photo_url, p.price, p.created_at, p.updated_at,
+               p.latitude, p.longitude,
                l.id, l.name, c.name as country_name, l.latitude, l.longitude,
                cat.id, cat.name, cat.description
         FROM place p
@@ -301,6 +304,7 @@ func (r *PlaceRepo) Search(ctx context.Context, query string) ([]models.Place, e
 
 		err := rows.Scan(
 			&p.ID, &p.Name, &p.Description, &p.PhotoURL, &p.Price, &p.CreatedAt, &p.UpdatedAt,
+			&p.Latitude, &p.Longitude,
 			&locID, &locName, &countryName, &locLat, &locLng,
 			&catID, &catName, &catDesc,
 		)

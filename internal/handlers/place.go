@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"guidely-app/internal/dto"
 	"guidely-app/internal/logger"
@@ -208,36 +207,54 @@ func (h *PlaceHandler) Search(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "missing query parameter 'q'"})
 		return
 	}
-	places, err := h.placeService.GetAll(r.Context())
+	places, err := h.placeService.Search(r.Context(), query)
 	if err != nil {
 		logger.Error(r.Context(), "Failed to search places", logrus.Fields{"error": err})
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"error": "failed to search places"})
 		return
 	}
+
 	var filtered []dto.PlaceResponse
-	queryLower := strings.ToLower(query)
 	for _, p := range places {
-		if strings.Contains(strings.ToLower(p.Name), queryLower) ||
-			strings.Contains(strings.ToLower(p.Description), queryLower) {
-			pr := dto.PlaceResponse{
-				ID:          p.ID,
-				Name:        p.Name,
-				Description: p.Description,
-				Price:       p.Price,
-				Locality: dto.LocalityDTO{
-					ID:        p.Locality.ID,
-					Name:      p.Locality.Name,
-					Country:   p.Locality.Country,
-					Latitude:  p.Locality.Latitude,
-					Longitude: p.Locality.Longitude,
-				},
-				CreatedAt: p.CreatedAt,
-				UpdatedAt: p.UpdatedAt,
-				PhotoURL:  p.PhotoURL,
-			}
-			filtered = append(filtered, pr)
+		pr := dto.PlaceResponse{
+			ID:          p.ID,
+			Name:        p.Name,
+			Description: p.Description,
+			Price:       p.Price,
+			Latitude:    p.Latitude,
+			Longitude:   p.Longitude,
+			IsLiked:     false,
+			Locality: dto.LocalityDTO{
+				ID:        p.Locality.ID,
+				Name:      p.Locality.Name,
+				Country:   p.Locality.Country,
+				Latitude:  p.Locality.Latitude,
+				Longitude: p.Locality.Longitude,
+			},
+			CreatedAt: p.CreatedAt,
+			UpdatedAt: p.UpdatedAt,
+			PhotoURL:  p.PhotoURL,
 		}
+		if p.Category.ID != 0 {
+			pr.Category = &dto.CategoryDTO{
+				ID:          p.Category.ID,
+				Name:        p.Category.Name,
+				Description: p.Category.Description,
+			}
+		}
+		if len(p.Photos) > 0 {
+			pr.Photos = make([]dto.PlacePhotoDTO, len(p.Photos))
+			for i, ph := range p.Photos {
+				pr.Photos[i] = dto.PlacePhotoDTO{
+					ID:       ph.ID,
+					PlaceID:  ph.PlaceID,
+					FilePath: ph.Photo.FilePath,
+					IsMain:   ph.IsMain,
+				}
+			}
+		}
+		filtered = append(filtered, pr)
 	}
 	if filtered == nil {
 		filtered = []dto.PlaceResponse{}
