@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"guidely-app/internal/auth/repository/mocks" // моки для SessionRepository теперь здесь
+	"guidely-app/internal/auth/repository/mocks"
 	"guidely-app/pkg/models"
+	"guidely-app/pkg/utils"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -36,10 +37,9 @@ func TestAuthMiddleware_Authenticate(t *testing.T) {
 		checkContext   bool
 	}{
 		{
-			name:   "missing cookie",
-			cookie: nil,
-			mockBehavior: func() {
-			},
+			name:           "missing cookie",
+			cookie:         nil,
+			mockBehavior:   func() {},
 			expectedStatus: http.StatusUnauthorized,
 		},
 		{
@@ -49,7 +49,9 @@ func TestAuthMiddleware_Authenticate(t *testing.T) {
 				Value: "invalid",
 			},
 			mockBehavior: func() {
-				mockSessionRepo.EXPECT().GetByToken(gomock.Any(), "invalid").Return(nil, nil)
+				mockSessionRepo.EXPECT().
+					GetByToken(gomock.Any(), utils.HashToken("invalid")).
+					Return(nil, nil)
 			},
 			expectedStatus: http.StatusUnauthorized,
 		},
@@ -64,7 +66,9 @@ func TestAuthMiddleware_Authenticate(t *testing.T) {
 					UserID:    1,
 					ExpiresAt: time.Now().Add(-1 * time.Hour),
 				}
-				mockSessionRepo.EXPECT().GetByToken(gomock.Any(), "expired_token").Return(session, nil)
+				mockSessionRepo.EXPECT().
+					GetByToken(gomock.Any(), utils.HashToken("expired_token")).
+					Return(session, nil)
 			},
 			expectedStatus: http.StatusUnauthorized,
 		},
@@ -79,7 +83,9 @@ func TestAuthMiddleware_Authenticate(t *testing.T) {
 					UserID:    42,
 					ExpiresAt: time.Now().Add(1 * time.Hour),
 				}
-				mockSessionRepo.EXPECT().GetByToken(gomock.Any(), "valid_token").Return(session, nil)
+				mockSessionRepo.EXPECT().
+					GetByToken(gomock.Any(), utils.HashToken("valid_token")).
+					Return(session, nil)
 			},
 			expectedStatus: http.StatusOK,
 			checkContext:   true,
@@ -91,7 +97,9 @@ func TestAuthMiddleware_Authenticate(t *testing.T) {
 				Value: "error_token",
 			},
 			mockBehavior: func() {
-				mockSessionRepo.EXPECT().GetByToken(gomock.Any(), "error_token").Return(nil, errors.New("db error"))
+				mockSessionRepo.EXPECT().
+					GetByToken(gomock.Any(), utils.HashToken("error_token")).
+					Return(nil, errors.New("db error"))
 			},
 			expectedStatus: http.StatusUnauthorized,
 		},

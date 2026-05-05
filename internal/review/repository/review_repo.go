@@ -3,20 +3,20 @@ package repository
 import (
 	"context"
 	"errors"
-
 	"guidely-app/pkg/models"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type ReviewRepo struct {
-	db *pgxpool.Pool
+	db DB // изменено: теперь интерфейс DB
 }
 
-func NewReviewRepo(db *pgxpool.Pool) *ReviewRepo {
+func NewReviewRepo(db DB) *ReviewRepo { // изменено: принимает DB
 	return &ReviewRepo{db: db}
 }
+
+// все методы остаются без изменений, используют r.db.Query/QueryRow/Exec
 
 func (r *ReviewRepo) Create(ctx context.Context, review *models.Review) error {
 	query := `INSERT INTO review (user_id, place_id, title, rating, comment, visit_date)
