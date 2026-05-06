@@ -16,7 +16,10 @@ import (
 )
 
 func main() {
-	cfg, _ := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal("config load error:", err)
+	}
 	pool, err := db.NewPool(cfg.DatabaseURL)
 	if err != nil {
 		log.Fatal(err)
@@ -32,7 +35,10 @@ func main() {
 	svc := auth.NewService(userRepo, sessRepo)
 	server := auth.NewServer(svc)
 
-	lis, _ := net.Listen("tcp", ":8085")
+	lis, err := net.Listen("tcp", ":8085")
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
 	s := grpc.NewServer(
 		grpc.UnaryInterceptor(metrics.UnaryServerInterceptor()),
 	)

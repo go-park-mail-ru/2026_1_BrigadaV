@@ -65,7 +65,7 @@ func main() {
 
 	placeRepo := repository.NewPlaceRepo(dbAdapter)
 	tripRepo := repository.NewTripRepo(dbAdapter)
-	categoryRepo := repository.NewCategoryRepo(dbPool)
+	categoryRepo := repository.NewCategoryRepo(dbAdapter)
 	reviewRepo := repository.NewReviewRepo(dbAdapter)
 	userRepo := authrepo.NewUserRepo(authAdapter)
 	sessionRepo := authrepo.NewSessionRepo(authAdapter)

@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             v7.34.1
-// source: proto/album.proto
+// source: album.proto
 
 package album
 
@@ -20,15 +20,15 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AlbumService_Create_FullMethodName       = "/album.AlbumService/Create"
-	AlbumService_Get_FullMethodName          = "/album.AlbumService/Get"
-	AlbumService_GetByTrip_FullMethodName    = "/album.AlbumService/GetByTrip"
-	AlbumService_Update_FullMethodName       = "/album.AlbumService/Update"
-	AlbumService_Delete_FullMethodName       = "/album.AlbumService/Delete"
-	AlbumService_UploadPhoto_FullMethodName  = "/album.AlbumService/UploadPhoto"
-	AlbumService_AddPhoto_FullMethodName     = "/album.AlbumService/AddPhoto"
-	AlbumService_RemovePhoto_FullMethodName  = "/album.AlbumService/RemovePhoto"
-	AlbumService_GetPhotos_FullMethodName    = "/album.AlbumService/GetPhotos"
+	AlbumService_Create_FullMethodName      = "/album.AlbumService/Create"
+	AlbumService_Get_FullMethodName         = "/album.AlbumService/Get"
+	AlbumService_GetByTrip_FullMethodName   = "/album.AlbumService/GetByTrip"
+	AlbumService_Update_FullMethodName      = "/album.AlbumService/Update"
+	AlbumService_Delete_FullMethodName      = "/album.AlbumService/Delete"
+	AlbumService_UploadPhoto_FullMethodName = "/album.AlbumService/UploadPhoto"
+	AlbumService_AddPhoto_FullMethodName    = "/album.AlbumService/AddPhoto"
+	AlbumService_RemovePhoto_FullMethodName = "/album.AlbumService/RemovePhoto"
+	AlbumService_GetPhotos_FullMethodName   = "/album.AlbumService/GetPhotos"
 )
 
 // AlbumServiceClient is the client API for AlbumService service.
@@ -422,5 +422,5 @@ var AlbumService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "proto/album.proto",
+	Metadata: "album.proto",
 }

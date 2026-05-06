@@ -2,11 +2,17 @@ package metrics
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"strconv"
+	"time"
+
+	"guidely-app/internal/logger"
 
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
 
@@ -44,15 +50,60 @@ func StartMetricsServer(port string) {
 	r.Handle("/metrics", promhttp.Handler())
 	go func() {
 		if err := http.ListenAndServe(":"+port, r); err != nil {
-			panic(err)
+			logger.Log.WithFields(logrus.Fields{
+				"port": port,
+				"err":  err,
+			}).Error("metrics server stopped")
 		}
 	}()
 }
 
+// responseWriter перехватывает статус-код ответа.
+type responseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
+// routeTemplate возвращает шаблон маршрута gorilla/mux (например /api/places/{id})
+// вместо реального пути, чтобы не раздувать кардинальность метрик.
+func routeTemplate(r *http.Request) string {
+	if route := mux.CurrentRoute(r); route != nil {
+		if tmpl, err := route.GetPathTemplate(); err == nil {
+			return tmpl
+		}
+	}
+	return r.URL.Path
+}
+
+// HTTPMetricsMiddleware собирает hits, тайминги и статусы по шаблону маршрута,
+// а также логирует каждый запрос через общий логгер проекта.
 func HTTPMetricsMiddleware(next http.Handler) http.Handler {
-	return promhttp.InstrumentHandlerCounter(HTTPRequestsTotal,
-		promhttp.InstrumentHandlerDuration(HTTPRequestDuration, next),
-	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+
+		next.ServeHTTP(wrapped, r)
+
+		tmpl := routeTemplate(r)
+		duration := time.Since(start)
+		status := strconv.Itoa(wrapped.statusCode)
+
+		HTTPRequestsTotal.WithLabelValues(r.Method, tmpl, status).Inc()
+		HTTPRequestDuration.WithLabelValues(r.Method, tmpl).Observe(duration.Seconds())
+
+		logger.Log.WithFields(logrus.Fields{
+			"request_id": logger.GetRequestID(r.Context()),
+			"method":     r.Method,
+			"route":      tmpl,
+			"status":     wrapped.statusCode,
+			"duration":   fmt.Sprintf("%.3fms", float64(duration.Nanoseconds())/1e6),
+		}).Info("http request metrics")
+	})
 }
 
 func UnaryServerInterceptor() grpc.UnaryServerInterceptor {

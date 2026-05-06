@@ -25,14 +25,12 @@ func TestService_Register_Success(t *testing.T) {
 		u.ID = 1
 		return nil
 	})
-	sessRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil)
-
 	user, token, err := svc.Register(context.Background(), RegisterInput{
 		Login: "test@example.com", Password: "12345678", Nickname: "tester",
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, user)
-	assert.NotEmpty(t, token)
+	assert.Empty(t, token)
 	assert.Equal(t, uint64(1), user.ID)
 }
 

@@ -28,11 +28,13 @@ func TestPlaceRepo_GetAll(t *testing.T) {
 
 	rows := mockPool.NewRows([]string{
 		"id", "name", "description", "photo_url", "price", "created_at", "updated_at",
-		"locality_id", "locality_name", "country_name", "latitude", "longitude",
+		"place_lat", "place_lng", // p.latitude, p.longitude
+		"locality_id", "locality_name", "country_name", "loc_lat", "loc_lng",
 		"category_id", "category_name", "category_description",
 		"place_photo_id", "file_path", "is_main",
 	}).AddRow(
 		uint64(1), "Eiffel Tower", "Famous tower", nil, 1500, time.Now(), time.Now(),
+		&latitude, &longitude, // указатели, т.к. Scan ожидает *float64
 		nil, &localityName, &countryName, &latitude, &longitude,
 		nil, &categoryName, &categoryDesc,
 		&placePhotoID, &photoFilePath, &isMain,
@@ -63,11 +65,14 @@ func TestPlaceRepo_GetByID(t *testing.T) {
 	categoryName := "Museum"
 	categoryDesc := "Art museum"
 
+	// теперь добавляем place_lat и place_lng (p.latitude, p.longitude)
 	rows := mockPool.NewRows([]string{
 		"id", "name", "description", "photo_url", "price", "created_at", "updated_at",
-		"locality_id", "locality_name", "country_name", "latitude", "longitude",
+		"place_lat", "place_lng", // новое
+		"locality_id", "locality_name", "country_name", "loc_lat", "loc_lng",
 		"category_id", "category_name", "category_description",
 	}).AddRow(uint64(1), "Eiffel Tower", "Famous tower", nil, 1500, time.Now(), time.Now(),
+		&latitude, &longitude, // указатели
 		nil, &localityName, &countryName, &latitude, &longitude,
 		nil, &categoryName, &categoryDesc)
 
@@ -90,14 +95,21 @@ func TestPlaceRepo_GetWithRatingAndLike(t *testing.T) {
 
 	repo := NewPlaceRepo(mockPool)
 
+	lat := 48.8566
+	lng := 2.3522
+
+	// Запрос теперь возвращает 9 колонок (добавлены latitude, longitude)
 	placeRows := mockPool.NewRows([]string{
 		"id", "name", "description", "photo_url", "price", "rating", "review_count",
-	}).AddRow(uint64(1), "Eiffel Tower", "Famous tower", nil, 1500, 4.5, int64(10))
+		"latitude", "longitude",
+	}).AddRow(uint64(1), "Eiffel Tower", "Famous tower", nil, 1500, 4.5, int64(10),
+		&lat, &lng) // указатели
 
-	mockPool.ExpectQuery(`SELECT id, name, description, photo_url, price, rating, review_count FROM place WHERE id = \$1`).
+	mockPool.ExpectQuery(`SELECT id, name, description, photo_url, price, rating, review_count, latitude, longitude FROM place WHERE id = \$1`).
 		WithArgs(uint64(1)).
 		WillReturnRows(placeRows)
 
+	// Проверка лайка
 	likeRows := mockPool.NewRows([]string{"exists"}).AddRow(true)
 	mockPool.ExpectQuery(`SELECT EXISTS\(SELECT 1 FROM favorite WHERE user_id=\$1 AND place_id=\$2\)`).
 		WithArgs(uint64(1), uint64(1)).

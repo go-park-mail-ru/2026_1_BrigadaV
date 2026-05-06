@@ -3,18 +3,16 @@ package repository
 import (
 	"context"
 	"errors"
-
 	"guidely-app/pkg/models"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type ReviewRepo struct {
-	db *pgxpool.Pool
+	db DB
 }
 
-func NewReviewRepo(db *pgxpool.Pool) *ReviewRepo {
+func NewReviewRepo(db DB) *ReviewRepo {
 	return &ReviewRepo{db: db}
 }
 
