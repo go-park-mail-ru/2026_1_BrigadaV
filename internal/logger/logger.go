@@ -29,7 +29,6 @@ func Init(level string) {
 
 func Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
 		reqID := r.Header.Get("X-Request-ID")
 		if reqID == "" {
 			reqID = uuid.New().String()
@@ -46,29 +45,8 @@ func Middleware(next http.Handler) http.Handler {
 			}).Info("request started")
 		}
 
-		wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
-		next.ServeHTTP(wrapped, r)
-
-		if Log != nil {
-			Log.WithFields(logrus.Fields{
-				"request_id": reqID,
-				"method":     r.Method,
-				"path":       r.URL.Path,
-				"status":     wrapped.statusCode,
-				"duration":   time.Since(start).String(),
-			}).Info("request completed")
-		}
+		next.ServeHTTP(w, r)
 	})
-}
-
-type responseWriter struct {
-	http.ResponseWriter
-	statusCode int
-}
-
-func (rw *responseWriter) WriteHeader(code int) {
-	rw.statusCode = code
-	rw.ResponseWriter.WriteHeader(code)
 }
 
 func GetRequestID(ctx context.Context) string {
