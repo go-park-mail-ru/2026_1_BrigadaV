@@ -57,14 +57,35 @@ func HTTPMetricsMiddleware(next http.Handler) http.Handler {
 
 func UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		timer := prometheus.NewTimer(GRPCRequestDuration.WithLabelValues(info.FullMethod, ""))
+		service := info.FullMethod
+		method := info.FullMethod
+		if idx := len(info.FullMethod); idx > 0 {
+			parts := splitFullMethod(info.FullMethod)
+			service = parts[0]
+			method = parts[1]
+		}
+
+		timer := prometheus.NewTimer(GRPCRequestDuration.WithLabelValues(service, method))
 		defer timer.ObserveDuration()
+
 		resp, err := handler(ctx, req)
 		status := "OK"
 		if err != nil {
 			status = "ERROR"
 		}
-		GRPCRequestsTotal.WithLabelValues(info.FullMethod, "", status).Inc()
+		GRPCRequestsTotal.WithLabelValues(service, method, status).Inc()
 		return resp, err
 	}
+}
+
+func splitFullMethod(fullMethod string) [2]string {
+	if len(fullMethod) > 0 && fullMethod[0] == '/' {
+		fullMethod = fullMethod[1:]
+	}
+	for i := len(fullMethod) - 1; i >= 0; i-- {
+		if fullMethod[i] == '/' {
+			return [2]string{fullMethod[:i], fullMethod[i+1:]}
+		}
+	}
+	return [2]string{fullMethod, ""}
 }
