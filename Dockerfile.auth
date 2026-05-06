@@ -7,7 +7,7 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd/api/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd/auth/main.go
 
 FROM alpine:latest
 
@@ -15,8 +15,6 @@ WORKDIR /root/
 
 COPY --from=builder /app/server .
 
-RUN mkdir -p uploads/photos
-
-EXPOSE 8080
+EXPOSE 8085
 
 CMD ["./server"]
