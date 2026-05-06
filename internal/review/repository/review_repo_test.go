@@ -126,4 +126,14 @@ func TestReviewRepo_GetByPlaceIDWithAuthor_Empty(t *testing.T) {
 	assert.Empty(t, reviews)
 }
 
+func TestReviewRepo_Delete_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewReviewRepo(mockPool)
+
+	mockPool.ExpectExec(`DELETE FROM review WHERE id = \$1`).WithArgs(uint64(1)).WillReturnError(errors.New("db error"))
+	err := repo.Delete(context.Background(), 1)
+	assert.Error(t, err)
+}
+
 func ptrString(s string) *string { return &s }

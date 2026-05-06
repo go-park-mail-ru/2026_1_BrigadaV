@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	"guidely-app/internal/dto"
-	"guidely-app/pkg/models"
 	"guidely-app/internal/repository/mocks"
 	"guidely-app/internal/service"
 	"guidely-app/internal/testutil"
+	"guidely-app/pkg/models"
 
 	"github.com/golang/mock/gomock"
 	"github.com/gorilla/mux"

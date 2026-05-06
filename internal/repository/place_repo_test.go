@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -123,4 +124,64 @@ func TestPlaceRepo_GetWithRatingAndLike(t *testing.T) {
 	assert.True(t, result.IsLiked)
 
 	assert.NoError(t, mockPool.ExpectationsWereMet())
+}
+
+func TestPlaceRepo_GetAll_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewPlaceRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT p\.id, p\.name`).WillReturnError(errors.New("db error"))
+	_, err := repo.GetAll(context.Background())
+	assert.Error(t, err)
+}
+
+func TestPlaceRepo_GetByID_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewPlaceRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT p\.id, p\.name`).WithArgs(uint64(1)).WillReturnError(errors.New("db error"))
+	_, err := repo.GetByID(context.Background(), 1)
+	assert.Error(t, err)
+}
+
+func TestPlaceRepo_GetWithRatingAndLike_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewPlaceRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT id, name, description`).WithArgs(uint64(1)).WillReturnError(errors.New("db error"))
+	_, err := repo.GetWithRatingAndLike(context.Background(), 1, 0)
+	assert.Error(t, err)
+}
+
+func TestPlaceRepo_IsPlaceInTrip_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewPlaceRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT EXISTS`).WithArgs(uint64(1), uint64(2)).WillReturnError(errors.New("db error"))
+	_, err := repo.IsPlaceInTrip(context.Background(), 1, 2)
+	assert.Error(t, err)
+}
+
+func TestPlaceRepo_GetByCategory_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewPlaceRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT p\.id`).WithArgs(uint64(1)).WillReturnError(errors.New("db error"))
+	_, err := repo.GetByCategory(context.Background(), 1)
+	assert.Error(t, err)
+}
+
+func TestPlaceRepo_Search_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewPlaceRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT p\.id`).WithArgs("%query%").WillReturnError(errors.New("db error"))
+	_, err := repo.Search(context.Background(), "query")
+	assert.Error(t, err)
 }

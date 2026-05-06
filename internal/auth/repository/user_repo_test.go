@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -168,4 +169,36 @@ func TestUserRepo_Update(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.NoError(t, mockPool.ExpectationsWereMet())
+}
+
+func TestUserRepo_Create_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewUserRepo(mockPool)
+
+	user := &models.User{Login: "test@example.com", Nickname: "tester", PasswordHash: "hash"}
+	mockPool.ExpectQuery(`INSERT INTO "user"`).WillReturnError(errors.New("db error"))
+	err := repo.Create(context.Background(), user)
+	assert.Error(t, err)
+}
+
+func TestUserRepo_GetByLogin_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewUserRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT .+ FROM "user" WHERE login = \$1`).WithArgs("test@example.com").WillReturnError(errors.New("db error"))
+	_, err := repo.GetByLogin(context.Background(), "test@example.com")
+	assert.Error(t, err)
+}
+
+func TestUserRepo_Update_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewUserRepo(mockPool)
+
+	user := &models.User{ID: 1, Login: "updated", Nickname: "up", PasswordHash: "hash"}
+	mockPool.ExpectQuery(`UPDATE "user"`).WillReturnError(errors.New("db error"))
+	err := repo.Update(context.Background(), user)
+	assert.Error(t, err)
 }

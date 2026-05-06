@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"guidely-app/pkg/models"
 	"guidely-app/pkg/utils"
 	"testing"
@@ -94,4 +95,35 @@ func TestSessionRepo_DeleteByToken(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.NoError(t, mockPool.ExpectationsWereMet())
+}
+
+func TestSessionRepo_Create_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewSessionRepo(mockPool)
+
+	session := &models.Session{UserID: 1, TokenHash: "hash", ExpiresAt: time.Now()}
+	mockPool.ExpectQuery(`INSERT INTO session`).WillReturnError(errors.New("db error"))
+	err := repo.Create(context.Background(), session)
+	assert.Error(t, err)
+}
+
+func TestSessionRepo_GetByToken_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewSessionRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT .+ FROM session WHERE session_token_hash = \$1`).WithArgs("hash").WillReturnError(errors.New("db error"))
+	_, err := repo.GetByToken(context.Background(), "hash")
+	assert.Error(t, err)
+}
+
+func TestSessionRepo_DeleteByToken_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewSessionRepo(mockPool)
+
+	mockPool.ExpectExec(`DELETE FROM session`).WithArgs("hash").WillReturnError(errors.New("db error"))
+	err := repo.DeleteByToken(context.Background(), "hash")
+	assert.Error(t, err)
 }

@@ -235,4 +235,14 @@ func TestAlbumRepo_GetByTrip_Empty(t *testing.T) {
 	assert.Empty(t, albums)
 }
 
+func TestAlbumRepo_UploadPhoto_BeginError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewAlbumRepo(mockPool)
+
+	mockPool.ExpectBegin().WillReturnError(errors.New("db error"))
+	_, err := repo.UploadPhoto(context.Background(), 1, "/photos/test.jpg")
+	assert.Error(t, err)
+}
+
 func ptrUint64(v uint64) *uint64 { return &v }

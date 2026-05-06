@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"guidely-app/internal/auth/repository/mocks" // моки для UserRepository теперь здесь
@@ -67,4 +68,14 @@ func TestProfileService_UpdateAvatar(t *testing.T) {
 	result, err := svc.UpdateAvatar(context.Background(), 1, "/new.jpg")
 	assert.NoError(t, err)
 	assert.Equal(t, "/new.jpg", result.AvatarURL)
+}
+func TestProfileService_UpdateAvatar_Error(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockUserRepo := mocks.NewMockUserRepository(ctrl)
+	svc := NewProfileService(mockUserRepo)
+
+	mockUserRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(nil, errors.New("db error"))
+	_, err := svc.UpdateAvatar(context.Background(), 1, "/new.jpg")
+	assert.Error(t, err)
 }

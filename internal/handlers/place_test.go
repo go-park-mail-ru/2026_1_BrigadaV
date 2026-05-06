@@ -219,4 +219,32 @@ func TestPlaceHandler_CheckPlaceInTrip_TripNotFound(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, w.Code)
 }
 
+func TestPlaceHandler_Search_Error(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockPlaceService := mocks.NewMockPlaceService(ctrl)
+	mockTripService := mocks.NewMockTripService(ctrl)
+	handler := NewPlaceHandler(mockPlaceService, mockTripService)
+
+	mockPlaceService.EXPECT().Search(gomock.Any(), "query").Return(nil, errors.New("db error"))
+	req := httptest.NewRequest("GET", "/api/places/search?q=query", nil)
+	w := httptest.NewRecorder()
+	handler.Search(w, req)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestPlaceHandler_GetReviews_Error(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockPlaceService := mocks.NewMockPlaceService(ctrl)
+	mockTripService := mocks.NewMockTripService(ctrl)
+	handler := NewPlaceHandler(mockPlaceService, mockTripService)
+
+	mockPlaceService.EXPECT().GetReviews(gomock.Any(), uint64(1)).Return(nil, errors.New("db error"))
+	req := httptest.NewRequest("GET", "/api/places/1/reviews", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	w := httptest.NewRecorder()
+	handler.GetReviews(w, req)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
 func ptr(f float64) *float64 { return &f }
