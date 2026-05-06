@@ -185,3 +185,63 @@ func TestPlaceRepo_Search_DBError(t *testing.T) {
 	_, err := repo.Search(context.Background(), "query")
 	assert.Error(t, err)
 }
+
+func TestPlaceRepo_GetByCategory_Success(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewPlaceRepo(mockPool)
+
+	catName := "HotelCategory"
+	catDesc := "Hotel Category"
+
+	rows := mockPool.NewRows([]string{
+		"id", "name", "description", "photo_url", "price", "created_at", "updated_at",
+		"place_lat", "place_lng",
+		"locality_id", "locality_name", "country_name", "loc_lat", "loc_lng",
+		"category_id", "category_name", "category_description",
+	}).AddRow(uint64(1), "Hotel", "desc", nil, 100, time.Now(), time.Now(),
+		nil, nil,
+		nil, nil, nil, nil, nil,
+		nil, &catName, &catDesc,
+	)
+
+	mockPool.ExpectQuery(`SELECT p\.id, p\.name, p\.description, p\.photo_url, p\.price, p\.created_at, p\.updated_at,`).
+		WithArgs(uint64(1)).
+		WillReturnRows(rows)
+
+	places, err := repo.GetByCategory(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Len(t, places, 1)
+	assert.Equal(t, "Hotel", places[0].Name)
+}
+
+func TestPlaceRepo_Search_Success(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewPlaceRepo(mockPool)
+
+	catName := "Museum"
+	catDesc := "Art museum"
+	pattern := "%eiffel%"
+
+	rows := mockPool.NewRows([]string{
+		"id", "name", "description", "photo_url", "price", "created_at", "updated_at",
+		"place_lat", "place_lng",
+		"locality_id", "locality_name", "country_name", "loc_lat", "loc_lng",
+		"category_id", "category_name", "category_description",
+	}).AddRow(uint64(1), "Eiffel Tower", "Famous", nil, 1500, time.Now(), time.Now(),
+		nil, nil,
+		nil, nil, nil, nil, nil,
+		nil, &catName, &catDesc,
+	)
+
+	mockPool.ExpectQuery(`SELECT p\.id, p\.name, p\.description, p\.photo_url, p\.price, p\.created_at, p\.updated_at,`).
+		WithArgs(pattern).
+		WillReturnRows(rows)
+
+	places, err := repo.Search(context.Background(), "eiffel")
+	assert.NoError(t, err)
+	assert.Len(t, places, 1)
+}

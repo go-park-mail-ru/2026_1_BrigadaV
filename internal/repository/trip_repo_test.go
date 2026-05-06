@@ -242,3 +242,31 @@ func TestTripRepo_GetPlaceIDs_Empty(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, ids)
 }
+
+func TestTripRepo_RemoveAttraction(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewTripRepo(mockPool)
+
+	mockPool.ExpectExec(`DELETE FROM trip_attractions WHERE trip_id = \$1 AND place_id = \$2`).
+		WithArgs(uint64(1), uint64(5)).
+		WillReturnResult(pgxmock.NewResult("DELETE", 1))
+	err = repo.RemoveAttraction(context.Background(), 1, 5)
+	assert.NoError(t, err)
+}
+
+func TestTripRepo_CheckPlaceInTrip(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewTripRepo(mockPool)
+
+	rows := mockPool.NewRows([]string{"exists"}).AddRow(true)
+	mockPool.ExpectQuery(`SELECT EXISTS\(SELECT 1 FROM trip_attractions WHERE trip_id = \$1 AND place_id = \$2\)`).
+		WithArgs(uint64(1), uint64(5)).
+		WillReturnRows(rows)
+	exists, err := repo.CheckPlaceInTrip(context.Background(), 1, 5)
+	assert.NoError(t, err)
+	assert.True(t, exists)
+}

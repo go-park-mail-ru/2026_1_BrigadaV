@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"guidely-app/pkg/models"
 	"guidely-app/internal/repository/mocks"
 	"guidely-app/internal/testutil"
+	"guidely-app/pkg/models"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -213,4 +213,63 @@ func TestTripService_Delete_NotFound(t *testing.T) {
 	err := svc.Delete(context.Background(), 1, 1)
 	assert.Error(t, err)
 	assert.Equal(t, "trip not found", err.Error())
+}
+
+func TestTripService_AddPlaceToTrip_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockRepo := mocks.NewMockTripRepository(ctrl)
+	svc := NewTripService(mockRepo)
+
+	mockRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(&models.Trip{ID: 1, CreatedBy: 1}, nil)
+	mockRepo.EXPECT().CheckPlaceInTrip(gomock.Any(), uint64(1), uint64(5)).Return(false, nil)
+	mockRepo.EXPECT().AddAttraction(gomock.Any(), uint64(1), uint64(5), int16(1)).Return(nil)
+	err := svc.AddPlaceToTrip(context.Background(), 1, 5, 1, 1)
+	assert.NoError(t, err)
+}
+
+func TestTripService_AddPlaceToTrip_NotAuthorized(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockRepo := mocks.NewMockTripRepository(ctrl)
+	svc := NewTripService(mockRepo)
+
+	mockRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(&models.Trip{ID: 1, CreatedBy: 2}, nil)
+	err := svc.AddPlaceToTrip(context.Background(), 1, 5, 1, 1)
+	assert.EqualError(t, err, "not your trip")
+}
+
+func TestTripService_RemovePlaceFromTrip_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockRepo := mocks.NewMockTripRepository(ctrl)
+	svc := NewTripService(mockRepo)
+
+	mockRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(&models.Trip{ID: 1, CreatedBy: 1}, nil)
+	mockRepo.EXPECT().RemoveAttraction(gomock.Any(), uint64(1), uint64(5)).Return(nil)
+	err := svc.RemovePlaceFromTrip(context.Background(), 1, 5, 1)
+	assert.NoError(t, err)
+}
+
+func TestTripService_RemovePlaceFromTrip_NotAuthorized(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockRepo := mocks.NewMockTripRepository(ctrl)
+	svc := NewTripService(mockRepo)
+
+	mockRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(&models.Trip{ID: 1, CreatedBy: 2}, nil)
+	err := svc.RemovePlaceFromTrip(context.Background(), 1, 5, 1)
+	assert.EqualError(t, err, "not your trip")
+}
+
+func TestTripService_GetTripPlaceIDs(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockRepo := mocks.NewMockTripRepository(ctrl)
+	svc := NewTripService(mockRepo)
+
+	mockRepo.EXPECT().GetPlaceIDs(gomock.Any(), uint64(1)).Return([]uint64{10, 20}, nil)
+	ids, err := svc.GetTripPlaceIDs(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Equal(t, []uint64{10, 20}, ids)
 }
