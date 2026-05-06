@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"strings"
 
@@ -13,12 +14,26 @@ type Config struct {
 	JWTSecret      string
 	FrontendURL    string
 	AllowedOrigins []string
+	SecureCookies  bool
 }
 
 func Load() (*Config, error) {
 	godotenv.Load()
 
-	frontendURL := getEnv("FRONTEND_URL", "http://localhost:3000")
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		return nil, errors.New("DATABASE_URL is required but not set")
+	}
+
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		return nil, errors.New("JWT_SECRET is required but not set")
+	}
+	if len(jwtSecret) < 32 {
+		return nil, errors.New("JWT_SECRET must be at least 32 characters long")
+	}
+
+	frontendURL := getEnv("FRONTEND_URL", "http://localhost:5173")
 
 	rawOrigins := getEnv("ALLOWED_ORIGINS", frontendURL)
 	var origins []string
@@ -30,10 +45,11 @@ func Load() (*Config, error) {
 
 	return &Config{
 		Port:           getEnv("PORT", "8080"),
-		DatabaseURL:    getEnv("DATABASE_URL", "postgres://postgres:1111@localhost:5432/texnopark?sslmode=disable"),
-		JWTSecret:      getEnv("JWT_SECRET", "your-secret-key"),
+		DatabaseURL:    dbURL,
+		JWTSecret:      jwtSecret,
 		FrontendURL:    frontendURL,
 		AllowedOrigins: origins,
+		SecureCookies:  getEnvBool("SECURE_COOKIES", false),
 	}, nil
 }
 
@@ -42,4 +58,12 @@ func getEnv(key, defaultValue string) string {
 		return val
 	}
 	return defaultValue
+}
+
+func getEnvBool(key string, defaultValue bool) bool {
+	val := os.Getenv(key)
+	if val == "" {
+		return defaultValue
+	}
+	return val == "true" || val == "1" || val == "yes"
 }
