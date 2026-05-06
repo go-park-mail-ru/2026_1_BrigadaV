@@ -15,6 +15,8 @@ WORKDIR /root/
 
 COPY --from=builder /app/server .
 
+RUN mkdir -p uploads/photos
+
 EXPOSE 8080
 
 CMD ["./server"]

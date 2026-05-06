@@ -7,5 +7,5 @@ type AlbumPhoto struct {
 	PhotoID    uint64
 	OrderIndex int16
 	CreatedAt  time.Time
-	FilePath   string // url/path из таблицы photo, заполняется при GetPhotos
+	FilePath   string
 }

@@ -10,7 +10,6 @@ service AlbumService {
   rpc GetByTrip(GetAlbumByTripRequest) returns (Album);
   rpc Update(UpdateAlbumRequest) returns (Album);
   rpc Delete(DeleteAlbumRequest) returns (google.protobuf.Empty);
-  // UploadPhoto: сохраняет file_path в таблицу photo, связывает с альбомом
   rpc UploadPhoto(UploadPhotoRequest) returns (UploadPhotoResponse);
   rpc AddPhoto(AddPhotoRequest) returns (AlbumPhoto);
   rpc RemovePhoto(RemovePhotoRequest) returns (google.protobuf.Empty);

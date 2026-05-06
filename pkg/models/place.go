@@ -8,6 +8,8 @@ type Place struct {
 	Description string
 	PhotoURL    string
 	Type        string
+	Latitude    *float64
+	Longitude   *float64
 	LocalityID  *uint64
 	CategoryID  *uint64
 	Price       int64
@@ -30,8 +32,8 @@ type PlaceWithRating struct {
 	Rating      float64  `json:"rating"`
 	ReviewCount int64    `json:"reviewCount"`
 	IsLiked     bool     `json:"is_liked"`
-	Locality    Locality `json:"locality"`
-	Category    *Category `json:"category,omitempty"`
+	Latitude    *float64 `json:"latitude,omitempty"`
+	Longitude   *float64 `json:"longitude,omitempty"`
 }
 
 type PlaceInTrip struct {

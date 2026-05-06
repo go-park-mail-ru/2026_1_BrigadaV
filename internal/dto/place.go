@@ -9,6 +9,8 @@ type PlaceResponse struct {
 	PhotoURL    string          `json:"photo_url"`
 	Price       int64           `json:"price"`
 	IsLiked     bool            `json:"is_liked"`
+	Latitude    *float64        `json:"latitude,omitempty"`
+	Longitude   *float64        `json:"longitude,omitempty"`
 	Locality    LocalityDTO     `json:"locality"`
 	Category    *CategoryDTO    `json:"category,omitempty"`
 	Photos      []PlacePhotoDTO `json:"photos,omitempty"`
