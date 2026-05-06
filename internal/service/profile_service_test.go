@@ -50,3 +50,21 @@ func TestProfileService_UpdateProfile(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "new", user.Nickname)
 }
+
+func TestProfileService_UpdateAvatar(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	repo := mocks.NewMockUserRepository(ctrl)
+	svc := NewProfileService(repo)
+
+	user := &models.User{ID: 1, AvatarURL: "/old.jpg"}
+	repo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(user, nil)
+	repo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, u *models.User) error {
+		assert.Equal(t, "/new.jpg", u.AvatarURL)
+		return nil
+	})
+
+	result, err := svc.UpdateAvatar(context.Background(), 1, "/new.jpg")
+	assert.NoError(t, err)
+	assert.Equal(t, "/new.jpg", result.AvatarURL)
+}

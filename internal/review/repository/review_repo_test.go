@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -101,6 +102,28 @@ func TestReviewRepo_Delete(t *testing.T) {
 	err = repo.Delete(context.Background(), 1)
 	assert.NoError(t, err)
 	assert.NoError(t, mockPool.ExpectationsWereMet())
+}
+
+func TestReviewRepo_Create_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewReviewRepo(mockPool)
+
+	review := &models.Review{UserID: 1, PlaceID: 1, Rating: 5, Comment: "Great"}
+	mockPool.ExpectQuery(`INSERT INTO review`).WillReturnError(errors.New("db down"))
+	err := repo.Create(context.Background(), review)
+	assert.Error(t, err)
+}
+
+func TestReviewRepo_GetByPlaceIDWithAuthor_Empty(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewReviewRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT r\.id`).WithArgs(uint64(1)).WillReturnRows(mockPool.NewRows(nil))
+	reviews, err := repo.GetByPlaceIDWithAuthor(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Empty(t, reviews)
 }
 
 func ptrString(s string) *string { return &s }

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -199,6 +200,39 @@ func TestAlbumRepo_UploadPhoto(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(100), photoID)
 	assert.NoError(t, mockPool.ExpectationsWereMet())
+}
+
+func TestAlbumRepo_Create_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewAlbumRepo(mockPool)
+
+	album := &models.Album{TripID: 1, Name: "Test"}
+	mockPool.ExpectQuery(`INSERT INTO album`).WillReturnError(errors.New("db down"))
+	err := repo.Create(context.Background(), album)
+	assert.Error(t, err)
+}
+
+func TestAlbumRepo_GetByID_NotFound(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewAlbumRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT .+ FROM album WHERE id = \$1`).WithArgs(uint64(1)).WillReturnRows(mockPool.NewRows(nil))
+	album, err := repo.GetByID(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Nil(t, album)
+}
+
+func TestAlbumRepo_GetByTrip_Empty(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewAlbumRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT .+ FROM album WHERE trip_id = \$1`).WithArgs(uint64(1)).WillReturnRows(mockPool.NewRows(nil))
+	albums, err := repo.GetByTrip(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Empty(t, albums)
 }
 
 func ptrUint64(v uint64) *uint64 { return &v }

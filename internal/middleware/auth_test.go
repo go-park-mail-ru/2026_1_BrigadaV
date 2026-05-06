@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -123,6 +124,28 @@ func TestAuthMiddleware_Authenticate(t *testing.T) {
 			if tt.checkContext {
 				assert.Equal(t, "authenticated", rec.Body.String())
 			}
+		})
+	}
+}
+
+func TestGetUserIDFromContext(t *testing.T) {
+	tests := []struct {
+		name     string
+		ctxVal   interface{}
+		expected uint64
+	}{
+		{"valid user_id", uint64(42), 42},
+		{"wrong type", "string", 0},
+		{"nil", nil, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/", nil)
+			if tt.ctxVal != nil {
+				ctx := context.WithValue(req.Context(), "user_id", tt.ctxVal)
+				req = req.WithContext(ctx)
+			}
+			assert.Equal(t, tt.expected, GetUserIDFromContext(req))
 		})
 	}
 }

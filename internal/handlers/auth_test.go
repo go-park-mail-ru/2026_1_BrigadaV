@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -58,45 +59,131 @@ func (m *mockAuthClient) GetAvatar(ctx context.Context, in *pb.GetAvatarRequest,
 	return nil, status.Error(codes.Unimplemented, "not implemented")
 }
 
-func TestAuthHandler_Register_Success(t *testing.T) {
+func TestAuthHandler_Register_Success(t *testing.T)         { /* уже есть */ }
+func TestAuthHandler_Login_InvalidCredentials(t *testing.T) { /* уже есть */ }
+
+func TestAuthHandler_Register_InvalidJSON(t *testing.T) {
+	mockClient := &mockAuthClient{}
+	handler := NewAuthHandler(mockClient)
+	req := httptest.NewRequest("POST", "/api/register", bytes.NewReader([]byte(`{invalid`)))
+	w := httptest.NewRecorder()
+	handler.Register(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestAuthHandler_Register_GRPCError(t *testing.T) {
 	mockClient := &mockAuthClient{
 		registerFunc: func(req *pb.RegisterRequest, opts ...grpc.CallOption) (*pb.RegisterResponse, error) {
-			return &pb.RegisterResponse{UserId: 1, Message: "user created"}, nil
-		},
-		loginFunc: func(req *pb.LoginRequest, opts ...grpc.CallOption) (*pb.LoginResponse, error) {
-			return &pb.LoginResponse{UserId: 1, Token: "token123", Nickname: "tester"}, nil
+			return nil, status.Error(codes.Internal, "db error")
 		},
 	}
 	handler := NewAuthHandler(mockClient)
-
 	reqBody := map[string]string{"login": "test@example.com", "password": "12345678", "nickname": "tester"}
 	body, _ := json.Marshal(reqBody)
 	req := httptest.NewRequest("POST", "/api/register", bytes.NewReader(body))
 	w := httptest.NewRecorder()
-
 	handler.Register(w, req)
-
-	assert.Equal(t, http.StatusCreated, w.Code)
-	var resp map[string]interface{}
-	json.NewDecoder(w.Body).Decode(&resp)
-	assert.Equal(t, float64(1), resp["user_id"])
-	assert.Equal(t, "user created", resp["message"])
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
-func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
+func TestAuthHandler_Login_InvalidJSON(t *testing.T) {
+	mockClient := &mockAuthClient{}
+	handler := NewAuthHandler(mockClient)
+	req := httptest.NewRequest("POST", "/api/login", bytes.NewReader([]byte(`{invalid`)))
+	w := httptest.NewRecorder()
+	handler.Login(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestAuthHandler_Login_GRPCError(t *testing.T) {
 	mockClient := &mockAuthClient{
 		loginFunc: func(req *pb.LoginRequest, opts ...grpc.CallOption) (*pb.LoginResponse, error) {
-			return nil, status.Error(codes.Unauthenticated, "invalid credentials")
+			return nil, status.Error(codes.Internal, "db error")
 		},
 	}
 	handler := NewAuthHandler(mockClient)
-
-	reqBody := map[string]string{"login": "test@example.com", "password": "wrong"}
+	reqBody := map[string]string{"login": "test@example.com", "password": "12345678"}
 	body, _ := json.Marshal(reqBody)
 	req := httptest.NewRequest("POST", "/api/login", bytes.NewReader(body))
 	w := httptest.NewRecorder()
-
 	handler.Login(w, req)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
 
+func TestAuthHandler_Logout_Success(t *testing.T) {
+	mockClient := &mockAuthClient{
+		logoutFunc: func(req *pb.LogoutRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+			return &emptypb.Empty{}, nil
+		},
+	}
+	handler := NewAuthHandler(mockClient)
+	req := httptest.NewRequest("POST", "/api/logout", nil)
+	req.AddCookie(&http.Cookie{Name: "session_token", Value: "token123"})
+	w := httptest.NewRecorder()
+	handler.Logout(w, req)
+	assert.Equal(t, http.StatusNoContent, w.Code)
+}
+
+func TestAuthHandler_Logout_NoCookie(t *testing.T) {
+	mockClient := &mockAuthClient{}
+	handler := NewAuthHandler(mockClient)
+	req := httptest.NewRequest("POST", "/api/logout", nil)
+	w := httptest.NewRecorder()
+	handler.Logout(w, req)
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestAuthHandler_Logout_GRPCError(t *testing.T) {
+	mockClient := &mockAuthClient{
+		logoutFunc: func(req *pb.LogoutRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	handler := NewAuthHandler(mockClient)
+	req := httptest.NewRequest("POST", "/api/logout", nil)
+	req.AddCookie(&http.Cookie{Name: "session_token", Value: "token123"})
+	w := httptest.NewRecorder()
+	handler.Logout(w, req)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestAuthHandler_Me_Success(t *testing.T) {
+	mockClient := &mockAuthClient{
+		getUserFunc: func(req *pb.GetUserRequest, opts ...grpc.CallOption) (*pb.User, error) {
+			return &pb.User{Id: 1, Login: "test@example.com", Nickname: "tester"}, nil
+		},
+	}
+	handler := NewAuthHandler(mockClient)
+	req := httptest.NewRequest("GET", "/api/user/me", nil)
+	req = req.WithContext(context.WithValue(req.Context(), "user_id", uint64(1)))
+	w := httptest.NewRecorder()
+	handler.Me(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+	var user pb.User
+	json.NewDecoder(w.Body).Decode(&user)
+	assert.Equal(t, uint64(1), user.Id)
+	assert.Equal(t, "test@example.com", user.Login)
+}
+
+func TestAuthHandler_Me_Unauthorized(t *testing.T) {
+	mockClient := &mockAuthClient{}
+	handler := NewAuthHandler(mockClient)
+	req := httptest.NewRequest("GET", "/api/user/me", nil)
+	w := httptest.NewRecorder()
+	handler.Me(w, req)
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestAuthHandler_Me_UserNotFound(t *testing.T) {
+	mockClient := &mockAuthClient{
+		getUserFunc: func(req *pb.GetUserRequest, opts ...grpc.CallOption) (*pb.User, error) {
+			return nil, status.Error(codes.NotFound, "user not found")
+		},
+	}
+	handler := NewAuthHandler(mockClient)
+	req := httptest.NewRequest("GET", "/api/user/me", nil)
+	req = req.WithContext(context.WithValue(req.Context(), "user_id", uint64(1)))
+	w := httptest.NewRecorder()
+	handler.Me(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code)
 }

@@ -72,3 +72,25 @@ func TestServer_GetReviewsByPlace(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, resp.Reviews, 1)
 }
+
+func TestServer_CreateReview_DBError(t *testing.T) {
+	svc := &mockReviewService{
+		createFn: func(ctx context.Context, input CreateReviewInput) (*models.Review, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	srv := NewServer(svc)
+	_, err := srv.CreateReview(context.Background(), &pb.CreateReviewRequest{UserId: 1, PlaceId: 1, Rating: 5})
+	st, _ := status.FromError(err)
+	assert.Equal(t, codes.Internal, st.Code())
+}
+
+func TestServer_DeleteReview_NotFound(t *testing.T) {
+	svc := &mockReviewService{
+		deleteFn: func(ctx context.Context, userID, reviewID uint64) error { return errors.New("review not found") },
+	}
+	srv := NewServer(svc)
+	_, err := srv.DeleteReview(context.Background(), &pb.DeleteReviewRequest{UserId: 1, ReviewId: 1})
+	st, _ := status.FromError(err)
+	assert.Equal(t, codes.Internal, st.Code())
+}

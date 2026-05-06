@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -163,6 +164,59 @@ func TestPlaceHandler_GetReviews(t *testing.T) {
 	json.NewDecoder(w.Body).Decode(&resp)
 	assert.Len(t, resp, 1)
 	assert.Equal(t, "Great!", resp[0].Comment)
+}
+
+func TestPlaceHandler_CheckPlaceInTrip_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockPlaceService := mocks.NewMockPlaceService(ctrl)
+	mockTripService := mocks.NewMockTripService(ctrl)
+	handler := NewPlaceHandler(mockPlaceService, mockTripService)
+
+	req := httptest.NewRequest("GET", "/api/places/1/in-trip?trip_id=2", nil)
+	req = req.WithContext(context.WithValue(req.Context(), "user_id", uint64(1)))
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	w := httptest.NewRecorder()
+
+	trip := &models.Trip{ID: 2, CreatedBy: 1}
+	mockTripService.EXPECT().GetTripDetails(gomock.Any(), uint64(2)).Return(trip, nil, nil)
+	mockPlaceService.EXPECT().IsPlaceInTrip(gomock.Any(), uint64(1), uint64(2)).Return(true, nil)
+
+	handler.CheckPlaceInTrip(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp map[string]bool
+	json.NewDecoder(w.Body).Decode(&resp)
+	assert.True(t, resp["in_trip"])
+}
+
+func TestPlaceHandler_CheckPlaceInTrip_Unauthorized(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockPlaceService := mocks.NewMockPlaceService(ctrl)
+	mockTripService := mocks.NewMockTripService(ctrl)
+	handler := NewPlaceHandler(mockPlaceService, mockTripService)
+
+	req := httptest.NewRequest("GET", "/api/places/1/in-trip?trip_id=2", nil)
+	w := httptest.NewRecorder()
+	handler.CheckPlaceInTrip(w, req)
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestPlaceHandler_CheckPlaceInTrip_TripNotFound(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockPlaceService := mocks.NewMockPlaceService(ctrl)
+	mockTripService := mocks.NewMockTripService(ctrl)
+	handler := NewPlaceHandler(mockPlaceService, mockTripService)
+
+	req := httptest.NewRequest("GET", "/api/places/1/in-trip?trip_id=999", nil)
+	req = req.WithContext(context.WithValue(req.Context(), "user_id", uint64(1)))
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	w := httptest.NewRecorder()
+
+	mockTripService.EXPECT().GetTripDetails(gomock.Any(), uint64(999)).Return(nil, nil, errors.New("trip not found"))
+	handler.CheckPlaceInTrip(w, req)
+	assert.Equal(t, http.StatusForbidden, w.Code)
 }
 
 func ptr(f float64) *float64 { return &f }
