@@ -5,15 +5,15 @@ services:
     image: postgres:16-alpine
     container_name: guidely-postgres
     environment:
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-1111}
-      POSTGRES_DB: ${DB_NAME:-texnopark}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     ports:
       - "9999:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -29,7 +29,7 @@ services:
       - .:/app
     environment:
       - GOOSE_DRIVER=postgres
-      - GOOSE_DBSTRING=postgres://postgres:1111@postgres:5432/texnopark?sslmode=disable
+      - GOOSE_DBSTRING=${DATABASE_URL}
     command: sh -c "go install github.com/pressly/goose/v3/cmd/goose@latest && goose -dir ./migrations up"
     depends_on:
       postgres:
@@ -44,7 +44,7 @@ services:
       dockerfile: Dockerfile.auth
     container_name: guidely-auth
     env_file:
-      - ./.env.example
+      - ./.env
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,7 +61,7 @@ services:
       dockerfile: Dockerfile.album
     container_name: guidely-album
     env_file:
-      - ./.env.example
+      - ./.env
     depends_on:
       postgres:
         condition: service_healthy
@@ -78,7 +78,7 @@ services:
       dockerfile: Dockerfile.review
     container_name: guidely-review
     env_file:
-      - ./.env.example
+      - ./.env
     depends_on:
       postgres:
         condition: service_healthy
@@ -95,7 +95,7 @@ services:
       dockerfile: Dockerfile
     container_name: guidely-backend
     env_file:
-      - ./.env.example
+      - ./.env
     environment:
       - AUTH_GRPC_ADDR=auth:8085
       - ALBUM_GRPC_ADDR=album:8086
@@ -175,8 +175,8 @@ services:
     image: grafana/grafana:latest
     container_name: guidely-grafana
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana_data:/var/lib/grafana
