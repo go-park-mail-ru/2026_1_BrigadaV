@@ -8,6 +8,7 @@ import (
 	"guidely-app/internal/auth/repository"
 	"guidely-app/pkg/config"
 	"guidely-app/pkg/db"
+	"guidely-app/pkg/metrics"
 	pb "guidely-app/pkg/pb/auth"
 
 	"google.golang.org/grpc"
@@ -22,6 +23,8 @@ func main() {
 	}
 	defer pool.Close()
 
+	metrics.StartMetricsServer("9101")
+
 	adapter := &repository.PgxPoolAdapter{Pool: pool}
 	userRepo := repository.NewUserRepo(adapter)
 	sessRepo := repository.NewSessionRepo(adapter)
@@ -30,10 +33,12 @@ func main() {
 	server := auth.NewServer(svc)
 
 	lis, _ := net.Listen("tcp", ":8085")
-	s := grpc.NewServer()
+	s := grpc.NewServer(
+		grpc.UnaryInterceptor(metrics.UnaryServerInterceptor()),
+	)
 	pb.RegisterAuthServiceServer(s, server)
 	reflection.Register(s)
 
-	log.Println("Auth service started on :8085")
+	log.Println("Auth service started on :8085, metrics :9101")
 	log.Fatal(s.Serve(lis))
 }

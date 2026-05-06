@@ -14,6 +14,7 @@ import (
 	"guidely-app/internal/service"
 	"guidely-app/pkg/config"
 	"guidely-app/pkg/db"
+	"guidely-app/pkg/metrics"
 
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -38,6 +39,8 @@ func main() {
 		log.Fatal("database connection error:", err)
 	}
 	defer dbPool.Close()
+
+	metrics.StartMetricsServer("9100")
 
 	dbAdapter := &repository.PgxPoolAdapter{Pool: dbPool}
 	authAdapter := &authrepo.PgxPoolAdapter{Pool: dbPool}
@@ -86,6 +89,7 @@ func main() {
 	r := mux.NewRouter()
 	r.Use(logger.Middleware)
 	r.Use(middleware.CORS(cfg.AllowedOrigins...))
+	r.Use(metrics.HTTPMetricsMiddleware)
 
 	r.HandleFunc("/api/register", authHandler.Register).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/login", authHandler.Login).Methods("POST", "OPTIONS")
