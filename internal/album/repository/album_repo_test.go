@@ -16,7 +16,7 @@ func TestAlbumRepo_Create(t *testing.T) {
 	assert.NoError(t, err)
 	defer mockPool.Close()
 
-	repo := NewAlbumRepo(mockPool) // теперь принимает DB
+	repo := NewAlbumRepo(mockPool)
 
 	album := &models.Album{
 		TripID:      1,
@@ -173,6 +173,31 @@ func TestAlbumRepo_GetPhotos(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, photos, 1)
 	assert.Equal(t, "/photos/img.jpg", photos[0].FilePath)
+	assert.NoError(t, mockPool.ExpectationsWereMet())
+}
+
+func TestAlbumRepo_UploadPhoto(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+
+	repo := NewAlbumRepo(mockPool)
+
+	mockPool.ExpectBegin()
+	mockPool.ExpectQuery(`INSERT INTO photo \(file_path, created_at\)`).
+		WithArgs("/photos/test.jpg").
+		WillReturnRows(mockPool.NewRows([]string{"id"}).AddRow(uint64(100)))
+	mockPool.ExpectQuery(`SELECT COALESCE\(MAX\(order_index\), 0\) FROM album_photo WHERE album_id = \$1`).
+		WithArgs(uint64(1)).
+		WillReturnRows(mockPool.NewRows([]string{"max"}).AddRow(int64(2)))
+	mockPool.ExpectExec(`INSERT INTO album_photo \(album_id, photo_id, order_index, created_at\)`).
+		WithArgs(uint64(1), uint64(100), 3). // int
+		WillReturnResult(pgxmock.NewResult("INSERT", 1))
+	mockPool.ExpectCommit()
+
+	photoID, err := repo.UploadPhoto(context.Background(), 1, "/photos/test.jpg")
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(100), photoID)
 	assert.NoError(t, mockPool.ExpectationsWereMet())
 }
 

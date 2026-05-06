@@ -15,8 +15,8 @@ import (
 )
 
 type mockReviewService struct {
-	createFn              func(ctx context.Context, input CreateReviewInput) (*models.Review, error)
-	deleteFn              func(ctx context.Context, userID, reviewID uint64) error
+	createFn                 func(ctx context.Context, input CreateReviewInput) (*models.Review, error)
+	deleteFn                 func(ctx context.Context, userID, reviewID uint64) error
 	getByPlaceIDWithAuthorFn func(ctx context.Context, placeID uint64) ([]models.ReviewWithAuthor, error)
 }
 
@@ -59,4 +59,16 @@ func TestServer_CreateReview_InvalidRating(t *testing.T) {
 	})
 	st, _ := status.FromError(err)
 	assert.Equal(t, codes.Internal, st.Code())
+}
+
+func TestServer_GetReviewsByPlace(t *testing.T) {
+	svc := &mockReviewService{
+		getByPlaceIDWithAuthorFn: func(ctx context.Context, placeID uint64) ([]models.ReviewWithAuthor, error) {
+			return []models.ReviewWithAuthor{{ID: 1}}, nil
+		},
+	}
+	srv := NewServer(svc)
+	resp, err := srv.GetReviewsByPlace(context.Background(), &pb.GetReviewsByPlaceRequest{PlaceId: 1})
+	assert.NoError(t, err)
+	assert.Len(t, resp.Reviews, 1)
 }
