@@ -49,7 +49,7 @@ func Load() (*Config, error) {
 		JWTSecret:      jwtSecret,
 		FrontendURL:    frontendURL,
 		AllowedOrigins: origins,
-		SecureCookies:  getEnvBool("SECURE_COOKIES", false),
+		SecureCookies:  getEnvBool("SECURE_COOKIES", true),
 	}, nil
 }
 
