@@ -14,6 +14,12 @@ type Config struct {
 	JWTSecret      string
 	FrontendURL    string
 	AllowedOrigins []string
+	CSRFSecret     string
+	S3Endpoint     string
+	S3AccessKey    string
+	S3SecretKey    string
+	S3Bucket       string
+	S3UseSSL       bool
 	SecureCookies  bool
 }
 
@@ -33,7 +39,7 @@ func Load() (*Config, error) {
 		return nil, errors.New("JWT_SECRET must be at least 32 characters long")
 	}
 
-	frontendURL := getEnv("FRONTEND_URL", "http://localhost:5173")
+	frontendURL := getEnv("FRONTEND_URL", "http://localhost:3000")
 
 	rawOrigins := getEnv("ALLOWED_ORIGINS", frontendURL)
 	var origins []string
@@ -45,11 +51,16 @@ func Load() (*Config, error) {
 
 	return &Config{
 		Port:           getEnv("PORT", "8080"),
-		DatabaseURL:    dbURL,
-		JWTSecret:      jwtSecret,
+		DatabaseURL:    getEnv("DATABASE_URL", "postgres://postgres:1111@localhost:5432/texnopark?sslmode=disable"),
+		JWTSecret:      getEnv("JWT_SECRET", "your-secret-key"),
 		FrontendURL:    frontendURL,
 		AllowedOrigins: origins,
-		SecureCookies:  getEnvBool("SECURE_COOKIES", false),
+		CSRFSecret:     getEnv("CSRF_SECRET", "32-byte-long-secret-key-here!!"),
+		S3Endpoint:     getEnv("S3_ENDPOINT", "localhost:9000"),
+		S3AccessKey:    getEnv("S3_ACCESS_KEY", "minioadmin"),
+		S3SecretKey:    getEnv("S3_SECRET_KEY", "minioadmin"),
+		S3Bucket:       getEnv("S3_BUCKET", "guidely"),
+		S3UseSSL:       getEnv("S3_USE_SSL", "false") == "true",
 	}, nil
 }
 

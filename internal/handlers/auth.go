@@ -2,12 +2,14 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"time"
 
+	"guidely-app/internal/logger"
 	pb "guidely-app/pkg/pb/auth"
 
+	"github.com/gorilla/csrf"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -37,7 +39,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Nickname: req.Nickname,
 	})
 	if err != nil {
-		log.Printf("register gRPC error: %v", err)
+		logger.Error(r.Context(), "register gRPC error", logrus.Fields{"error": err, "login": req.Login})
 		if st, ok := status.FromError(err); ok && st.Code() == codes.InvalidArgument {
 			http.Error(w, st.Message(), http.StatusBadRequest)
 			return
@@ -51,7 +53,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Password: req.Password,
 	})
 	if err != nil {
-		log.Printf("auto-login after register gRPC error: %v", err)
+		logger.Warn(r.Context(), "auto-login after register failed", logrus.Fields{"error": err, "login": req.Login})
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -63,13 +65,17 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
 		Value:    loginResp.Token,
-		MaxAge:   7 * 24 * 60 * 60, // 7 days in seconds
+		MaxAge:   7 * 24 * 60 * 60,
 		Expires:  time.Now().Add(7 * 24 * time.Hour),
 		HttpOnly: true,
 		Secure:   false,
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 	})
+
+	// Отдаём CSRF-токен сразу после регистрации, чтобы фронтенд
+	// мог использовать его в следующем запросе без отдельного GET /api/csrf-token
+	w.Header().Set("X-CSRF-Token", csrf.Token(r))
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -94,7 +100,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Password: req.Password,
 	})
 	if err != nil {
-		log.Printf("login gRPC error: %v", err)
+		logger.Error(r.Context(), "login gRPC error", logrus.Fields{"error": err, "login": req.Login})
 		if st, ok := status.FromError(err); ok && st.Code() == codes.Unauthenticated {
 			http.Error(w, "invalid credentials", http.StatusUnauthorized)
 			return
@@ -106,7 +112,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
 		Value:    resp.Token,
-		MaxAge:   7 * 24 * 60 * 60, // 7 days in seconds
+		MaxAge:   7 * 24 * 60 * 60,
 		Expires:  time.Now().Add(7 * 24 * time.Hour),
 		HttpOnly: true,
 		Secure:   false,
@@ -114,6 +120,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 	})
 
+	// Отдаём CSRF-токен после логина
+	w.Header().Set("X-CSRF-Token", csrf.Token(r))
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"user_id":  resp.UserId,
@@ -128,7 +136,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := h.client.Logout(r.Context(), &pb.LogoutRequest{Token: cookie.Value}); err != nil {
-		log.Printf("logout gRPC error: %v", err)
+		logger.Error(r.Context(), "logout gRPC error", logrus.Fields{"error": err})
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -152,7 +160,7 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	}
 	resp, err := h.client.GetUser(r.Context(), &pb.GetUserRequest{UserId: userID})
 	if err != nil {
-		log.Printf("get user gRPC error: %v", err)
+		logger.Error(r.Context(), "get user gRPC error", logrus.Fields{"error": err, "user_id": userID})
 		http.Error(w, "user not found", http.StatusNotFound)
 		return
 	}

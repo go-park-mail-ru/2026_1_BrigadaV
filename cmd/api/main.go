@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -14,9 +15,11 @@ import (
 	"guidely-app/internal/service"
 	"guidely-app/pkg/config"
 	"guidely-app/pkg/db"
-	"guidely-app/pkg/metrics"
+	"guidely-app/pkg/storage"
 
+	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
 	httpSwagger "github.com/swaggo/http-swagger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -40,10 +43,10 @@ func main() {
 	}
 	defer dbPool.Close()
 
-	metrics.StartMetricsServer("9100")
-
-	dbAdapter := &repository.PgxPoolAdapter{Pool: dbPool}
-	authAdapter := &authrepo.PgxPoolAdapter{Pool: dbPool}
+	s3Client, err := storage.NewS3Client(cfg)
+	if err != nil {
+		log.Fatal("s3 init error:", err)
+	}
 
 	authConn, err := grpc.Dial(getEnv("AUTH_GRPC_ADDR", "localhost:8085"), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -63,6 +66,9 @@ func main() {
 	}
 	reviewClient := pbreview.NewReviewServiceClient(reviewConn)
 
+	dbAdapter := &repository.PgxPoolAdapter{Pool: dbPool}
+	authAdapter := &authrepo.PgxPoolAdapter{Pool: dbPool}
+
 	placeRepo := repository.NewPlaceRepo(dbAdapter)
 	tripRepo := repository.NewTripRepo(dbAdapter)
 	categoryRepo := repository.NewCategoryRepo(dbAdapter)
@@ -79,7 +85,7 @@ func main() {
 	albumHandler := handlers.NewAlbumHandler(albumClient)
 	reviewHandler := handlers.NewReviewHandler(reviewClient)
 	placeHandler := handlers.NewPlaceHandler(placeService, tripService)
-	profileHandler := handlers.NewProfileHandler(profileService)
+	profileHandler := handlers.NewProfileHandler(profileService, s3Client)
 	tripHandler := handlers.NewTripHandler(tripService)
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
 	csrfHandler := handlers.NewCSRFHandler()
@@ -89,7 +95,6 @@ func main() {
 	r := mux.NewRouter()
 	r.Use(logger.Middleware)
 	r.Use(middleware.CORS(cfg.AllowedOrigins...))
-	r.Use(metrics.HTTPMetricsMiddleware)
 
 	r.HandleFunc("/api/register", authHandler.Register).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/login", authHandler.Login).Methods("POST", "OPTIONS")
@@ -135,8 +140,26 @@ func main() {
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 
+	csrfMiddleware := csrf.Protect(
+		[]byte(cfg.CSRFSecret),
+		csrf.Secure(false),
+		csrf.Path("/"),
+		csrf.TrustedOrigins(cfg.AllowedOrigins),
+		csrf.ErrorHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			logger.Warn(r.Context(), "CSRF token invalid", logrus.Fields{
+				"method": r.Method,
+				"path":   r.URL.Path,
+			})
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			json.NewEncoder(w).Encode(map[string]string{"error": "CSRF token invalid or missing"})
+		})),
+	)
+
+	handler := csrfMiddleware(r)
+
 	logger.Log.Info("Server started on :" + cfg.Port)
-	log.Fatal(http.ListenAndServe(":"+cfg.Port, r))
+	log.Fatal(http.ListenAndServe(":"+cfg.Port, handler))
 }
 
 func getEnv(key, fallback string) string {
