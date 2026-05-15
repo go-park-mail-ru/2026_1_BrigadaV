@@ -100,6 +100,11 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 // UploadAvatar принимает multipart/form-data с полем "avatar",
 // загружает файл в S3/MinIO и обновляет avatar_url пользователя.
 func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
+	if h.s3 == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{"error": "avatar upload is disabled (S3 not configured)"})
+		return
+	}
 	userIDVal := r.Context().Value("user_id")
 	userID, ok := userIDVal.(uint64)
 	if !ok {

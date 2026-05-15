@@ -43,9 +43,15 @@ func main() {
 	}
 	defer dbPool.Close()
 
+	// ИНИЦИАЛИЗАЦИЯ S3 С ВОЗМОЖНОСТЬЮ ПРОДОЛЖИТЬ БЕЗ НЕГО
 	s3Client, err := storage.NewS3Client(cfg)
 	if err != nil {
-		log.Fatal("s3 init error:", err)
+		// Ошибка уже залогирована внутри NewS3Client, но на всякий случай
+		log.Printf("S3 init failed: %v; continuing without S3 features", err)
+		s3Client = nil
+	}
+	if s3Client == nil {
+		log.Println("S3 client is nil – avatar upload will not work")
 	}
 
 	authConn, err := grpc.Dial(getEnv("AUTH_GRPC_ADDR", "localhost:8085"), grpc.WithTransportCredentials(insecure.NewCredentials()))

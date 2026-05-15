@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 
 	"guidely-app/pkg/config"
 
@@ -18,29 +19,35 @@ type S3Client struct {
 	useSSL   bool
 }
 
-// NewS3Client создаёт подключение к MinIO/S3 и при необходимости создаёт bucket.
 func NewS3Client(cfg *config.Config) (*S3Client, error) {
+	if !cfg.S3Enabled {
+		log.Println("S3 is disabled via S3_ENABLED=false")
+		return nil, nil
+	}
+
 	client, err := minio.New(cfg.S3Endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.S3AccessKey, cfg.S3SecretKey, ""),
 		Secure: cfg.S3UseSSL,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("minio.New: %w", err)
+		log.Printf("WARNING: minio.New failed: %v; S3 features will be unavailable", err)
+		return nil, nil
 	}
 
 	ctx := context.Background()
 
 	exists, err := client.BucketExists(ctx, cfg.S3Bucket)
 	if err != nil {
-		return nil, fmt.Errorf("BucketExists: %w", err)
+		log.Printf("WARNING: BucketExists failed: %v; S3 features will be unavailable", err)
+		return nil, nil
 	}
 
 	if !exists {
 		if err := client.MakeBucket(ctx, cfg.S3Bucket, minio.MakeBucketOptions{}); err != nil {
-			return nil, fmt.Errorf("MakeBucket: %w", err)
+			log.Printf("WARNING: MakeBucket failed: %v; S3 features will be unavailable", err)
+			return nil, nil
 		}
 
-		// Делаем bucket публичным для чтения — иначе URL аватара вернёт 403
 		policy := fmt.Sprintf(`{
 			"Version": "2012-10-17",
 			"Statement": [{
@@ -52,8 +59,7 @@ func NewS3Client(cfg *config.Config) (*S3Client, error) {
 		}`, cfg.S3Bucket)
 
 		if err := client.SetBucketPolicy(ctx, cfg.S3Bucket, policy); err != nil {
-			// Не фатально — просто файлы не будут публично доступны
-			fmt.Printf("warning: SetBucketPolicy failed: %v\n", err)
+			log.Printf("WARNING: SetBucketPolicy failed: %v (files will not be public)", err)
 		}
 	}
 
@@ -70,10 +76,10 @@ func NewS3Client(cfg *config.Config) (*S3Client, error) {
 	}, nil
 }
 
-// UploadFile загружает файл в S3 и возвращает публичный URL.
-// objectName — путь внутри bucket, например "avatars/uuid.jpg".
-// Возвращаемый URL: http://localhost:9000/guidely/avatars/uuid.jpg
 func (s *S3Client) UploadFile(ctx context.Context, objectName string, reader io.Reader, size int64, contentType string) (string, error) {
+	if s == nil || s.client == nil {
+		return "", fmt.Errorf("S3 client is not initialized")
+	}
 	_, err := s.client.PutObject(ctx, s.bucket, objectName, reader, size, minio.PutObjectOptions{
 		ContentType: contentType,
 	})
@@ -85,7 +91,9 @@ func (s *S3Client) UploadFile(ctx context.Context, objectName string, reader io.
 	return publicURL, nil
 }
 
-// DeleteFile удаляет объект из S3 (например при замене аватара).
 func (s *S3Client) DeleteFile(ctx context.Context, objectName string) error {
+	if s == nil || s.client == nil {
+		return fmt.Errorf("S3 client is not initialized")
+	}
 	return s.client.RemoveObject(ctx, s.bucket, objectName, minio.RemoveObjectOptions{})
 }

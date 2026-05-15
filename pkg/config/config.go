@@ -21,6 +21,7 @@ type Config struct {
 	S3Bucket       string
 	S3UseSSL       bool
 	SecureCookies  bool
+	S3Enabled      bool // новое поле
 }
 
 func Load() (*Config, error) {
@@ -49,6 +50,8 @@ func Load() (*Config, error) {
 		}
 	}
 
+	s3Enabled := getEnvBool("S3_ENABLED", true)
+
 	return &Config{
 		Port:           getEnv("PORT", "8080"),
 		DatabaseURL:    getEnv("DATABASE_URL", "postgres://postgres:1111@localhost:5432/texnopark?sslmode=disable"),
@@ -61,6 +64,7 @@ func Load() (*Config, error) {
 		S3SecretKey:    getEnv("S3_SECRET_KEY", "minioadmin"),
 		S3Bucket:       getEnv("S3_BUCKET", "guidely"),
 		S3UseSSL:       getEnv("S3_USE_SSL", "false") == "true",
+		S3Enabled:      s3Enabled,
 	}, nil
 }
 
