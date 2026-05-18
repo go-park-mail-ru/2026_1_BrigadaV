@@ -9,12 +9,15 @@ import (
 )
 
 type Config struct {
-	Port           string
-	DatabaseURL    string
-	JWTSecret      string
-	FrontendURL    string
-	AllowedOrigins []string
-	SecureCookies  bool
+	Port               string
+	DatabaseURL        string
+	JWTSecret          string
+	FrontendURL        string
+	AllowedOrigins     []string
+	SecureCookies      bool
+	YandexClientID     string
+	YandexClientSecret string
+	YandexRedirectURL  string
 }
 
 func Load() (*Config, error) {
@@ -44,12 +47,15 @@ func Load() (*Config, error) {
 	}
 
 	return &Config{
-		Port:           getEnv("PORT", "8080"),
-		DatabaseURL:    dbURL,
-		JWTSecret:      jwtSecret,
-		FrontendURL:    frontendURL,
-		AllowedOrigins: origins,
-		SecureCookies:  getEnvBool("SECURE_COOKIES", true),
+		Port:               getEnv("PORT", "8080"),
+		DatabaseURL:        dbURL,
+		JWTSecret:          jwtSecret,
+		FrontendURL:        frontendURL,
+		AllowedOrigins:     origins,
+		SecureCookies:      getEnvBool("SECURE_COOKIES", true),
+		YandexClientID:     getEnv("YANDEX_CLIENT_ID", ""),
+		YandexClientSecret: getEnv("YANDEX_CLIENT_SECRET", ""),
+		YandexRedirectURL:  getEnv("YANDEX_REDIRECT_URL", "http://localhost:8080/api/auth/yandex/callback"),
 	}, nil
 }
 

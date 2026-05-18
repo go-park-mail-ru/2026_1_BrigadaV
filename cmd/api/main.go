@@ -83,6 +83,14 @@ func main() {
 	tripHandler := handlers.NewTripHandler(tripService)
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
 	csrfHandler := handlers.NewCSRFHandler()
+	yandexHandler := handlers.NewYandexOAuthHandler(
+		cfg.YandexClientID,
+		cfg.YandexClientSecret,
+		cfg.YandexRedirectURL,
+		cfg.FrontendURL,
+		userRepo,
+		sessionRepo,
+	)
 
 	authMiddleware := middleware.NewAuthMiddleware(sessionRepo)
 
@@ -95,6 +103,9 @@ func main() {
 	r.HandleFunc("/api/login", authHandler.Login).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/logout", authMiddleware.Authenticate(authHandler.Logout)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/user/me", authMiddleware.Authenticate(authHandler.Me)).Methods("GET", "OPTIONS")
+
+	r.HandleFunc("/api/auth/yandex", yandexHandler.Login).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/auth/yandex/callback", yandexHandler.Callback).Methods("GET")
 
 	r.HandleFunc("/api/profile", authMiddleware.Authenticate(profileHandler.GetProfile)).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/profile", authMiddleware.Authenticate(profileHandler.UpdateProfile)).Methods("PUT", "OPTIONS")
