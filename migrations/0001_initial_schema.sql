@@ -153,6 +153,7 @@ CREATE TABLE IF NOT EXISTS trip_attractions (
     PRIMARY KEY (trip_id, place_id)
 );
 
+
 CREATE OR REPLACE FUNCTION update_place_rating() RETURNS TRIGGER AS $$
 BEGIN
     IF TG_OP = 'DELETE' THEN
@@ -188,6 +189,69 @@ DROP TRIGGER IF EXISTS trip_after_insert ON trip;
 CREATE TRIGGER trip_after_insert AFTER INSERT ON trip FOR EACH ROW EXECUTE FUNCTION create_default_album();
 
 CREATE INDEX IF NOT EXISTS idx_place_search ON place USING GIN (to_tsvector('russian', name || ' ' || COALESCE(description, '')));
+
+
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+
+
+CREATE INDEX IF NOT EXISTS idx_session_token_hash ON session(session_token_hash);
+CREATE INDEX IF NOT EXISTS idx_session_user_id    ON session(user_id);
+CREATE INDEX IF NOT EXISTS idx_review_place_id    ON review(place_id);
+CREATE INDEX IF NOT EXISTS idx_review_user_id     ON review(user_id);
+CREATE INDEX IF NOT EXISTS idx_place_category     ON place(category_id);
+CREATE INDEX IF NOT EXISTS idx_trip_created_by    ON trip(created_by);
+CREATE INDEX IF NOT EXISTS idx_album_trip_id      ON album(trip_id);
+
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'guidely_api') THEN
+        CREATE ROLE guidely_api WITH LOGIN PASSWORD 'api_secret_pass';
+    END IF;
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'guidely_auth') THEN
+        CREATE ROLE guidely_auth WITH LOGIN PASSWORD 'auth_secret_pass';
+    END IF;
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'guidely_album') THEN
+        CREATE ROLE guidely_album WITH LOGIN PASSWORD 'album_secret_pass';
+    END IF;
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'guidely_review') THEN
+        CREATE ROLE guidely_review WITH LOGIN PASSWORD 'review_secret_pass';
+    END IF;
+END $$;
+
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON place            TO guidely_api;
+GRANT SELECT, INSERT, UPDATE, DELETE ON trip             TO guidely_api;
+GRANT SELECT, INSERT, UPDATE, DELETE ON trip_member      TO guidely_api;
+GRANT SELECT, INSERT, UPDATE, DELETE ON trip_attractions TO guidely_api;
+GRANT SELECT, INSERT, UPDATE, DELETE ON category         TO guidely_api;
+GRANT SELECT, INSERT, UPDATE, DELETE ON favorite         TO guidely_api;
+GRANT SELECT ON country     TO guidely_api;
+GRANT SELECT ON locality    TO guidely_api;
+GRANT SELECT ON "user"      TO guidely_api;
+GRANT SELECT ON session     TO guidely_api;
+GRANT SELECT ON review      TO guidely_api;
+GRANT SELECT ON photo       TO guidely_api;
+GRANT SELECT ON place_photo TO guidely_api;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO guidely_api;
+
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON "user"   TO guidely_auth;
+GRANT SELECT, INSERT, UPDATE, DELETE ON session  TO guidely_auth;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO guidely_auth;
+
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON album       TO guidely_album;
+GRANT SELECT, INSERT, UPDATE, DELETE ON album_photo TO guidely_album;
+GRANT SELECT, INSERT, UPDATE, DELETE ON photo       TO guidely_album;
+GRANT SELECT ON trip TO guidely_album;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO guidely_album;
+
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON review TO guidely_review;
+GRANT SELECT ON "user" TO guidely_review;
+GRANT SELECT ON place  TO guidely_review;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO guidely_review;
+
 
 INSERT INTO country (name) VALUES
     ('Франция'), ('Италия'), ('Испания'), ('Нидерланды'), ('Индонезия'), ('Бразилия'),
