@@ -115,6 +115,7 @@ func main() {
 	r.HandleFunc("/api/places", placeHandler.List).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/places/search", placeHandler.Search).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/places/{id:[0-9]+}", placeHandler.GetDetails).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/places/{id:[0-9]+}/bot-preview", placeHandler.GetBotPreview).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/places/{id:[0-9]+}/reviews", placeHandler.GetReviews).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/places/{id:[0-9]+}/in-trip", authMiddleware.Authenticate(placeHandler.CheckPlaceInTrip)).Methods("GET", "OPTIONS")
 

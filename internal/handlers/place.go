@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
+	"html/template"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"guidely-app/internal/dto"
 	"guidely-app/internal/logger"
@@ -261,4 +263,66 @@ func (h *PlaceHandler) Search(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(filtered)
+}
+
+func (h *PlaceHandler) GetBotPreview(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.ParseUint(vars["id"], 10, 64)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid place id"})
+		return
+	}
+
+	place, err := h.placeService.GetDetails(r.Context(), id, 0)
+	if err != nil {
+		if err.Error() == "place not found" {
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{"error": "place not found"})
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "internal error"})
+		return
+	}
+
+	photoURL := place.PhotoURL
+	if photoURL != "" && !strings.HasPrefix(photoURL, "http") {
+		photoURL = "https://guidely.ru" + photoURL
+	}
+
+	const tmplStr = `<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://guidely.ru/attraction/{{.ID}}">
+    <meta property="og:title" content="{{.Name}}">
+    <meta property="og:description" content="{{.Description}}">
+    <meta property="og:image" content="{{.PhotoURL}}">
+    <meta name="twitter:card" content="summary_large_image">
+</head>
+<body></body>
+</html>`
+
+	t, err := template.New("preview").Parse(tmplStr)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	data := struct {
+		ID          uint64
+		Name        string
+		Description string
+		PhotoURL    string
+	}{
+		ID:          place.ID,
+		Name:        place.Name,
+		Description: place.Description,
+		PhotoURL:    photoURL,
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	t.Execute(w, data)
 }
