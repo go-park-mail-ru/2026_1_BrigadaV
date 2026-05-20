@@ -18,13 +18,13 @@ mockgen -destination internal/album/repository/mocks/mock_repository.go \
     -package mocks \
     guidely-app/internal/album/repository AlbumRepository
 
-# Gateway repositories
+# Gateway repositories (добавлены TripMemberRepository и TripInviteRepository)
 mkdir -p internal/repository/mocks
 mockgen -destination internal/repository/mocks/mock_repository.go \
     -package mocks \
-    guidely-app/internal/repository PlaceRepository,TripRepository,ReviewRepository,CategoryRepository,UserRepository,SessionRepository
+    guidely-app/internal/repository TripRepository,TripMemberRepository,TripInviteRepository,PlaceRepository,CategoryRepository,ReviewRepository,UserRepository,SessionRepository
 
-# Gateway services
+# Gateway services (TripService теперь включает все методы шеринга)
 mkdir -p internal/service/mocks
 mockgen -destination internal/service/mocks/mock_service.go \
     -package mocks \

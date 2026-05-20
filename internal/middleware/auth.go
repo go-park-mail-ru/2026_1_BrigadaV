@@ -18,8 +18,8 @@ func NewAuthMiddleware(sessionRepo authrepo.SessionRepository) *AuthMiddleware {
 	return &AuthMiddleware{sessionRepo: sessionRepo}
 }
 
-func (m *AuthMiddleware) Authenticate(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("session_token")
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -34,7 +34,7 @@ func (m *AuthMiddleware) Authenticate(next http.HandlerFunc) http.HandlerFunc {
 		}
 		ctx := context.WithValue(r.Context(), "user_id", session.UserID)
 		next.ServeHTTP(w, r.WithContext(ctx))
-	}
+	})
 }
 
 func GetUserIDFromContext(r *http.Request) uint64 {

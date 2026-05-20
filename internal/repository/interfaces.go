@@ -55,3 +55,20 @@ type ReviewRepository interface {
 	GetByPlaceIDWithAuthor(ctx context.Context, placeID uint64) ([]models.ReviewWithAuthor, error)
 	Delete(ctx context.Context, id uint64) error
 }
+
+type TripMemberRepository interface {
+	AddMember(ctx context.Context, tripID, userID uint64, role string) error
+	RemoveMember(ctx context.Context, tripID, userID uint64) error
+	GetMemberRole(ctx context.Context, tripID, userID uint64) (string, error)
+	GetTripMembers(ctx context.Context, tripID uint64) ([]models.TripMember, error)
+	HasEditPermission(ctx context.Context, tripID, userID uint64) (bool, error)
+	HasViewPermission(ctx context.Context, tripID, userID uint64) (bool, error)
+}
+
+type TripInviteRepository interface {
+	CreateInvite(ctx context.Context, invite *models.TripInvite) error
+	GetInviteByToken(ctx context.Context, token string) (*models.TripInvite, error)
+	MarkUsed(ctx context.Context, id uint64) error
+	DeleteInvite(ctx context.Context, id uint64) error
+	GetInvitesByTrip(ctx context.Context, tripID uint64) ([]models.TripInvite, error)
+}

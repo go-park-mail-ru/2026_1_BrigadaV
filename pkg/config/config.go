@@ -21,7 +21,7 @@ type Config struct {
 	S3Bucket       string
 	S3UseSSL       bool
 	SecureCookies  bool
-	S3Enabled      bool // новое поле
+	S3Enabled      bool
 }
 
 func Load() (*Config, error) {
@@ -51,6 +51,7 @@ func Load() (*Config, error) {
 	}
 
 	s3Enabled := getEnvBool("S3_ENABLED", true)
+	secureCookies := getEnvBool("SECURE_COOKIES", false)
 
 	return &Config{
 		Port:           getEnv("PORT", "8080"),
@@ -65,6 +66,7 @@ func Load() (*Config, error) {
 		S3Bucket:       getEnv("S3_BUCKET", "guidely"),
 		S3UseSSL:       getEnv("S3_USE_SSL", "false") == "true",
 		S3Enabled:      s3Enabled,
+		SecureCookies:  secureCookies,
 	}, nil
 }
 

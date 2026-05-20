@@ -100,16 +100,19 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 // UploadAvatar принимает multipart/form-data с полем "avatar",
 // загружает файл в S3/MinIO и обновляет avatar_url пользователя.
 func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
-	if h.s3 == nil {
-		w.WriteHeader(http.StatusServiceUnavailable)
-		json.NewEncoder(w).Encode(map[string]string{"error": "avatar upload is disabled (S3 not configured)"})
-		return
-	}
+	// Сначала проверяем авторизацию
 	userIDVal := r.Context().Value("user_id")
 	userID, ok := userIDVal.(uint64)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		return
+	}
+
+	// Затем проверяем доступность S3
+	if h.s3 == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{"error": "avatar upload is disabled (S3 not configured)"})
 		return
 	}
 
@@ -179,7 +182,7 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// GetAvatar — теперь просто редиректит на S3 URL (файл хранится в MinIO, не на диске).
+// GetAvatar — возвращает URL аватара
 func (h *ProfileHandler) GetAvatar(w http.ResponseWriter, r *http.Request) {
 	userIDVal := r.Context().Value("user_id")
 	userID, ok := userIDVal.(uint64)
@@ -202,7 +205,6 @@ func (h *ProfileHandler) GetAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Аватар уже хранится в S3 — просто возвращаем URL
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"avatar_url": user.AvatarURL})
 }

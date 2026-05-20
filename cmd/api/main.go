@@ -43,11 +43,9 @@ func main() {
 	}
 	defer dbPool.Close()
 
-	// ИНИЦИАЛИЗАЦИЯ S3 С ВОЗМОЖНОСТЬЮ ПРОДОЛЖИТЬ БЕЗ НЕГО
 	s3Client, err := storage.NewS3Client(cfg)
 	if err != nil {
-		// Ошибка уже залогирована внутри NewS3Client, но на всякий случай
-		log.Printf("S3 init failed: %v; continuing without S3 features", err)
+		log.Printf("S3 init warning: %v; continuing without S3", err)
 		s3Client = nil
 	}
 	if s3Client == nil {
@@ -81,9 +79,11 @@ func main() {
 	reviewRepo := repository.NewReviewRepo(dbAdapter)
 	userRepo := authrepo.NewUserRepo(authAdapter)
 	sessionRepo := authrepo.NewSessionRepo(authAdapter)
+	tripMemberRepo := repository.NewTripMemberRepo(dbAdapter)
+	tripInviteRepo := repository.NewTripInviteRepo(dbAdapter)
 
 	placeService := service.NewPlaceService(placeRepo, reviewRepo)
-	tripService := service.NewTripService(tripRepo)
+	tripService := service.NewTripService(tripRepo, tripMemberRepo, tripInviteRepo)
 	categoryService := service.NewCategoryService(categoryRepo)
 	profileService := service.NewProfileService(userRepo)
 
@@ -104,44 +104,54 @@ func main() {
 
 	r.HandleFunc("/api/register", authHandler.Register).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/login", authHandler.Login).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/logout", authMiddleware.Authenticate(authHandler.Logout)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/user/me", authMiddleware.Authenticate(authHandler.Me)).Methods("GET", "OPTIONS")
-
-	r.HandleFunc("/api/profile", authMiddleware.Authenticate(profileHandler.GetProfile)).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/profile", authMiddleware.Authenticate(profileHandler.UpdateProfile)).Methods("PUT", "OPTIONS")
-	r.HandleFunc("/api/profile/avatar", authMiddleware.Authenticate(profileHandler.UploadAvatar)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/profile/avatar", authMiddleware.Authenticate(profileHandler.GetAvatar)).Methods("GET", "OPTIONS")
-
-	r.HandleFunc("/api/places", placeHandler.List).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/places/search", placeHandler.Search).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/places/{id:[0-9]+}", placeHandler.GetDetails).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/places/{id:[0-9]+}/reviews", placeHandler.GetReviews).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/places/{id:[0-9]+}/in-trip", authMiddleware.Authenticate(placeHandler.CheckPlaceInTrip)).Methods("GET", "OPTIONS")
-
-	r.HandleFunc("/api/reviews", authMiddleware.Authenticate(reviewHandler.Create)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/reviews/{id:[0-9]+}", authMiddleware.Authenticate(reviewHandler.Delete)).Methods("DELETE", "OPTIONS")
-
-	r.HandleFunc("/api/trips", authMiddleware.Authenticate(tripHandler.List)).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/trips", authMiddleware.Authenticate(tripHandler.Create)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/trips/{id:[0-9]+}", authMiddleware.Authenticate(tripHandler.GetDetails)).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/trips/{id:[0-9]+}", authMiddleware.Authenticate(tripHandler.Update)).Methods("PUT", "OPTIONS")
-	r.HandleFunc("/api/trips/{id:[0-9]+}", authMiddleware.Authenticate(tripHandler.Delete)).Methods("DELETE", "OPTIONS")
-	r.HandleFunc("/api/trips/{id:[0-9]+}/places", authMiddleware.Authenticate(tripHandler.GetTripPlaces)).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/trips/{id:[0-9]+}/places", authMiddleware.Authenticate(tripHandler.AddPlace)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/trips/{id:[0-9]+}/places/{placeId:[0-9]+}", authMiddleware.Authenticate(tripHandler.RemovePlace)).Methods("DELETE", "OPTIONS")
-
-	r.HandleFunc("/api/trips/{tripID:[0-9]+}/album", authMiddleware.Authenticate(albumHandler.GetByTrip)).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/albums/{id:[0-9]+}/photos", authMiddleware.Authenticate(albumHandler.AddPhoto)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/albums/{id:[0-9]+}/photos/{photoId:[0-9]+}", authMiddleware.Authenticate(albumHandler.RemovePhoto)).Methods("DELETE", "OPTIONS")
-	r.HandleFunc("/api/albums/{id:[0-9]+}/photos", authMiddleware.Authenticate(albumHandler.GetPhotos)).Methods("GET", "OPTIONS")
-
-	r.HandleFunc("/api/categories", categoryHandler.List).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/categories/{id:[0-9]+}", categoryHandler.Get).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/categories", authMiddleware.Authenticate(categoryHandler.Create)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/categories/{id:[0-9]+}", authMiddleware.Authenticate(categoryHandler.Update)).Methods("PUT", "OPTIONS")
-	r.HandleFunc("/api/categories/{id:[0-9]+}", authMiddleware.Authenticate(categoryHandler.Delete)).Methods("DELETE", "OPTIONS")
-
 	r.HandleFunc("/api/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/share/view/{token}", tripHandler.ViewSharedTrip).Methods("GET")
+	r.HandleFunc("/api/share/edit/{token}", tripHandler.AcceptInviteRedirect).Methods("GET")
+
+	protected := r.PathPrefix("/api").Subrouter()
+	protected.Use(authMiddleware.Authenticate)
+
+	protected.HandleFunc("/logout", authHandler.Logout).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/user/me", authHandler.Me).Methods("GET", "OPTIONS")
+
+	protected.HandleFunc("/profile", profileHandler.GetProfile).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/profile", profileHandler.UpdateProfile).Methods("PUT", "OPTIONS")
+	protected.HandleFunc("/profile/avatar", profileHandler.UploadAvatar).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/profile/avatar", profileHandler.GetAvatar).Methods("GET", "OPTIONS")
+
+	protected.HandleFunc("/places", placeHandler.List).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/places/search", placeHandler.Search).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/places/{id:[0-9]+}", placeHandler.GetDetails).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/places/{id:[0-9]+}/reviews", placeHandler.GetReviews).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/places/{id:[0-9]+}/in-trip", placeHandler.CheckPlaceInTrip).Methods("GET", "OPTIONS")
+
+	protected.HandleFunc("/reviews", reviewHandler.Create).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/reviews/{id:[0-9]+}", reviewHandler.Delete).Methods("DELETE", "OPTIONS")
+
+	protected.HandleFunc("/trips", tripHandler.List).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/trips", tripHandler.Create).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.GetDetails).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.Update).Methods("PUT", "OPTIONS")
+	protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.Delete).Methods("DELETE", "OPTIONS")
+	protected.HandleFunc("/trips/{id:[0-9]+}/places", tripHandler.GetTripPlaces).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/trips/{id:[0-9]+}/places", tripHandler.AddPlace).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/trips/{id:[0-9]+}/places/{placeId:[0-9]+}", tripHandler.RemovePlace).Methods("DELETE", "OPTIONS")
+
+	protected.HandleFunc("/trips/{id:[0-9]+}/share/view", tripHandler.CreateViewShareLink).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/trips/{id:[0-9]+}/share/edit", tripHandler.CreateEditShareLink).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/trips/{id:[0-9]+}/members", tripHandler.GetTripMembers).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/trips/{id:[0-9]+}/members/{member_id:[0-9]+}", tripHandler.RemoveMember).Methods("DELETE", "OPTIONS")
+
+	protected.HandleFunc("/trips/{tripID:[0-9]+}/album", albumHandler.GetByTrip).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.AddPhoto).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/albums/{id:[0-9]+}/photos/{photoId:[0-9]+}", albumHandler.RemovePhoto).Methods("DELETE", "OPTIONS")
+	protected.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.GetPhotos).Methods("GET", "OPTIONS")
+
+	protected.HandleFunc("/categories", categoryHandler.List).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Get).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/categories", categoryHandler.Create).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Update).Methods("PUT", "OPTIONS")
+	protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Delete).Methods("DELETE", "OPTIONS")
 
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))

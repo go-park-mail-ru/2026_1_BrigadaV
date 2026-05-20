@@ -270,3 +270,35 @@ func TestTripRepo_CheckPlaceInTrip(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, exists)
 }
+
+func TestTripMemberRepo_AddMember(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+
+	repo := NewTripMemberRepo(mockPool)
+
+	mockPool.ExpectExec(`INSERT INTO trip_member`).
+		WithArgs(uint64(1), uint64(2), "editor").
+		WillReturnResult(pgxmock.NewResult("INSERT", 1))
+
+	err = repo.AddMember(context.Background(), 1, 2, "editor")
+	assert.NoError(t, err)
+	assert.NoError(t, mockPool.ExpectationsWereMet())
+}
+
+func TestTripMemberRepo_GetMemberRole(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewTripMemberRepo(mockPool)
+
+	rows := mockPool.NewRows([]string{"role"}).AddRow("owner")
+	mockPool.ExpectQuery(`SELECT role FROM trip_member`).
+		WithArgs(uint64(1), uint64(2)).
+		WillReturnRows(rows)
+
+	role, err := repo.GetMemberRole(context.Background(), 1, 2)
+	assert.NoError(t, err)
+	assert.Equal(t, "owner", role)
+}
