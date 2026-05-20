@@ -27,8 +27,6 @@ func NewPlaceHandler(placeService service.PlaceService, tripService service.Trip
 	}
 }
 
-// ratingThresholds maps frontend rating filter IDs to minimum rating values.
-// IDs come from the RatingAccordion widget in the frontend Filters component.
 var ratingThresholds = map[int]float64{
 	1: 4.5,
 	2: 4.0,
@@ -80,6 +78,8 @@ func placeToDTO(p models.Place) dto.PlaceResponse {
 		Latitude:    p.Latitude,
 		Longitude:   p.Longitude,
 		IsLiked:     false,
+		Rating:      p.Rating,
+		ReviewCount: p.ReviewCount,
 		Locality: dto.LocalityDTO{
 			ID:        p.Locality.ID,
 			Name:      p.Locality.Name,
