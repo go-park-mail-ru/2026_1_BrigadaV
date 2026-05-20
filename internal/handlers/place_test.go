@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"guidely-app/internal/dto"
+	"guidely-app/internal/service"
 	"guidely-app/internal/service/mocks"
 	"guidely-app/pkg/models"
 
@@ -29,7 +30,7 @@ func TestPlaceHandler_List(t *testing.T) {
 		{ID: 1, Name: "Place 1", Description: "Desc 1", Price: 1000},
 		{ID: 2, Name: "Place 2", Description: "Desc 2", Price: 2000},
 	}
-	mockPlaceService.EXPECT().GetAll(gomock.Any()).Return(places, nil)
+	mockPlaceService.EXPECT().GetAll(gomock.Any(), service.PlaceFilter{}).Return(places, nil)
 
 	req := httptest.NewRequest("GET", "/api/places", nil)
 	w := httptest.NewRecorder()
@@ -50,7 +51,7 @@ func TestPlaceHandler_List_Error(t *testing.T) {
 	mockTripService := mocks.NewMockTripService(ctrl)
 	handler := NewPlaceHandler(mockPlaceService, mockTripService)
 
-	mockPlaceService.EXPECT().GetAll(gomock.Any()).Return(nil, errors.New("db error"))
+	mockPlaceService.EXPECT().GetAll(gomock.Any(), service.PlaceFilter{}).Return(nil, errors.New("db error"))
 
 	req := httptest.NewRequest("GET", "/api/places", nil)
 	w := httptest.NewRecorder()
@@ -121,10 +122,9 @@ func TestPlaceHandler_Search_Success(t *testing.T) {
 			Locality: models.Locality{ID: 1, Name: "Paris", Country: "France", Latitude: ptr(48.8566), Longitude: ptr(2.3522)}},
 	}
 
-	mockPlaceService.EXPECT().Search(gomock.Any(), "eiffel").Return(expectedPlaces, nil)
+	mockPlaceService.EXPECT().Search(gomock.Any(), "eiffel", service.PlaceFilter{}).Return(expectedPlaces, nil)
 
-	req := httptest.NewRequest("GET", "/api/places?q=eiffel", nil)
-	req.URL.RawQuery = "q=eiffel"
+	req := httptest.NewRequest("GET", "/api/places/search?q=eiffel", nil)
 	w := httptest.NewRecorder()
 
 	handler.Search(w, req)
@@ -226,7 +226,7 @@ func TestPlaceHandler_Search_Error(t *testing.T) {
 	mockTripService := mocks.NewMockTripService(ctrl)
 	handler := NewPlaceHandler(mockPlaceService, mockTripService)
 
-	mockPlaceService.EXPECT().Search(gomock.Any(), "query").Return(nil, errors.New("db error"))
+	mockPlaceService.EXPECT().Search(gomock.Any(), "query", service.PlaceFilter{}).Return(nil, errors.New("db error"))
 	req := httptest.NewRequest("GET", "/api/places/search?q=query", nil)
 	w := httptest.NewRecorder()
 	handler.Search(w, req)
@@ -247,4 +247,5 @@ func TestPlaceHandler_GetReviews_Error(t *testing.T) {
 	handler.GetReviews(w, req)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
+
 func ptr(f float64) *float64 { return &f }

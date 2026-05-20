@@ -6,6 +6,7 @@ package mocks
 
 import (
 	context "context"
+	repository "guidely-app/internal/repository"
 	models "guidely-app/pkg/models"
 	reflect "reflect"
 
@@ -36,18 +37,18 @@ func (m *MockPlaceRepository) EXPECT() *MockPlaceRepositoryMockRecorder {
 }
 
 // GetAll mocks base method.
-func (m *MockPlaceRepository) GetAll(arg0 context.Context) ([]models.Place, error) {
+func (m *MockPlaceRepository) GetAll(arg0 context.Context, arg1 repository.PlaceFilter) ([]models.Place, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetAll", arg0)
+	ret := m.ctrl.Call(m, "GetAll", arg0, arg1)
 	ret0, _ := ret[0].([]models.Place)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetAll indicates an expected call of GetAll.
-func (mr *MockPlaceRepositoryMockRecorder) GetAll(arg0 interface{}) *gomock.Call {
+func (mr *MockPlaceRepositoryMockRecorder) GetAll(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockPlaceRepository)(nil).GetAll), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockPlaceRepository)(nil).GetAll), arg0, arg1)
 }
 
 // GetByCategory mocks base method.
@@ -111,18 +112,18 @@ func (mr *MockPlaceRepositoryMockRecorder) IsPlaceInTrip(arg0, arg1, arg2 interf
 }
 
 // Search mocks base method.
-func (m *MockPlaceRepository) Search(arg0 context.Context, arg1 string) ([]models.Place, error) {
+func (m *MockPlaceRepository) Search(arg0 context.Context, arg1 string, arg2 repository.PlaceFilter) ([]models.Place, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Search", arg0, arg1)
+	ret := m.ctrl.Call(m, "Search", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]models.Place)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Search indicates an expected call of Search.
-func (mr *MockPlaceRepositoryMockRecorder) Search(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockPlaceRepositoryMockRecorder) Search(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockPlaceRepository)(nil).Search), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockPlaceRepository)(nil).Search), arg0, arg1, arg2)
 }
 
 // MockTripRepository is a mock of TripRepository interface.

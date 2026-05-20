@@ -2,16 +2,19 @@ package service
 
 import (
 	"context"
+	"guidely-app/internal/repository"
 	"guidely-app/pkg/models"
 )
 
+type PlaceFilter = repository.PlaceFilter
+
 type PlaceService interface {
-	GetAll(ctx context.Context) ([]models.Place, error)
+	GetAll(ctx context.Context, filter PlaceFilter) ([]models.Place, error)
 	GetByCategory(ctx context.Context, categoryID uint64) ([]models.Place, error)
 	GetDetails(ctx context.Context, placeID, userID uint64) (*models.PlaceWithRating, error)
 	GetReviews(ctx context.Context, placeID uint64) ([]models.ReviewWithAuthor, error)
 	IsPlaceInTrip(ctx context.Context, placeID, tripID uint64) (bool, error)
-	Search(ctx context.Context, query string) ([]models.Place, error)
+	Search(ctx context.Context, query string, filter PlaceFilter) ([]models.Place, error)
 }
 
 type ProfileService interface {
