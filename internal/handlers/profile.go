@@ -109,13 +109,6 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Затем проверяем доступность S3
-	if h.s3 == nil {
-		w.WriteHeader(http.StatusServiceUnavailable)
-		json.NewEncoder(w).Encode(map[string]string{"error": "avatar upload is disabled (S3 not configured)"})
-		return
-	}
-
 	// Лимит 10 МБ на весь multipart
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		logger.Error(r.Context(), "ParseMultipartForm failed", logrus.Fields{"error": err})
@@ -137,6 +130,13 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	if !strings.HasPrefix(contentType, "image/") {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "file must be an image"})
+		return
+	}
+
+	// Проверяем доступность S3 только после того, как файл получен и валиден
+	if h.s3 == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{"error": "avatar upload is disabled (S3 not configured)"})
 		return
 	}
 

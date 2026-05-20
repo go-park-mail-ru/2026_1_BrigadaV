@@ -273,3 +273,107 @@ func TestTripHandler_Delete_Unauthorized(t *testing.T) {
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
+
+// TestTripHandler_CreateViewShareLink_Success
+func TestTripHandler_CreateViewShareLink_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+	handler := NewTripHandler(tripService)
+
+	req := httptest.NewRequest("POST", "/api/trips/1/share/view", nil)
+	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	req = req.WithContext(ctx)
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	w := httptest.NewRecorder()
+
+	mockMemberRepo.EXPECT().GetMemberRole(gomock.Any(), uint64(1), uint64(1)).Return("owner", nil)
+	mockInviteRepo.EXPECT().CreateInvite(gomock.Any(), gomock.Any()).Return(nil)
+
+	handler.CreateViewShareLink(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]string
+	json.NewDecoder(w.Body).Decode(&resp)
+	assert.Contains(t, resp["share_link"], "/share/view/")
+}
+
+// TestTripHandler_CreateViewShareLink_Forbidden
+func TestTripHandler_CreateViewShareLink_Forbidden(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+	handler := NewTripHandler(tripService)
+
+	req := httptest.NewRequest("POST", "/api/trips/1/share/view", nil)
+	ctx := context.WithValue(req.Context(), "user_id", uint64(2))
+	req = req.WithContext(ctx)
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	w := httptest.NewRecorder()
+
+	mockMemberRepo.EXPECT().GetMemberRole(gomock.Any(), uint64(1), uint64(2)).Return("viewer", nil)
+
+	handler.CreateViewShareLink(w, req)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+// TestTripHandler_RemoveMember_Success
+func TestTripHandler_RemoveMember_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+	handler := NewTripHandler(tripService)
+
+	req := httptest.NewRequest("DELETE", "/api/trips/1/members/2", nil)
+	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	req = req.WithContext(ctx)
+	req = mux.SetURLVars(req, map[string]string{"id": "1", "member_id": "2"})
+	w := httptest.NewRecorder()
+
+	mockMemberRepo.EXPECT().GetMemberRole(gomock.Any(), uint64(1), uint64(1)).Return("owner", nil)
+	mockMemberRepo.EXPECT().RemoveMember(gomock.Any(), uint64(1), uint64(2)).Return(nil)
+
+	handler.RemoveMember(w, req)
+	assert.Equal(t, http.StatusNoContent, w.Code)
+}
+
+// TestTripHandler_GetTripMembers_Success
+func TestTripHandler_GetTripMembers_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+	handler := NewTripHandler(tripService)
+
+	req := httptest.NewRequest("GET", "/api/trips/1/members", nil)
+	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	req = req.WithContext(ctx)
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	w := httptest.NewRecorder()
+
+	members := []models.TripMember{{TripID: 1, UserID: 1, Role: "owner"}, {TripID: 1, UserID: 2, Role: "editor"}}
+	mockMemberRepo.EXPECT().GetMemberRole(gomock.Any(), uint64(1), uint64(1)).Return("owner", nil)
+	mockMemberRepo.EXPECT().GetTripMembers(gomock.Any(), uint64(1)).Return(members, nil)
+
+	handler.GetTripMembers(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp []models.TripMember
+	json.NewDecoder(w.Body).Decode(&resp)
+	assert.Len(t, resp, 2)
+}

@@ -9,6 +9,7 @@ import (
 	"guidely-app/internal/testutil"
 	"guidely-app/pkg/models"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/pashagolub/pgxmock/v4"
 	"github.com/stretchr/testify/assert"
 )
@@ -301,4 +302,32 @@ func TestTripMemberRepo_GetMemberRole(t *testing.T) {
 	role, err := repo.GetMemberRole(context.Background(), 1, 2)
 	assert.NoError(t, err)
 	assert.Equal(t, "owner", role)
+}
+
+func TestTripRepo_Update_NoRows(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+
+	repo := NewTripRepo(mockPool)
+
+	trip := &models.Trip{ID: 999, Title: "Nonexistent"}
+	mockPool.ExpectQuery(`UPDATE trip SET`).WithArgs(trip.Title, trip.Description, trip.Location, trip.StartDate, trip.EndDate, trip.PreviewURL, trip.IsPublic, uint64(999)).WillReturnError(pgx.ErrNoRows)
+
+	err = repo.Update(context.Background(), trip)
+	assert.Error(t, err)
+}
+
+// TestTripRepo_Delete_NoRows
+func TestTripRepo_Delete_NoRows(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+
+	repo := NewTripRepo(mockPool)
+
+	mockPool.ExpectExec(`DELETE FROM trip WHERE id = \$1`).WithArgs(uint64(999)).WillReturnResult(pgxmock.NewResult("DELETE", 0))
+
+	err = repo.Delete(context.Background(), 999)
+	assert.NoError(t, err) // удаление несуществующей записи не ошибка
 }

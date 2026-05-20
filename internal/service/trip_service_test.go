@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -313,4 +314,131 @@ func TestTripService_AcceptInvite_Expired(t *testing.T) {
 	_, _, err := svc.AcceptInvite(context.Background(), "token", 200)
 	assert.Error(t, err)
 	assert.Equal(t, "invite has expired", err.Error())
+}
+
+func TestTripService_GetTripDetails_Error(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	svc := NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+
+	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(nil, errors.New("db error"))
+	_, _, err := svc.GetTripDetails(context.Background(), 1)
+	assert.Error(t, err)
+}
+func TestTripService_AddPlaceToTrip_AlreadyExists(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	svc := NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+
+	mockMemberRepo.EXPECT().HasEditPermission(gomock.Any(), uint64(1), uint64(1)).Return(true, nil)
+	mockTripRepo.EXPECT().CheckPlaceInTrip(gomock.Any(), uint64(1), uint64(5)).Return(true, nil)
+
+	err := svc.AddPlaceToTrip(context.Background(), 1, 5, 1, 0)
+	assert.EqualError(t, err, "place already in trip")
+}
+
+// TestTripService_AddPlaceToTrip_CheckError
+func TestTripService_AddPlaceToTrip_CheckError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	svc := NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+
+	mockMemberRepo.EXPECT().HasEditPermission(gomock.Any(), uint64(1), uint64(1)).Return(true, nil)
+	mockTripRepo.EXPECT().CheckPlaceInTrip(gomock.Any(), uint64(1), uint64(5)).Return(false, errors.New("check error"))
+
+	err := svc.AddPlaceToTrip(context.Background(), 1, 5, 1, 0)
+	assert.Error(t, err)
+}
+
+// TestTripService_CreateViewShareLink_NotOwner
+func TestTripService_CreateViewShareLink_NotOwner(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	svc := NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+
+	mockMemberRepo.EXPECT().GetMemberRole(gomock.Any(), uint64(1), uint64(2)).Return("viewer", nil)
+	_, err := svc.CreateViewShareLink(context.Background(), 1, 2)
+	assert.EqualError(t, err, "only owner can create share links")
+}
+
+// TestTripService_AcceptInvite_AlreadyUsed
+func TestTripService_AcceptInvite_AlreadyUsed(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	svc := NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+
+	now := time.Now()
+	invite := &models.TripInvite{ID: 1, TripID: 10, Role: "editor", IsOneTime: true, UsedAt: &now}
+	mockInviteRepo.EXPECT().GetInviteByToken(gomock.Any(), "token").Return(invite, nil)
+
+	_, _, err := svc.AcceptInvite(context.Background(), "token", 200)
+	assert.EqualError(t, err, "invite already used")
+}
+
+// TestTripService_RemoveMember_NotOwner
+func TestTripService_RemoveMember_NotOwner(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	svc := NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+
+	mockMemberRepo.EXPECT().GetMemberRole(gomock.Any(), uint64(1), uint64(2)).Return("editor", nil)
+	err := svc.RemoveMember(context.Background(), 1, 2, 3)
+	assert.EqualError(t, err, "only owner can remove members")
+}
+
+// TestTripService_RemoveMember_OwnerSelf
+func TestTripService_RemoveMember_OwnerSelf(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	svc := NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+
+	mockMemberRepo.EXPECT().GetMemberRole(gomock.Any(), uint64(1), uint64(1)).Return("owner", nil)
+	err := svc.RemoveMember(context.Background(), 1, 1, 1)
+	assert.EqualError(t, err, "cannot remove owner")
+}
+
+// TestTripService_GetTripByShareToken_Expired
+func TestTripService_GetTripByShareToken_OneTimeUsed(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	svc := NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+
+	now := time.Now()
+	invite := &models.TripInvite{TripID: 1, IsOneTime: true, UsedAt: &now}
+	mockInviteRepo.EXPECT().GetInviteByToken(gomock.Any(), "token").Return(invite, nil)
+
+	_, _, err := svc.GetTripByShareToken(context.Background(), "token")
+	assert.EqualError(t, err, "one-time link already used")
 }
