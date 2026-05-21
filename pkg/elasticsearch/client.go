@@ -128,3 +128,7 @@ func (c *Client) EnsureIndex(ctx context.Context, index string, mapping any) err
 	}
 	return nil
 }
+
+func (c *Client) HealthCheck(ctx context.Context) ([]byte, int, error) {
+	return c.do(ctx, "GET", "/_cluster/health", nil)
+}

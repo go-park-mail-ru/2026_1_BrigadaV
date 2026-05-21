@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	_ "guidely-app/docs"
 	authrepo "guidely-app/internal/auth/repository"
@@ -75,13 +77,19 @@ func main() {
 	esClient := elasticsearch.NewClient(cfg.ElasticSearchURL)
 	placeIndexer := elasticsearch.NewPlaceIndexer(esClient)
 
-	if err := placeIndexer.EnsureIndex(context.Background()); err != nil {
-		log.Printf("warning: failed to ensure elasticsearch index: %v", err)
-	} else {
+	go func() {
+		if err := waitForElastic(context.Background(), esClient, 30, 5*time.Second); err != nil {
+			log.Printf("warning: elasticsearch not ready: %v", err)
+			return
+		}
+		if err := placeIndexer.EnsureIndex(context.Background()); err != nil {
+			log.Printf("warning: failed to ensure elasticsearch index: %v", err)
+			return
+		}
 		if err := indexAllPlaces(context.Background(), placeRepo, placeIndexer); err != nil {
 			log.Printf("warning: failed to index places on startup: %v", err)
 		}
-	}
+	}()
 
 	elasticSearcher := repository.NewElasticPlaceSearcher(esClient, placeRepo)
 
@@ -173,4 +181,20 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func waitForElastic(ctx context.Context, client *elasticsearch.Client, attempts int, delay time.Duration) error {
+	for i := 0; i < attempts; i++ {
+		_, status, err := client.HealthCheck(ctx)
+		if err == nil && status < 400 {
+			return nil
+		}
+		log.Printf("elasticsearch not ready (attempt %d/%d), retrying in %s...", i+1, attempts, delay)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(delay):
+		}
+	}
+	return fmt.Errorf("elasticsearch not ready after %d attempts", attempts)
 }
