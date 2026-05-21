@@ -4,17 +4,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"time"
 
+	"guidely-app/internal/logger"
 	"guidely-app/internal/middleware"
 	pb "guidely-app/pkg/pb/album"
 
 	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
 )
 
 const uploadDir = "./uploads/photos"
@@ -58,7 +59,7 @@ func (h *AlbumHandler) Create(w http.ResponseWriter, r *http.Request) {
 		MaxPhotos:   req.MaxPhotos,
 	})
 	if err != nil {
-		log.Printf("album create error: %v", err)
+		logger.Error(r.Context(), "album create error", logrus.Fields{"error": err, "trip_id": req.TripID})
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -78,7 +79,7 @@ func (h *AlbumHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.client.Get(r.Context(), &pb.GetAlbumRequest{Id: id})
 	if err != nil {
-		log.Printf("album get error: %v", err)
+		logger.Error(r.Context(), "album get error", logrus.Fields{"error": err, "album_id": id})
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -101,14 +102,17 @@ func (h *AlbumHandler) GetByTrip(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.client.GetByTrip(r.Context(), &pb.GetAlbumByTripRequest{TripId: tripID})
 	if err != nil {
 		// Альбома нет — создаём автоматически
-		log.Printf("album not found for trip %d, auto-creating: %v", tripID, err)
+		logger.Warn(r.Context(), "album not found for trip, auto-creating", logrus.Fields{
+			"trip_id": tripID,
+			"error":   err,
+		})
 		created, cerr := h.client.Create(r.Context(), &pb.CreateAlbumRequest{
 			TripId:    tripID,
 			Name:      "Основной альбом",
 			MaxPhotos: 50,
 		})
 		if cerr != nil {
-			log.Printf("album auto-create error: %v", cerr)
+			logger.Error(r.Context(), "album auto-create error", logrus.Fields{"error": cerr, "trip_id": tripID})
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
@@ -146,7 +150,7 @@ func (h *AlbumHandler) Update(w http.ResponseWriter, r *http.Request) {
 		MaxPhotos:   req.MaxPhotos,
 	})
 	if err != nil {
-		log.Printf("album update error: %v", err)
+		logger.Error(r.Context(), "album update error", logrus.Fields{"error": err, "album_id": id})
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -164,7 +168,7 @@ func (h *AlbumHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := h.client.Delete(r.Context(), &pb.DeleteAlbumRequest{Id: id}); err != nil {
-		log.Printf("album delete error: %v", err)
+		logger.Error(r.Context(), "album delete error", logrus.Fields{"error": err, "album_id": id})
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -197,7 +201,7 @@ func (h *AlbumHandler) AddPhoto(w http.ResponseWriter, r *http.Request) {
 
 	// Создаём папку если нет
 	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
-		log.Printf("mkdir error: %v", err)
+		logger.Error(r.Context(), "mkdir error", logrus.Fields{"error": err, "dir": uploadDir})
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -214,13 +218,13 @@ func (h *AlbumHandler) AddPhoto(w http.ResponseWriter, r *http.Request) {
 	// Сохраняем файл
 	dst, err := os.Create(savePath)
 	if err != nil {
-		log.Printf("file create error: %v", err)
+		logger.Error(r.Context(), "file create error", logrus.Fields{"error": err, "path": savePath})
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	defer dst.Close()
 	if _, err := io.Copy(dst, file); err != nil {
-		log.Printf("file copy error: %v", err)
+		logger.Error(r.Context(), "file copy error", logrus.Fields{"error": err})
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -231,11 +235,20 @@ func (h *AlbumHandler) AddPhoto(w http.ResponseWriter, r *http.Request) {
 		FilePath: relativePath,
 	})
 	if err != nil {
-		log.Printf("album upload photo gRPC error: %v", err)
+		logger.Error(r.Context(), "album upload photo gRPC error", logrus.Fields{
+			"error":    err,
+			"album_id": albumID,
+		})
 		os.Remove(savePath)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+
+	logger.Info(r.Context(), "photo added to album", logrus.Fields{
+		"album_id": albumID,
+		"photo_id": addResp.PhotoId,
+		"path":     relativePath,
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -262,7 +275,11 @@ func (h *AlbumHandler) RemovePhoto(w http.ResponseWriter, r *http.Request) {
 		AlbumId: albumID,
 		PhotoId: photoID,
 	}); err != nil {
-		log.Printf("album remove photo error: %v", err)
+		logger.Error(r.Context(), "album remove photo error", logrus.Fields{
+			"error":    err,
+			"album_id": albumID,
+			"photo_id": photoID,
+		})
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -281,7 +298,7 @@ func (h *AlbumHandler) GetPhotos(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.client.GetPhotos(r.Context(), &pb.GetAlbumPhotosRequest{AlbumId: albumID})
 	if err != nil {
-		log.Printf("album get photos error: %v", err)
+		logger.Error(r.Context(), "album get photos error", logrus.Fields{"error": err, "album_id": albumID})
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
