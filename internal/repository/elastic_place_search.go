@@ -27,14 +27,32 @@ func NewElasticPlaceSearcher(client *elasticsearch.Client, placeRepo PlaceReposi
 func (s *ElasticPlaceSearcher) Search(ctx context.Context, query string) ([]models.Place, error) {
 	logger.Debug(ctx, "searching places via elasticsearch", logrus.Fields{"query": query})
 
+	fields := []string{"name^3", "country^2", "locality^2", "description"}
+
 	esQuery := elasticsearch.SearchRequest{
 		Size: 50,
 		Query: map[string]any{
-			"multi_match": map[string]any{
-				"query":     query,
-				"fields":    []string{"name^3", "country^2", "locality^2", "description"},
-				"type":      "best_fields",
-				"fuzziness": "AUTO",
+			"bool": map[string]any{
+				"should": []any{
+					map[string]any{
+						"multi_match": map[string]any{
+							"query":  query,
+							"fields": fields,
+							"type":   "phrase_prefix",
+							"boost":  3,
+						},
+					},
+					map[string]any{
+						"multi_match": map[string]any{
+							"query":     query,
+							"fields":    fields,
+							"type":      "best_fields",
+							"fuzziness": "AUTO",
+							"boost":     1,
+						},
+					},
+				},
+				"minimum_should_match": 1,
 			},
 		},
 	}
