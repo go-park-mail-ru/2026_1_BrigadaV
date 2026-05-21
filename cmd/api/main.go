@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"guidely-app/internal/service"
 	"guidely-app/pkg/config"
 	"guidely-app/pkg/db"
+	"guidely-app/pkg/elasticsearch"
 	"guidely-app/pkg/metrics"
 
 	"github.com/gorilla/mux"
@@ -70,7 +72,20 @@ func main() {
 	userRepo := authrepo.NewUserRepo(authAdapter)
 	sessionRepo := authrepo.NewSessionRepo(authAdapter)
 
-	placeService := service.NewPlaceService(placeRepo, reviewRepo)
+	esClient := elasticsearch.NewClient(cfg.ElasticSearchURL)
+	placeIndexer := elasticsearch.NewPlaceIndexer(esClient)
+
+	if err := placeIndexer.EnsureIndex(context.Background()); err != nil {
+		log.Printf("warning: failed to ensure elasticsearch index: %v", err)
+	} else {
+		if err := indexAllPlaces(context.Background(), placeRepo, placeIndexer); err != nil {
+			log.Printf("warning: failed to index places on startup: %v", err)
+		}
+	}
+
+	elasticSearcher := repository.NewElasticPlaceSearcher(esClient, placeRepo)
+
+	placeService := service.NewPlaceService(placeRepo, reviewRepo, elasticSearcher)
 	tripService := service.NewTripService(tripRepo)
 	categoryService := service.NewCategoryService(categoryRepo)
 	profileService := service.NewProfileService(userRepo)
@@ -137,6 +152,20 @@ func main() {
 
 	logger.Log.Info("Server started on :" + cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, r))
+}
+
+func indexAllPlaces(ctx context.Context, repo repository.PlaceRepository, indexer *elasticsearch.PlaceIndexer) error {
+	places, err := repo.GetAll(ctx)
+	if err != nil {
+		return err
+	}
+	for _, p := range places {
+		if err := indexer.IndexPlace(ctx, p); err != nil {
+			log.Printf("warning: failed to index place %d: %v", p.ID, err)
+		}
+	}
+	log.Printf("indexed %d places in elasticsearch", len(places))
+	return nil
 }
 
 func getEnv(key, fallback string) string {

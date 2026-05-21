@@ -7,12 +7,21 @@ import (
 )
 
 type placeServiceImpl struct {
-	placeRepo  repository.PlaceRepository
-	reviewRepo repository.ReviewRepository
+	placeRepo   repository.PlaceRepository
+	reviewRepo  repository.ReviewRepository
+	placeSearch repository.PlaceSearchRepository
 }
 
-func NewPlaceService(placeRepo repository.PlaceRepository, reviewRepo repository.ReviewRepository) PlaceService {
-	return &placeServiceImpl{placeRepo: placeRepo, reviewRepo: reviewRepo}
+func NewPlaceService(
+	placeRepo repository.PlaceRepository,
+	reviewRepo repository.ReviewRepository,
+	placeSearch repository.PlaceSearchRepository,
+) PlaceService {
+	return &placeServiceImpl{
+		placeRepo:   placeRepo,
+		reviewRepo:  reviewRepo,
+		placeSearch: placeSearch,
+	}
 }
 
 func (s *placeServiceImpl) GetAll(ctx context.Context) ([]models.Place, error) {
@@ -35,6 +44,7 @@ func (s *placeServiceImpl) IsPlaceInTrip(ctx context.Context, placeID, tripID ui
 	return s.placeRepo.IsPlaceInTrip(ctx, placeID, tripID)
 }
 
+// Search использует ElasticSearch через PlaceSearchRepository.
 func (s *placeServiceImpl) Search(ctx context.Context, query string) ([]models.Place, error) {
-	return s.placeRepo.Search(ctx, query)
+	return s.placeSearch.Search(ctx, query)
 }
