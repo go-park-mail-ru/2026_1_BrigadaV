@@ -2,13 +2,13 @@ package handlers
 
 import (
 	"encoding/json"
+	"net/http"
+	"strconv"
+
 	"guidely-app/internal/dto"
 	"guidely-app/internal/logger"
 	"guidely-app/internal/service"
 	"guidely-app/pkg/utils"
-	"log"
-	"net/http"
-	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -192,7 +192,7 @@ func (h *TripHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.tripService.Delete(r.Context(), id, userID); err != nil {
-		log.Printf("trip delete error: %v", err)
+		logger.Error(r.Context(), "trip delete error", logrus.Fields{"error": err, "trip_id": id})
 		switch {
 		case err.Error() == "trip not found":
 			http.Error(w, "trip not found", http.StatusNotFound)

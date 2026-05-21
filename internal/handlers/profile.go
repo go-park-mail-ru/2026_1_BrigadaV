@@ -2,14 +2,15 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
+	"net/http"
+	"path/filepath"
+	"strings"
+
 	"guidely-app/internal/dto"
 	"guidely-app/internal/logger"
 	"guidely-app/internal/service"
-	"io"
-	"net/http"
-	"os"
-	"path/filepath"
-	"strings"
+	"guidely-app/pkg/storage"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -17,10 +18,11 @@ import (
 
 type ProfileHandler struct {
 	profileService service.ProfileService
+	s3             *storage.S3Client
 }
 
-func NewProfileHandler(profileService service.ProfileService) *ProfileHandler {
-	return &ProfileHandler{profileService: profileService}
+func NewProfileHandler(profileService service.ProfileService, s3 *storage.S3Client) *ProfileHandler {
+	return &ProfileHandler{profileService: profileService, s3: s3}
 }
 
 func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
@@ -95,7 +97,14 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// UploadAvatar принимает multipart/form-data с полем "avatar",
+// загружает файл в S3/MinIO и обновляет avatar_url пользователя.
 func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
+	if h.s3 == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{"error": "avatar upload is disabled (S3 not configured)"})
+		return
+	}
 	userIDVal := r.Context().Value("user_id")
 	userID, ok := userIDVal.(uint64)
 	if !ok {
@@ -104,7 +113,14 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	r.ParseMultipartForm(10 << 20)
+	// Лимит 10 МБ на весь multipart
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		logger.Error(r.Context(), "ParseMultipartForm failed", logrus.Fields{"error": err})
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "request too large or malformed"})
+		return
+	}
+
 	file, header, err := r.FormFile("avatar")
 	if err != nil {
 		logger.Error(r.Context(), "Missing avatar file", logrus.Fields{"error": err})
@@ -125,35 +141,21 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	if ext == "" {
 		ext = ".jpg"
 	}
-	newFilename := uuid.New().String() + ext
+	// Уникальное имя объекта: avatars/<uuid>.jpg
+	objectName := fmt.Sprintf("avatars/%s%s", uuid.New().String(), ext)
 
-	uploadDir := "./uploads/avatars"
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		logger.Error(r.Context(), "Failed to create upload directory", logrus.Fields{"error": err})
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to create upload directory"})
-		return
-	}
-	filePath := filepath.Join(uploadDir, newFilename)
-
-	dst, err := os.Create(filePath)
+	avatarURL, err := h.s3.UploadFile(r.Context(), objectName, file, header.Size, contentType)
 	if err != nil {
-		logger.Error(r.Context(), "Failed to save file", logrus.Fields{"error": err})
+		logger.Error(r.Context(), "S3 upload failed", logrus.Fields{"error": err, "user_id": userID})
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to save file"})
-		return
-	}
-	defer dst.Close()
-
-	if _, err := io.Copy(dst, file); err != nil {
-		logger.Error(r.Context(), "Failed to write file", logrus.Fields{"error": err})
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to write file"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to upload avatar"})
 		return
 	}
 
-	avatarURL := "/uploads/avatars/" + newFilename
-	logger.Info(r.Context(), "File uploaded for avatar", logrus.Fields{"avatar_url": avatarURL})
+	logger.Info(r.Context(), "Avatar uploaded to S3", logrus.Fields{
+		"url":     avatarURL,
+		"user_id": userID,
+	})
 
 	updatedUser, err := h.profileService.UpdateAvatar(r.Context(), userID, avatarURL)
 	if err != nil {
@@ -177,6 +179,7 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// GetAvatar — теперь просто редиректит на S3 URL (файл хранится в MinIO, не на диске).
 func (h *ProfileHandler) GetAvatar(w http.ResponseWriter, r *http.Request) {
 	userIDVal := r.Context().Value("user_id")
 	userID, ok := userIDVal.(uint64)
@@ -199,36 +202,7 @@ func (h *ProfileHandler) GetAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filePath := strings.TrimPrefix(user.AvatarURL, "/uploads/")
-	fullPath := filepath.Join("./uploads", filePath)
-
-	info, err := os.Stat(fullPath)
-	if os.IsNotExist(err) {
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "avatar file not found"})
-		return
-	}
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to access avatar"})
-		return
-	}
-	if info.IsDir() {
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid avatar path"})
-		return
-	}
-
-	ext := strings.ToLower(filepath.Ext(fullPath))
-	contentType := "image/jpeg"
-	switch ext {
-	case ".png":
-		contentType = "image/png"
-	case ".gif":
-		contentType = "image/gif"
-	case ".webp":
-		contentType = "image/webp"
-	}
-	w.Header().Set("Content-Type", contentType)
-	http.ServeFile(w, r, fullPath)
+	// Аватар уже хранится в S3 — просто возвращаем URL
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"avatar_url": user.AvatarURL})
 }
