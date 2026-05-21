@@ -377,3 +377,72 @@ func TestTripHandler_GetTripMembers_Success(t *testing.T) {
 	json.NewDecoder(w.Body).Decode(&resp)
 	assert.Len(t, resp, 2)
 }
+
+func TestTripHandler_ExportTripToPDF_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+	handler := NewTripHandler(tripService)
+
+	mockMemberRepo.EXPECT().HasViewPermission(gomock.Any(), uint64(1), uint64(1)).Return(true, nil)
+	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(&models.Trip{ID: 1, Title: "Test"}, nil)
+	mockTripRepo.EXPECT().GetAttractions(gomock.Any(), uint64(1)).Return([]models.PlaceInTrip{}, nil)
+
+	req := httptest.NewRequest("GET", "/api/trips/1/export/pdf", nil)
+	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	req = req.WithContext(ctx)
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	w := httptest.NewRecorder()
+
+	handler.ExportTripToPDF(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "application/pdf", w.Header().Get("Content-Type"))
+	assert.Contains(t, w.Header().Get("Content-Disposition"), "filename=trip_1.pdf")
+	assert.NotEmpty(t, w.Body.Bytes())
+}
+
+func TestTripHandler_ExportTripToPDF_Unauthorized(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+	handler := NewTripHandler(tripService)
+
+	req := httptest.NewRequest("GET", "/api/trips/1/export/pdf", nil)
+	w := httptest.NewRecorder()
+
+	handler.ExportTripToPDF(w, req)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestTripHandler_ExportTripToPDF_Forbidden(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+	handler := NewTripHandler(tripService)
+
+	mockMemberRepo.EXPECT().HasViewPermission(gomock.Any(), uint64(1), uint64(2)).Return(false, nil)
+
+	req := httptest.NewRequest("GET", "/api/trips/1/export/pdf", nil)
+	ctx := context.WithValue(req.Context(), "user_id", uint64(2))
+	req = req.WithContext(ctx)
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	w := httptest.NewRecorder()
+
+	handler.ExportTripToPDF(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}

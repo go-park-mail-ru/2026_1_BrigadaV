@@ -9,6 +9,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/jackc/pgx/v5 v5.9.1
 	github.com/joho/godotenv v1.5.1
+	github.com/jung-kurt/gofpdf/v2 v2.17.3
 	github.com/lib/pq v1.12.3
 	github.com/minio/minio-go/v7 v7.1.0
 	github.com/pashagolub/pgxmock/v4 v4.9.0

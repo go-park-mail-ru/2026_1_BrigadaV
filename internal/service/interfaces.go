@@ -38,6 +38,9 @@ type TripService interface {
 	GetTripMembers(ctx context.Context, tripID, userID uint64) ([]models.TripMember, error)
 	RemoveMember(ctx context.Context, tripID, ownerID, memberID uint64) error
 	GetTripByShareToken(ctx context.Context, token string) (*models.Trip, string, error)
+
+	// Экспорт в PDF
+	ExportTripToPDF(ctx context.Context, tripID, userID uint64) ([]byte, error)
 }
 
 type ReviewService interface {

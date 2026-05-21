@@ -306,6 +306,21 @@ func (mr *MockTripServiceMockRecorder) Delete(arg0, arg1, arg2 interface{}) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockTripService)(nil).Delete), arg0, arg1, arg2)
 }
 
+// ExportTripToPDF mocks base method.
+func (m *MockTripService) ExportTripToPDF(arg0 context.Context, arg1, arg2 uint64) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ExportTripToPDF", arg0, arg1, arg2)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ExportTripToPDF indicates an expected call of ExportTripToPDF.
+func (mr *MockTripServiceMockRecorder) ExportTripToPDF(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExportTripToPDF", reflect.TypeOf((*MockTripService)(nil).ExportTripToPDF), arg0, arg1, arg2)
+}
+
 // GetTripByShareToken mocks base method.
 func (m *MockTripService) GetTripByShareToken(arg0 context.Context, arg1 string) (*models.Trip, string, error) {
 	m.ctrl.T.Helper()

@@ -448,3 +448,35 @@ func (h *TripHandler) ViewSharedTrip(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
+
+// ExportTripToPDF – GET /api/trips/{id}/export/pdf – экспорт поездки в PDF
+func (h *TripHandler) ExportTripToPDF(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserIDFromContext(r)
+	if userID == 0 {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		return
+	}
+	vars := mux.Vars(r)
+	id, err := strconv.ParseUint(vars["id"], 10, 64)
+	if err != nil {
+		http.Error(w, "invalid trip id", http.StatusBadRequest)
+		return
+	}
+	pdfData, err := h.tripService.ExportTripToPDF(r.Context(), id, userID)
+	if err != nil {
+		logger.Error(r.Context(), "ExportTripToPDF failed", logrus.Fields{"error": err, "trip_id": id})
+		switch err.Error() {
+		case "access denied":
+			http.Error(w, "access denied", http.StatusForbidden)
+		case "trip not found":
+			http.Error(w, "trip not found", http.StatusNotFound)
+		default:
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+		}
+		return
+	}
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=trip_%d.pdf", id))
+	w.Write(pdfData)
+}

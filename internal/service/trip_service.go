@@ -1,10 +1,12 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"os"
 	"time"
 
@@ -12,6 +14,7 @@ import (
 	"guidely-app/internal/repository"
 	"guidely-app/pkg/models"
 
+	"github.com/jung-kurt/gofpdf/v2"
 	"github.com/sirupsen/logrus"
 )
 
@@ -332,4 +335,106 @@ func (s *tripService) GetTripByShareToken(ctx context.Context, token string) (*m
 		return nil, "", errors.New("trip not found")
 	}
 	return trip, invite.Role, nil
+}
+
+func formatDatePtr(t *time.Time) string {
+	if t == nil {
+		return "не указана"
+	}
+	return t.Format("02.01.2006")
+}
+
+// ExportTripToPDF генерирует PDF-файл с информацией о поездке и списком достопримечательностей
+func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64) ([]byte, error) {
+	ok, err := s.memberRepo.HasViewPermission(ctx, tripID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, errors.New("access denied")
+	}
+
+	trip, places, err := s.GetTripDetails(ctx, tripID)
+	if err != nil {
+		return nil, err
+	}
+
+	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf.AddPage()
+	pdf.SetFont("Arial", "B", 16)
+
+	title := "Поездка: " + trip.Title
+	pdf.Cell(0, 10, title)
+	pdf.Ln(12)
+
+	pdf.SetFont("Arial", "B", 12)
+	pdf.Cell(40, 10, "Направление:")
+	pdf.SetFont("Arial", "", 12)
+	location := "не указано"
+	if trip.Location != nil && *trip.Location != "" {
+		location = *trip.Location
+	}
+	pdf.Cell(0, 10, location)
+	pdf.Ln(8)
+
+	pdf.SetFont("Arial", "B", 12)
+	pdf.Cell(40, 10, "Даты:")
+	pdf.SetFont("Arial", "", 12)
+	dateFrom := formatDatePtr(trip.StartDate)
+	dateTo := formatDatePtr(trip.EndDate)
+	dateStr := dateFrom
+	if dateFrom != "не указана" && dateTo != "не указана" && dateFrom != dateTo {
+		dateStr += " – " + dateTo
+	} else if dateTo != "не указана" {
+		dateStr = dateTo
+	}
+	pdf.Cell(0, 10, dateStr)
+	pdf.Ln(8)
+
+	if trip.Description != "" {
+		pdf.SetFont("Arial", "B", 12)
+		pdf.Cell(40, 10, "Описание:")
+		pdf.Ln(6)
+		pdf.SetFont("Arial", "", 12)
+		pdf.MultiCell(0, 6, trip.Description, "", "", false)
+		pdf.Ln(4)
+	}
+
+	pdf.SetFont("Arial", "B", 14)
+	pdf.Cell(0, 10, "Достопримечательности:")
+	pdf.Ln(10)
+
+	if len(places) == 0 {
+		pdf.SetFont("Arial", "I", 12)
+		pdf.Cell(0, 10, "Нет добавленных мест")
+	} else {
+		for i, place := range places {
+			pdf.SetFont("Arial", "B", 12)
+			pdf.Cell(0, 8, fmt.Sprintf("%d. %s", i+1, place.Name))
+			pdf.Ln(6)
+
+			if place.Rating > 0 {
+				pdf.SetFont("Arial", "", 10)
+				pdf.Cell(0, 5, fmt.Sprintf("Рейтинг: %.1f", place.Rating))
+				pdf.Ln(5)
+			}
+
+			if place.Description != "" {
+				pdf.SetFont("Arial", "", 10)
+				desc := place.Description
+				if len(desc) > 200 {
+					desc = desc[:200] + "..."
+				}
+				pdf.MultiCell(0, 5, desc, "", "", false)
+				pdf.Ln(2)
+			}
+			pdf.Ln(2)
+		}
+	}
+
+	var pdfBuffer bytes.Buffer
+	if err := pdf.Output(&pdfBuffer); err != nil {
+		return nil, fmt.Errorf("failed to generate PDF: %w", err)
+	}
+	return pdfBuffer.Bytes(), nil
 }

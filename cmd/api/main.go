@@ -142,6 +142,8 @@ func main() {
 	protected.HandleFunc("/trips/{id:[0-9]+}/members", tripHandler.GetTripMembers).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/trips/{id:[0-9]+}/members/{member_id:[0-9]+}", tripHandler.RemoveMember).Methods("DELETE", "OPTIONS")
 
+	protected.HandleFunc("/trips/{id:[0-9]+}/export/pdf", tripHandler.ExportTripToPDF).Methods("GET", "OPTIONS")
+
 	protected.HandleFunc("/trips/{tripID:[0-9]+}/album", albumHandler.GetByTrip).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.AddPhoto).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/albums/{id:[0-9]+}/photos/{photoId:[0-9]+}", albumHandler.RemovePhoto).Methods("DELETE", "OPTIONS")
