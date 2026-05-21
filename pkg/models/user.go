@@ -8,6 +8,7 @@ type User struct {
 	Nickname     string
 	AvatarURL    string
 	PasswordHash string
+	YandexID     *string
 	Country      *string
 	City         *string
 	About        *string

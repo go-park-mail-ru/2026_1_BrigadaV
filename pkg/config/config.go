@@ -22,6 +22,15 @@ type Config struct {
 	S3UseSSL       bool
 	SecureCookies  bool
 	S3Enabled      bool // новое поле
+	Port               string
+	DatabaseURL        string
+	JWTSecret          string
+	FrontendURL        string
+	AllowedOrigins     []string
+	SecureCookies      bool
+	YandexClientID     string
+	YandexClientSecret string
+	YandexRedirectURL  string
 }
 
 func Load() (*Config, error) {
@@ -65,6 +74,15 @@ func Load() (*Config, error) {
 		S3Bucket:       getEnv("S3_BUCKET", "guidely"),
 		S3UseSSL:       getEnv("S3_USE_SSL", "false") == "true",
 		S3Enabled:      s3Enabled,
+		Port:               getEnv("PORT", "8080"),
+		DatabaseURL:        dbURL,
+		JWTSecret:          jwtSecret,
+		FrontendURL:        frontendURL,
+		AllowedOrigins:     origins,
+		SecureCookies:      getEnvBool("SECURE_COOKIES", true),
+		YandexClientID:     getEnv("YANDEX_CLIENT_ID", ""),
+		YandexClientSecret: getEnv("YANDEX_CLIENT_SECRET", ""),
+		YandexRedirectURL:  getEnv("YANDEX_REDIRECT_URL", "http://localhost:8080/api/auth/yandex/callback"),
 	}, nil
 }
 

@@ -95,6 +95,14 @@ func main() {
 	tripHandler := handlers.NewTripHandler(tripService)
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
 	csrfHandler := handlers.NewCSRFHandler()
+	yandexHandler := handlers.NewYandexOAuthHandler(
+		cfg.YandexClientID,
+		cfg.YandexClientSecret,
+		cfg.YandexRedirectURL,
+		cfg.FrontendURL,
+		userRepo,
+		sessionRepo,
+	)
 
 	authMiddleware := middleware.NewAuthMiddleware(sessionRepo)
 
@@ -107,6 +115,9 @@ func main() {
 	r.HandleFunc("/api/logout", authMiddleware.Authenticate(authHandler.Logout)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/user/me", authMiddleware.Authenticate(authHandler.Me)).Methods("GET", "OPTIONS")
 
+	r.HandleFunc("/api/auth/yandex", yandexHandler.Login).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/auth/yandex/callback", yandexHandler.Callback).Methods("GET")
+
 	r.HandleFunc("/api/profile", authMiddleware.Authenticate(profileHandler.GetProfile)).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/profile", authMiddleware.Authenticate(profileHandler.UpdateProfile)).Methods("PUT", "OPTIONS")
 	r.HandleFunc("/api/profile/avatar", authMiddleware.Authenticate(profileHandler.UploadAvatar)).Methods("POST", "OPTIONS")
@@ -115,6 +126,7 @@ func main() {
 	r.HandleFunc("/api/places", placeHandler.List).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/places/search", placeHandler.Search).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/places/{id:[0-9]+}", placeHandler.GetDetails).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/places/{id:[0-9]+}/bot-preview", placeHandler.GetBotPreview).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/places/{id:[0-9]+}/reviews", placeHandler.GetReviews).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/places/{id:[0-9]+}/in-trip", authMiddleware.Authenticate(placeHandler.CheckPlaceInTrip)).Methods("GET", "OPTIONS")
 
