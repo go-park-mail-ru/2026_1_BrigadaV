@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -19,7 +18,6 @@ import (
 
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
-	"github.com/sirupsen/logrus"
 	httpSwagger "github.com/swaggo/http-swagger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -45,7 +43,7 @@ func main() {
 
 	s3Client, err := storage.NewS3Client(cfg)
 	if err != nil {
-		log.Printf("S3 init failed: %v; continuing without S3 features", err)
+		log.Printf("S3 init warning: %v; continuing without S3", err)
 		s3Client = nil
 	}
 	if s3Client == nil {
@@ -85,7 +83,7 @@ func main() {
 	categoryService := service.NewCategoryService(categoryRepo)
 	profileService := service.NewProfileService(userRepo)
 
-	authHandler := handlers.NewAuthHandler(authClient)
+	authHandler := handlers.NewAuthHandler(authClient, cfg)
 	albumHandler := handlers.NewAlbumHandler(albumClient)
 	reviewHandler := handlers.NewReviewHandler(reviewClient)
 	placeHandler := handlers.NewPlaceHandler(placeService, tripService)
@@ -93,118 +91,68 @@ func main() {
 	tripHandler := handlers.NewTripHandler(tripService)
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
 	csrfHandler := handlers.NewCSRFHandler()
-	yandexHandler := handlers.NewYandexOAuthHandler(
-		cfg.YandexClientID,
-		cfg.YandexClientSecret,
-		cfg.YandexRedirectURL,
-		cfg.FrontendURL,
-		userRepo,
-		sessionRepo,
-	)
 
 	authMiddleware := middleware.NewAuthMiddleware(sessionRepo)
 
-	csrfKey := []byte(cfg.CSRFSecret)
-
-	csrfProtect := csrf.Protect(
-		csrfKey,
-		csrf.Secure(false),
-		csrf.Path("/"),
-		csrf.TrustedOrigins(cfg.AllowedOrigins),
-		csrf.ErrorHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			logger.Warn(r.Context(), "CSRF token invalid", logrus.Fields{
-				"method": r.Method,
-				"path":   r.URL.Path,
-			})
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusForbidden)
-			json.NewEncoder(w).Encode(map[string]string{"error": "CSRF token invalid or missing"})
-		})),
-	)
-
-	// ── Роутер ───────────────────────────────────────────────────────────────
 	r := mux.NewRouter()
 	r.Use(logger.Middleware)
 	r.Use(middleware.CORS(cfg.AllowedOrigins...))
 
-	// restoreMethodMiddleware восстанавливает оригинальный метод после того как
-	// csrf.Protect его обработал (метод мог быть подменён exemptWrapper-ом).
-	// Middleware устанавливается на весь роутер и берёт оригинальный метод
-	// из специального заголовка, который выставляет exemptWrapper.
-	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if orig := r.Header.Get("X-Original-Method"); orig != "" {
-				r.Method = orig
-				r.Header.Del("X-Original-Method")
-			}
-			next.ServeHTTP(w, r)
-		})
-	})
+	// Публичные эндпоинты (без CSRF)
+	public := r.PathPrefix("/api").Subrouter()
+	public.HandleFunc("/register", authHandler.Register).Methods("POST", "OPTIONS")
+	public.HandleFunc("/login", authHandler.Login).Methods("POST", "OPTIONS")
+	public.HandleFunc("/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
 
-	r.HandleFunc("/api/register", authHandler.Register).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/login", authHandler.Login).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/logout", authMiddleware.Authenticate(authHandler.Logout)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/user/me", authMiddleware.Authenticate(authHandler.Me)).Methods("GET", "OPTIONS")
+	// Защищённые эндпоинты (с CSRF)
+	protected := r.PathPrefix("/api").Subrouter()
+	protected.Use(authMiddleware.Authenticate)
+	protected.Use(csrf.Protect([]byte(cfg.CSRFSecret), csrf.Secure(cfg.SecureCookies), csrf.Path("/")))
 
-	r.HandleFunc("/api/auth/yandex", yandexHandler.Login).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/auth/yandex/callback", yandexHandler.Callback).Methods("GET")
+	protected.HandleFunc("/logout", authHandler.Logout).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/user/me", authHandler.Me).Methods("GET", "OPTIONS")
 
-	r.HandleFunc("/api/profile", authMiddleware.Authenticate(profileHandler.GetProfile)).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/profile", authMiddleware.Authenticate(profileHandler.UpdateProfile)).Methods("PUT", "OPTIONS")
-	r.HandleFunc("/api/profile/avatar", authMiddleware.Authenticate(profileHandler.UploadAvatar)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/profile/avatar", authMiddleware.Authenticate(profileHandler.GetAvatar)).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/profile", profileHandler.GetProfile).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/profile", profileHandler.UpdateProfile).Methods("PUT", "OPTIONS")
+	protected.HandleFunc("/profile/avatar", profileHandler.UploadAvatar).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/profile/avatar", profileHandler.GetAvatar).Methods("GET", "OPTIONS")
 
-	r.HandleFunc("/api/places", placeHandler.List).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/places/search", placeHandler.Search).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/places/{id:[0-9]+}", placeHandler.GetDetails).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/places/{id:[0-9]+}/bot-preview", placeHandler.GetBotPreview).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/places/{id:[0-9]+}/reviews", placeHandler.GetReviews).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/places/{id:[0-9]+}/in-trip", authMiddleware.Authenticate(placeHandler.CheckPlaceInTrip)).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/places", placeHandler.List).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/places/search", placeHandler.Search).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/places/{id:[0-9]+}", placeHandler.GetDetails).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/places/{id:[0-9]+}/reviews", placeHandler.GetReviews).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/places/{id:[0-9]+}/in-trip", placeHandler.CheckPlaceInTrip).Methods("GET", "OPTIONS")
 
-	r.HandleFunc("/api/reviews", authMiddleware.Authenticate(reviewHandler.Create)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/reviews/{id:[0-9]+}", authMiddleware.Authenticate(reviewHandler.Delete)).Methods("DELETE", "OPTIONS")
+	protected.HandleFunc("/reviews", reviewHandler.Create).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/reviews/{id:[0-9]+}", reviewHandler.Delete).Methods("DELETE", "OPTIONS")
 
-	r.HandleFunc("/api/trips", authMiddleware.Authenticate(tripHandler.List)).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/trips", authMiddleware.Authenticate(tripHandler.Create)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/trips/{id:[0-9]+}", authMiddleware.Authenticate(tripHandler.GetDetails)).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/trips/{id:[0-9]+}", authMiddleware.Authenticate(tripHandler.Update)).Methods("PUT", "OPTIONS")
-	r.HandleFunc("/api/trips/{id:[0-9]+}", authMiddleware.Authenticate(tripHandler.Delete)).Methods("DELETE", "OPTIONS")
-	r.HandleFunc("/api/trips/{id:[0-9]+}/places", authMiddleware.Authenticate(tripHandler.GetTripPlaces)).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/trips/{id:[0-9]+}/places", authMiddleware.Authenticate(tripHandler.AddPlace)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/trips/{id:[0-9]+}/places/{placeId:[0-9]+}", authMiddleware.Authenticate(tripHandler.RemovePlace)).Methods("DELETE", "OPTIONS")
+	protected.HandleFunc("/trips", tripHandler.List).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/trips", tripHandler.Create).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.GetDetails).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.Update).Methods("PUT", "OPTIONS")
+	protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.Delete).Methods("DELETE", "OPTIONS")
+	protected.HandleFunc("/trips/{id:[0-9]+}/places", tripHandler.GetTripPlaces).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/trips/{id:[0-9]+}/places", tripHandler.AddPlace).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/trips/{id:[0-9]+}/places/{placeId:[0-9]+}", tripHandler.RemovePlace).Methods("DELETE", "OPTIONS")
 
-	r.HandleFunc("/api/trips/{tripID:[0-9]+}/album", authMiddleware.Authenticate(albumHandler.GetByTrip)).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/albums/{id:[0-9]+}/photos", authMiddleware.Authenticate(albumHandler.AddPhoto)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/albums/{id:[0-9]+}/photos/{photoId:[0-9]+}", authMiddleware.Authenticate(albumHandler.RemovePhoto)).Methods("DELETE", "OPTIONS")
-	r.HandleFunc("/api/albums/{id:[0-9]+}/photos", authMiddleware.Authenticate(albumHandler.GetPhotos)).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/trips/{tripID:[0-9]+}/album", albumHandler.GetByTrip).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.AddPhoto).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/albums/{id:[0-9]+}/photos/{photoId:[0-9]+}", albumHandler.RemovePhoto).Methods("DELETE", "OPTIONS")
+	protected.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.GetPhotos).Methods("GET", "OPTIONS")
 
-	r.HandleFunc("/api/categories", categoryHandler.List).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/categories/{id:[0-9]+}", categoryHandler.Get).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/categories", authMiddleware.Authenticate(categoryHandler.Create)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/categories/{id:[0-9]+}", authMiddleware.Authenticate(categoryHandler.Update)).Methods("PUT", "OPTIONS")
-	r.HandleFunc("/api/categories/{id:[0-9]+}", authMiddleware.Authenticate(categoryHandler.Delete)).Methods("DELETE", "OPTIONS")
+	protected.HandleFunc("/categories", categoryHandler.List).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Get).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/categories", categoryHandler.Create).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Update).Methods("PUT", "OPTIONS")
+	protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Delete).Methods("DELETE", "OPTIONS")
 
-	r.HandleFunc("/api/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 
-	exemptPaths := map[string]bool{
-		"/api/login":    true,
-		"/api/register": true,
-	}
-
-	protectedChain := csrfProtect(r)
-
-	finalHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost && exemptPaths[r.URL.Path] {
-			r.Header.Set("X-Original-Method", r.Method)
-			r.Method = http.MethodGet
-		}
-		protectedChain.ServeHTTP(w, r)
-	})
+	handler := r
 
 	logger.Log.Info("Server started on :" + cfg.Port)
-	log.Fatal(http.ListenAndServe(":"+cfg.Port, finalHandler))
+	log.Fatal(http.ListenAndServe(":"+cfg.Port, handler))
 }
 
 func getEnv(key, fallback string) string {

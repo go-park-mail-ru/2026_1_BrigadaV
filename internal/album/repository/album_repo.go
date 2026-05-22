@@ -71,6 +71,21 @@ func (r *AlbumRepo) Delete(ctx context.Context, id uint64) error {
 }
 
 func (r *AlbumRepo) UploadPhoto(ctx context.Context, albumID uint64, filePath string) (uint64, error) {
+	// Проверка лимита фотографий
+	var maxPhotos int
+	var currentCount int
+	err := r.db.QueryRow(ctx, `SELECT max_photos FROM album WHERE id = $1`, albumID).Scan(&maxPhotos)
+	if err != nil {
+		return 0, err
+	}
+	err = r.db.QueryRow(ctx, `SELECT COUNT(*) FROM album_photo WHERE album_id = $1`, albumID).Scan(&currentCount)
+	if err != nil {
+		return 0, err
+	}
+	if currentCount >= maxPhotos {
+		return 0, errors.New("album photo limit reached")
+	}
+
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return 0, err
