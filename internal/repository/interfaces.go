@@ -39,6 +39,8 @@ type TripRepository interface {
 	GetPlaceIDs(ctx context.Context, tripID uint64) ([]uint64, error)
 	RemoveAttraction(ctx context.Context, tripID, placeID uint64) error
 	CheckPlaceInTrip(ctx context.Context, tripID, placeID uint64) (bool, error)
+	GetUserTripsWithRoles(ctx context.Context, userID uint64) ([]UserTripWithRole, error)
+	GetUserRoleForTrip(ctx context.Context, tripID, userID uint64) (string, error)
 }
 
 type CategoryRepository interface {

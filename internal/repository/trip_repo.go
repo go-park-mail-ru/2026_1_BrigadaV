@@ -197,3 +197,70 @@ func (r *TripRepo) CheckPlaceInTrip(ctx context.Context, tripID, placeID uint64)
 	}
 	return exists, nil
 }
+
+// UserTripWithRole – вспомогательная структура для возврата поездки с ролью
+type UserTripWithRole struct {
+	Trip models.Trip
+	Role string
+}
+
+// GetUserTripsWithRoles возвращает все поездки, где пользователь является участником (owner/companion/viewer), вместе с его ролью
+func (r *TripRepo) GetUserTripsWithRoles(ctx context.Context, userID uint64) ([]UserTripWithRole, error) {
+	logger.Debug(ctx, "getting user trips with roles", logrus.Fields{"user_id": userID})
+	query := `
+        SELECT t.id, t.title, t.description, t.location, t.start_date, t.end_date, t.preview_url, t.created_by, t.is_public, t.created_at, t.updated_at,
+               COALESCE(tm.role, 'viewer') as role
+        FROM trip t
+        LEFT JOIN trip_member tm ON t.id = tm.trip_id AND tm.user_id = $1
+        WHERE tm.user_id = $1 OR t.created_by = $1
+        GROUP BY t.id, tm.role
+        ORDER BY t.created_at DESC
+    `
+	rows, err := r.db.Query(ctx, query, userID)
+	if err != nil {
+		logger.Error(ctx, "failed to get user trips with roles", logrus.Fields{"error": err})
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []UserTripWithRole
+	for rows.Next() {
+		var t models.Trip
+		var role string
+		err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Location, &t.StartDate, &t.EndDate, &t.PreviewURL,
+			&t.CreatedBy, &t.IsPublic, &t.CreatedAt, &t.UpdatedAt, &role)
+		if err != nil {
+			logger.Error(ctx, "failed to scan trip row", logrus.Fields{"error": err})
+			return nil, err
+		}
+		if role == "editor" { // на случай, если в БД остались старые записи
+			role = "companion"
+		}
+		result = append(result, UserTripWithRole{Trip: t, Role: role})
+	}
+	logger.Debug(ctx, "user trips with roles retrieved", logrus.Fields{"count": len(result)})
+	return result, nil
+}
+
+// GetUserRoleForTrip возвращает роль пользователя для конкретной поездки
+func (r *TripRepo) GetUserRoleForTrip(ctx context.Context, tripID, userID uint64) (string, error) {
+	query := `SELECT role FROM trip_member WHERE trip_id = $1 AND user_id = $2`
+	var role string
+	err := r.db.QueryRow(ctx, query, tripID, userID).Scan(&role)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			// Проверяем, является ли пользователь создателем поездки (должен быть в trip_member, но на всякий случай)
+			var createdBy uint64
+			err2 := r.db.QueryRow(ctx, `SELECT created_by FROM trip WHERE id = $1`, tripID).Scan(&createdBy)
+			if err2 == nil && createdBy == userID {
+				return "owner", nil
+			}
+			return "viewer", nil // если не участник, то только просмотр через ссылку
+		}
+		return "", err
+	}
+	if role == "editor" {
+		role = "companion"
+	}
+	return role, nil
+}

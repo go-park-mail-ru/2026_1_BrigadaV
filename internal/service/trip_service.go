@@ -16,6 +16,11 @@ import (
 )
 
 // Определения типов входных данных
+
+type UserTripInfo struct {
+	Trip models.Trip
+	Role string
+}
 type CreateTripInput struct {
 	Title      string
 	Location   *string
@@ -254,7 +259,7 @@ func (s *tripService) CreateEditShareLink(ctx context.Context, tripID, userID ui
 	invite := &models.TripInvite{
 		TripID:    tripID,
 		Token:     token,
-		Role:      "editor",
+		Role:      "companion",
 		IsOneTime: true,
 		CreatedBy: userID,
 	}
@@ -332,4 +337,30 @@ func (s *tripService) GetTripByShareToken(ctx context.Context, token string) (*m
 		return nil, "", errors.New("trip not found")
 	}
 	return trip, invite.Role, nil
+}
+
+// GetUserTripsWithRoles возвращает все поездки, где пользователь является участником, с его ролью
+func (s *tripService) GetUserTripsWithRoles(ctx context.Context, userID uint64) ([]UserTripInfo, error) {
+	tripsWithRoles, err := s.tripRepo.GetUserTripsWithRoles(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]UserTripInfo, len(tripsWithRoles))
+	for i, tr := range tripsWithRoles {
+		result[i] = UserTripInfo{Trip: tr.Trip, Role: tr.Role}
+	}
+	return result, nil
+}
+
+// GetTripDetailsWithRole возвращает поездку, достопримечательности и роль пользователя
+func (s *tripService) GetTripDetailsWithRole(ctx context.Context, tripID, userID uint64) (*models.Trip, []models.PlaceInTrip, string, error) {
+	trip, places, err := s.GetTripDetails(ctx, tripID)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	role, err := s.tripRepo.GetUserRoleForTrip(ctx, tripID, userID)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	return trip, places, role, nil
 }

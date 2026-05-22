@@ -338,6 +338,23 @@ func (mr *MockTripServiceMockRecorder) GetTripDetails(arg0, arg1 interface{}) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTripDetails", reflect.TypeOf((*MockTripService)(nil).GetTripDetails), arg0, arg1)
 }
 
+// GetTripDetailsWithRole mocks base method.
+func (m *MockTripService) GetTripDetailsWithRole(arg0 context.Context, arg1, arg2 uint64) (*models.Trip, []models.PlaceInTrip, string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTripDetailsWithRole", arg0, arg1, arg2)
+	ret0, _ := ret[0].(*models.Trip)
+	ret1, _ := ret[1].([]models.PlaceInTrip)
+	ret2, _ := ret[2].(string)
+	ret3, _ := ret[3].(error)
+	return ret0, ret1, ret2, ret3
+}
+
+// GetTripDetailsWithRole indicates an expected call of GetTripDetailsWithRole.
+func (mr *MockTripServiceMockRecorder) GetTripDetailsWithRole(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTripDetailsWithRole", reflect.TypeOf((*MockTripService)(nil).GetTripDetailsWithRole), arg0, arg1, arg2)
+}
+
 // GetTripMembers mocks base method.
 func (m *MockTripService) GetTripMembers(arg0 context.Context, arg1, arg2 uint64) ([]models.TripMember, error) {
 	m.ctrl.T.Helper()
@@ -381,6 +398,21 @@ func (m *MockTripService) GetUserTrips(arg0 context.Context, arg1 uint64) ([]mod
 func (mr *MockTripServiceMockRecorder) GetUserTrips(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserTrips", reflect.TypeOf((*MockTripService)(nil).GetUserTrips), arg0, arg1)
+}
+
+// GetUserTripsWithRoles mocks base method.
+func (m *MockTripService) GetUserTripsWithRoles(arg0 context.Context, arg1 uint64) ([]service.UserTripInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserTripsWithRoles", arg0, arg1)
+	ret0, _ := ret[0].([]service.UserTripInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserTripsWithRoles indicates an expected call of GetUserTripsWithRoles.
+func (mr *MockTripServiceMockRecorder) GetUserTripsWithRoles(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserTripsWithRoles", reflect.TypeOf((*MockTripService)(nil).GetUserTripsWithRoles), arg0, arg1)
 }
 
 // RemoveMember mocks base method.

@@ -15,6 +15,7 @@ type TripResponse struct {
 	Description string     `json:"description,omitempty"`
 	EndDate     *time.Time `json:"endDate,omitempty"`
 	Preview     *string    `json:"preview,omitempty"`
+	Role        string     `json:"role"`
 }
 
 type CreateTripRequest struct {
@@ -49,6 +50,7 @@ type TripDetailsResponse struct {
 	EndDate     *time.Time           `json:"endDate,omitempty"`
 	Preview     *string              `json:"preview,omitempty"`
 	Attractions []models.PlaceInTrip `json:"attractions"`
+	Role        string               `json:"role"`
 }
 
 type TripPlacesResponse []uint64
