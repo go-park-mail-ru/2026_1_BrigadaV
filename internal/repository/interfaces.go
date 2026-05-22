@@ -32,6 +32,7 @@ type PlaceRepository interface {
 	IsPlaceInTrip(ctx context.Context, placeID, tripID uint64) (bool, error)
 	Search(ctx context.Context, query string, filter PlaceFilter) ([]models.Place, error)
 	GetByCategory(ctx context.Context, categoryID uint64) ([]models.Place, error)
+	FilterByReviewsAndRating(ctx context.Context, filter PlaceFilter) ([]models.Place, error)
 }
 
 type TripRepository interface {

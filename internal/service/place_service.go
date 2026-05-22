@@ -35,6 +35,10 @@ func (s *placeServiceImpl) IsPlaceInTrip(ctx context.Context, placeID, tripID ui
 	return s.placeRepo.IsPlaceInTrip(ctx, placeID, tripID)
 }
 
+func (s *placeServiceImpl) FilterByReviewsAndRating(ctx context.Context, filter PlaceFilter) ([]models.Place, error) {
+	return s.placeRepo.FilterByReviewsAndRating(ctx, filter)
+}
+
 func (s *placeServiceImpl) Search(ctx context.Context, query string, filter PlaceFilter) ([]models.Place, error) {
 	return s.placeRepo.Search(ctx, query, filter)
 }

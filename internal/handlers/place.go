@@ -138,6 +138,77 @@ func (h *PlaceHandler) List(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(placesToDTO(places))
 }
 
+// FilterByReviewsAndRating godoc
+// @Summary      Filter places by reviews and rating
+// @Description  Returns places filtered strictly by minimum rating and/or minimum review count, sorted by rating desc, review count desc
+// @Tags         places
+// @Produce      json
+// @Param        min_rating    query    number  false  "Minimum average rating (e.g. 4.0)"
+// @Param        min_reviews   query    int     false  "Minimum number of reviews (e.g. 10)"
+// @Param        rating_ids    query    string  false  "Comma-separated rating tier IDs (1=4.5+, 2=4.0+, 3=3.5+, 4=3.0+, 5=2.5+)"
+// @Success      200  {array}   dto.PlaceResponse
+// @Failure      400  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /places/filter [get]
+func (h *PlaceHandler) FilterByReviewsAndRating(w http.ResponseWriter, r *http.Request) {
+	filter := service.PlaceFilter{}
+
+	if raw := r.URL.Query().Get("min_rating"); raw != "" {
+		if v, err := strconv.ParseFloat(raw, 64); err == nil && v >= 0 {
+			filter.MinRating = v
+		} else if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid min_rating value"})
+			return
+		}
+	}
+
+	if raw := r.URL.Query().Get("min_reviews"); raw != "" {
+		if v, err := strconv.Atoi(raw); err == nil && v >= 0 {
+			filter.MinReviews = v
+		} else if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid min_reviews value"})
+			return
+		}
+	}
+
+	// Also support rating_ids shorthand (same tiers as in parseFilter)
+	if raw := r.URL.Query().Get("rating_ids"); raw != "" && filter.MinRating == 0 {
+		var minRating float64
+		for _, part := range strings.Split(raw, ",") {
+			part = strings.TrimSpace(part)
+			if id, err := strconv.Atoi(part); err == nil {
+				if threshold, ok := ratingThresholds[id]; ok && (minRating == 0 || threshold < minRating) {
+					minRating = threshold
+				}
+			}
+		}
+		filter.MinRating = minRating
+	}
+
+	if filter.MinRating == 0 && filter.MinReviews == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "at least one of min_rating, min_reviews, or rating_ids must be specified"})
+		return
+	}
+
+	places, err := h.placeService.FilterByReviewsAndRating(r.Context(), filter)
+	if err != nil {
+		logger.Error(r.Context(), "Failed to filter places", logrus.Fields{"error": err})
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to filter places"})
+		return
+	}
+
+	result := placesToDTO(places)
+	if result == nil {
+		result = []dto.PlaceResponse{}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
 func (h *PlaceHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)

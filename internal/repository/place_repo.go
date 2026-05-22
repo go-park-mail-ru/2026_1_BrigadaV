@@ -276,6 +276,44 @@ func (r *PlaceRepo) GetByCategory(ctx context.Context, categoryID uint64) ([]mod
 	return places, nil
 }
 
+func (r *PlaceRepo) FilterByReviewsAndRating(ctx context.Context, filter PlaceFilter) ([]models.Place, error) {
+	logger.Debug(ctx, "filtering places by reviews and rating", logrus.Fields{
+		"min_rating":   filter.MinRating,
+		"min_reviews":  filter.MinReviews,
+	})
+
+	args := []any{}
+
+	var conditions []string
+	if filter.MinRating > 0 {
+		args = append(args, filter.MinRating)
+		conditions = append(conditions, fmt.Sprintf("COALESCE(p.rating, 0) >= $%d", len(args)))
+	}
+	if filter.MinReviews > 0 {
+		args = append(args, filter.MinReviews)
+		conditions = append(conditions, fmt.Sprintf("COALESCE(p.review_count, 0) >= $%d", len(args)))
+	}
+
+	where := "WHERE 1=1"
+	if len(conditions) > 0 {
+		where += " AND " + strings.Join(conditions, " AND ")
+	}
+
+	query := fmt.Sprintf(
+		"SELECT %s %s %s ORDER BY p.rating DESC, p.review_count DESC",
+		placeSelectCols, placeJoins, where,
+	)
+
+	places, err := r.queryPlaces(ctx, query, args...)
+	if err != nil {
+		logger.Error(ctx, "failed to filter places by reviews and rating", logrus.Fields{"error": err})
+		return nil, err
+	}
+
+	logger.Debug(ctx, "places filtered", logrus.Fields{"count": len(places)})
+	return places, nil
+}
+
 func (r *PlaceRepo) Search(ctx context.Context, query string, filter PlaceFilter) ([]models.Place, error) {
 	logger.Debug(ctx, "searching places", logrus.Fields{"query": query})
 
