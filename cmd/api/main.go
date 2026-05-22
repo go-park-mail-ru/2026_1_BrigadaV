@@ -78,6 +78,8 @@ func main() {
 	userRepo := authrepo.NewUserRepo(authAdapter)
 	sessionRepo := authrepo.NewSessionRepo(authAdapter)
 
+	// Создаём репозитории для трипов
+
 	placeService := service.NewPlaceService(placeRepo, reviewRepo)
 	tripService := service.NewTripService(tripRepo)
 	categoryService := service.NewCategoryService(categoryRepo)
@@ -98,24 +100,32 @@ func main() {
 	r.Use(logger.Middleware)
 	r.Use(middleware.CORS(cfg.AllowedOrigins...))
 
-	// Публичные эндпоинты (без CSRF)
+	// Публичные эндпоинты (без авторизации и без CSRF)
 	public := r.PathPrefix("/api").Subrouter()
 	public.HandleFunc("/register", authHandler.Register).Methods("POST", "OPTIONS")
 	public.HandleFunc("/login", authHandler.Login).Methods("POST", "OPTIONS")
 	public.HandleFunc("/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
 
-	// Защищённые эндпоинты (с CSRF)
+	// Защищённые эндпоинты с авторизацией, но без CSRF (для загрузки файлов и GET-запросов, где CSRF не нужен)
+	authOnly := r.PathPrefix("/api").Subrouter()
+	authOnly.Use(authMiddleware.Authenticate)
+
+	// Защищённые эндпоинты с авторизацией и CSRF (для JSON-запросов)
 	protected := r.PathPrefix("/api").Subrouter()
 	protected.Use(authMiddleware.Authenticate)
 	protected.Use(csrf.Protect([]byte(cfg.CSRFSecret), csrf.Secure(cfg.SecureCookies), csrf.Path("/")))
 
+	// Эндпоинты, которые требуют только авторизацию, без CSRF
+	authOnly.HandleFunc("/profile/avatar", profileHandler.GetAvatar).Methods("GET", "OPTIONS")
+	authOnly.HandleFunc("/profile/avatar", profileHandler.UploadAvatar).Methods("POST", "OPTIONS")
+	authOnly.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.AddPhoto).Methods("POST", "OPTIONS")
+
+	// Эндпоинты с CSRF (стандартные мутирующие операции)
 	protected.HandleFunc("/logout", authHandler.Logout).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/user/me", authHandler.Me).Methods("GET", "OPTIONS")
 
 	protected.HandleFunc("/profile", profileHandler.GetProfile).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/profile", profileHandler.UpdateProfile).Methods("PUT", "OPTIONS")
-	protected.HandleFunc("/profile/avatar", profileHandler.UploadAvatar).Methods("POST", "OPTIONS")
-	protected.HandleFunc("/profile/avatar", profileHandler.GetAvatar).Methods("GET", "OPTIONS")
 
 	protected.HandleFunc("/places", placeHandler.List).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/places/search", placeHandler.Search).Methods("GET", "OPTIONS")
@@ -136,7 +146,6 @@ func main() {
 	protected.HandleFunc("/trips/{id:[0-9]+}/places/{placeId:[0-9]+}", tripHandler.RemovePlace).Methods("DELETE", "OPTIONS")
 
 	protected.HandleFunc("/trips/{tripID:[0-9]+}/album", albumHandler.GetByTrip).Methods("GET", "OPTIONS")
-	protected.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.AddPhoto).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/albums/{id:[0-9]+}/photos/{photoId:[0-9]+}", albumHandler.RemovePhoto).Methods("DELETE", "OPTIONS")
 	protected.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.GetPhotos).Methods("GET", "OPTIONS")
 

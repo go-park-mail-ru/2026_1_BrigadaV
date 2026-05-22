@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"guidely-app/pkg/config"
 	pb "guidely-app/pkg/pb/auth"
 
 	"github.com/stretchr/testify/assert"
@@ -59,12 +60,54 @@ func (m *mockAuthClient) GetAvatar(ctx context.Context, in *pb.GetAvatarRequest,
 	return nil, status.Error(codes.Unimplemented, "not implemented")
 }
 
-func TestAuthHandler_Register_Success(t *testing.T)         { /* уже есть */ }
-func TestAuthHandler_Login_InvalidCredentials(t *testing.T) { /* уже есть */ }
+func TestAuthHandler_Register_Success(t *testing.T) {
+	mockClient := &mockAuthClient{
+		registerFunc: func(req *pb.RegisterRequest, opts ...grpc.CallOption) (*pb.RegisterResponse, error) {
+			return &pb.RegisterResponse{UserId: 1, Message: "user created"}, nil
+		},
+		loginFunc: func(req *pb.LoginRequest, opts ...grpc.CallOption) (*pb.LoginResponse, error) {
+			return &pb.LoginResponse{UserId: 1, Token: "token", Nickname: "tester", AvatarUrl: ""}, nil
+		},
+	}
+	cfg := &config.Config{SecureCookies: false}
+	handler := NewAuthHandler(mockClient, cfg)
+
+	reqBody := `{"login":"test@example.com","password":"12345678","nickname":"tester"}`
+	req := httptest.NewRequest("POST", "/api/register", bytes.NewReader([]byte(reqBody)))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.Register(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	var resp map[string]interface{}
+	json.NewDecoder(w.Body).Decode(&resp)
+	assert.Equal(t, float64(1), resp["user_id"])
+}
+
+func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
+	mockClient := &mockAuthClient{
+		loginFunc: func(req *pb.LoginRequest, opts ...grpc.CallOption) (*pb.LoginResponse, error) {
+			return nil, status.Error(codes.Unauthenticated, "invalid credentials")
+		},
+	}
+	cfg := &config.Config{SecureCookies: false}
+	handler := NewAuthHandler(mockClient, cfg)
+
+	reqBody := `{"login":"wrong","password":"wrong"}`
+	req := httptest.NewRequest("POST", "/api/login", bytes.NewReader([]byte(reqBody)))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.Login(w, req)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
 
 func TestAuthHandler_Register_InvalidJSON(t *testing.T) {
 	mockClient := &mockAuthClient{}
-	handler := NewAuthHandler(mockClient)
+	cfg := &config.Config{SecureCookies: false}
+	handler := NewAuthHandler(mockClient, cfg)
 	req := httptest.NewRequest("POST", "/api/register", bytes.NewReader([]byte(`{invalid`)))
 	w := httptest.NewRecorder()
 	handler.Register(w, req)
@@ -77,7 +120,8 @@ func TestAuthHandler_Register_GRPCError(t *testing.T) {
 			return nil, status.Error(codes.Internal, "db error")
 		},
 	}
-	handler := NewAuthHandler(mockClient)
+	cfg := &config.Config{SecureCookies: false}
+	handler := NewAuthHandler(mockClient, cfg)
 	reqBody := map[string]string{"login": "test@example.com", "password": "12345678", "nickname": "tester"}
 	body, _ := json.Marshal(reqBody)
 	req := httptest.NewRequest("POST", "/api/register", bytes.NewReader(body))
@@ -88,7 +132,8 @@ func TestAuthHandler_Register_GRPCError(t *testing.T) {
 
 func TestAuthHandler_Login_InvalidJSON(t *testing.T) {
 	mockClient := &mockAuthClient{}
-	handler := NewAuthHandler(mockClient)
+	cfg := &config.Config{SecureCookies: false}
+	handler := NewAuthHandler(mockClient, cfg)
 	req := httptest.NewRequest("POST", "/api/login", bytes.NewReader([]byte(`{invalid`)))
 	w := httptest.NewRecorder()
 	handler.Login(w, req)
@@ -101,7 +146,8 @@ func TestAuthHandler_Login_GRPCError(t *testing.T) {
 			return nil, status.Error(codes.Internal, "db error")
 		},
 	}
-	handler := NewAuthHandler(mockClient)
+	cfg := &config.Config{SecureCookies: false}
+	handler := NewAuthHandler(mockClient, cfg)
 	reqBody := map[string]string{"login": "test@example.com", "password": "12345678"}
 	body, _ := json.Marshal(reqBody)
 	req := httptest.NewRequest("POST", "/api/login", bytes.NewReader(body))
@@ -116,7 +162,8 @@ func TestAuthHandler_Logout_Success(t *testing.T) {
 			return &emptypb.Empty{}, nil
 		},
 	}
-	handler := NewAuthHandler(mockClient)
+	cfg := &config.Config{SecureCookies: false}
+	handler := NewAuthHandler(mockClient, cfg)
 	req := httptest.NewRequest("POST", "/api/logout", nil)
 	req.AddCookie(&http.Cookie{Name: "session_token", Value: "token123"})
 	w := httptest.NewRecorder()
@@ -126,7 +173,8 @@ func TestAuthHandler_Logout_Success(t *testing.T) {
 
 func TestAuthHandler_Logout_NoCookie(t *testing.T) {
 	mockClient := &mockAuthClient{}
-	handler := NewAuthHandler(mockClient)
+	cfg := &config.Config{SecureCookies: false}
+	handler := NewAuthHandler(mockClient, cfg)
 	req := httptest.NewRequest("POST", "/api/logout", nil)
 	w := httptest.NewRecorder()
 	handler.Logout(w, req)
@@ -139,7 +187,8 @@ func TestAuthHandler_Logout_GRPCError(t *testing.T) {
 			return nil, errors.New("db error")
 		},
 	}
-	handler := NewAuthHandler(mockClient)
+	cfg := &config.Config{SecureCookies: false}
+	handler := NewAuthHandler(mockClient, cfg)
 	req := httptest.NewRequest("POST", "/api/logout", nil)
 	req.AddCookie(&http.Cookie{Name: "session_token", Value: "token123"})
 	w := httptest.NewRecorder()
@@ -153,7 +202,8 @@ func TestAuthHandler_Me_Success(t *testing.T) {
 			return &pb.User{Id: 1, Login: "test@example.com", Nickname: "tester"}, nil
 		},
 	}
-	handler := NewAuthHandler(mockClient)
+	cfg := &config.Config{SecureCookies: false}
+	handler := NewAuthHandler(mockClient, cfg)
 	req := httptest.NewRequest("GET", "/api/user/me", nil)
 	req = req.WithContext(context.WithValue(req.Context(), "user_id", uint64(1)))
 	w := httptest.NewRecorder()
@@ -167,7 +217,8 @@ func TestAuthHandler_Me_Success(t *testing.T) {
 
 func TestAuthHandler_Me_Unauthorized(t *testing.T) {
 	mockClient := &mockAuthClient{}
-	handler := NewAuthHandler(mockClient)
+	cfg := &config.Config{SecureCookies: false}
+	handler := NewAuthHandler(mockClient, cfg)
 	req := httptest.NewRequest("GET", "/api/user/me", nil)
 	w := httptest.NewRecorder()
 	handler.Me(w, req)
@@ -180,7 +231,8 @@ func TestAuthHandler_Me_UserNotFound(t *testing.T) {
 			return nil, status.Error(codes.NotFound, "user not found")
 		},
 	}
-	handler := NewAuthHandler(mockClient)
+	cfg := &config.Config{SecureCookies: false}
+	handler := NewAuthHandler(mockClient, cfg)
 	req := httptest.NewRequest("GET", "/api/user/me", nil)
 	req = req.WithContext(context.WithValue(req.Context(), "user_id", uint64(1)))
 	w := httptest.NewRecorder()

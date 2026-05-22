@@ -18,7 +18,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const uploadDir = "./uploads/photos"
+const (
+	uploadDir    = "./uploads/photos"
+	maxPhotoSize = 5 << 20
+)
 
 type AlbumHandler struct {
 	client pb.AlbumServiceClient
@@ -186,9 +189,9 @@ func (h *AlbumHandler) AddPhoto(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ограничение — 10 МБ
-	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		http.Error(w, "failed to parse multipart form", http.StatusBadRequest)
+	// Ограничение размера файла — 5 МБ
+	if err := r.ParseMultipartForm(maxPhotoSize); err != nil {
+		http.Error(w, "file too large or invalid form", http.StatusBadRequest)
 		return
 	}
 
@@ -198,6 +201,12 @@ func (h *AlbumHandler) AddPhoto(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
+
+	// Проверка размера файла (дополнительная страховка)
+	if header.Size > maxPhotoSize {
+		http.Error(w, "file too large (max 5 MB)", http.StatusBadRequest)
+		return
+	}
 
 	// Создаём папку если нет
 	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
