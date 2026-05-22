@@ -249,7 +249,7 @@ func (h *AlbumHandler) AddPhoto(w http.ResponseWriter, r *http.Request) {
 			"album_id": albumID,
 		})
 		os.Remove(savePath)
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		http.Error(w, "failed to upload photo: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
