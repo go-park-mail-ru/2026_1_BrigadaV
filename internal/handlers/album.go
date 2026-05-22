@@ -20,7 +20,7 @@ import (
 
 const (
 	uploadDir    = "./uploads/photos"
-	maxPhotoSize = 20 << 20
+	maxPhotoSize = 20 << 20 // 20 МБ
 )
 
 type AlbumHandler struct {
@@ -28,6 +28,10 @@ type AlbumHandler struct {
 }
 
 func NewAlbumHandler(client pb.AlbumServiceClient) *AlbumHandler {
+	// Создаём папку для фото при старте, если её нет
+	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
+		logrus.Warnf("failed to create upload dir: %v", err)
+	}
 	return &AlbumHandler{client: client}
 }
 
@@ -92,8 +96,6 @@ func (h *AlbumHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetByTrip — GET /api/trips/{tripID}/album
-// Возвращает альбом. Триггер в БД создаёт альбом автоматически при создании поездки.
-// Если по каким-то причинам альбома нет — создаём на лету.
 func (h *AlbumHandler) GetByTrip(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	tripID, err := strconv.ParseUint(vars["tripID"], 10, 64)
@@ -104,7 +106,6 @@ func (h *AlbumHandler) GetByTrip(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.client.GetByTrip(r.Context(), &pb.GetAlbumByTripRequest{TripId: tripID})
 	if err != nil {
-		// Альбома нет — создаём автоматически
 		logger.Warn(r.Context(), "album not found for trip, auto-creating", logrus.Fields{
 			"trip_id": tripID,
 			"error":   err,
@@ -179,8 +180,6 @@ func (h *AlbumHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 // AddPhoto — POST /api/albums/{id}/photos
-// Принимает multipart/form-data с полем "photo" (файл).
-// Сохраняет файл на диск и регистрирует через gRPC UploadPhoto.
 func (h *AlbumHandler) AddPhoto(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	albumID, err := strconv.ParseUint(vars["id"], 10, 64)
@@ -189,7 +188,7 @@ func (h *AlbumHandler) AddPhoto(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ограничение размера файла — 5 МБ
+	// Ограничение размера файла — 20 МБ
 	if err := r.ParseMultipartForm(maxPhotoSize); err != nil {
 		http.Error(w, "file too large or invalid form", http.StatusBadRequest)
 		return
@@ -202,20 +201,17 @@ func (h *AlbumHandler) AddPhoto(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// Проверка размера файла (дополнительная страховка)
 	if header.Size > maxPhotoSize {
-		http.Error(w, "file too large (max 5 MB)", http.StatusBadRequest)
+		http.Error(w, "file too large (max 20 MB)", http.StatusBadRequest)
 		return
 	}
 
-	// Создаём папку если нет
 	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
 		logger.Error(r.Context(), "mkdir error", logrus.Fields{"error": err, "dir": uploadDir})
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	// Уникальное имя файла
 	ext := filepath.Ext(header.Filename)
 	if ext == "" {
 		ext = ".jpg"
@@ -224,7 +220,6 @@ func (h *AlbumHandler) AddPhoto(w http.ResponseWriter, r *http.Request) {
 	savePath := filepath.Join(uploadDir, filename)
 	relativePath := "/uploads/photos/" + filename
 
-	// Сохраняем файл
 	dst, err := os.Create(savePath)
 	if err != nil {
 		logger.Error(r.Context(), "file create error", logrus.Fields{"error": err, "path": savePath})
@@ -238,7 +233,6 @@ func (h *AlbumHandler) AddPhoto(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Регистрируем фото и связываем с альбомом через gRPC
 	addResp, err := h.client.UploadPhoto(r.Context(), &pb.UploadPhotoRequest{
 		AlbumId:  albumID,
 		FilePath: relativePath,
@@ -249,7 +243,7 @@ func (h *AlbumHandler) AddPhoto(w http.ResponseWriter, r *http.Request) {
 			"album_id": albumID,
 		})
 		os.Remove(savePath)
-		http.Error(w, "failed to upload photo: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "internal error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -296,7 +290,6 @@ func (h *AlbumHandler) RemovePhoto(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetPhotos — GET /api/albums/{id}/photos
-// Возвращает массив { id, url } — именно это ожидает фронтенд.
 func (h *AlbumHandler) GetPhotos(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	albumID, err := strconv.ParseUint(vars["id"], 10, 64)

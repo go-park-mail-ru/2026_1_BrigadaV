@@ -111,11 +111,11 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Лимит 10 МБ
-	if err := r.ParseMultipartForm(10 << 20); err != nil {
+	const maxAvatarSize = 5 << 20 // 5 МБ
+	if err := r.ParseMultipartForm(maxAvatarSize); err != nil {
 		logger.Error(r.Context(), "ParseMultipartForm failed", logrus.Fields{"error": err})
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "request too large or malformed"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "file too large or invalid form"})
 		return
 	}
 
@@ -128,6 +128,12 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
+	if header.Size > maxAvatarSize {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "file too large (max 5 MB)"})
+		return
+	}
+
 	contentType := header.Header.Get("Content-Type")
 	if !strings.HasPrefix(contentType, "image/") {
 		w.WriteHeader(http.StatusBadRequest)
@@ -139,13 +145,13 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	if ext == "" {
 		ext = ".jpg"
 	}
-	objectName := fmt.Sprintf("avatars/%s%s", uuid.New().String(), ext)
+	objectName := fmt.Sprintf("%s%s", uuid.New().String(), ext)
 
 	var avatarURL string
 
 	if h.s3 != nil {
 		// Загрузка в S3
-		avatarURL, err = h.s3.UploadFile(r.Context(), objectName, file, header.Size, contentType)
+		avatarURL, err = h.s3.UploadFile(r.Context(), "avatars/"+objectName, file, header.Size, contentType)
 		if err != nil {
 			logger.Error(r.Context(), "S3 upload failed", logrus.Fields{"error": err, "user_id": userID})
 			w.WriteHeader(http.StatusInternalServerError)
@@ -164,7 +170,7 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		localPath := filepath.Join(avatarUploadDir, objectName)
 		dst, err := os.Create(localPath)
 		if err != nil {
-			logger.Error(r.Context(), "file create error", logrus.Fields{"error": err})
+			logger.Error(r.Context(), "file create error", logrus.Fields{"error": err, "path": localPath})
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "internal error"})
 			return

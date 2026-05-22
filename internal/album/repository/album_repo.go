@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"guidely-app/pkg/models"
 
 	"github.com/jackc/pgx/v5"
@@ -71,16 +72,15 @@ func (r *AlbumRepo) Delete(ctx context.Context, id uint64) error {
 }
 
 func (r *AlbumRepo) UploadPhoto(ctx context.Context, albumID uint64, filePath string) (uint64, error) {
-	// Проверка лимита фотографий
 	var maxPhotos int
 	var currentCount int
 	err := r.db.QueryRow(ctx, `SELECT max_photos FROM album WHERE id = $1`, albumID).Scan(&maxPhotos)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to get album: %w", err)
 	}
 	err = r.db.QueryRow(ctx, `SELECT COUNT(*) FROM album_photo WHERE album_id = $1`, albumID).Scan(&currentCount)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to count photos: %w", err)
 	}
 	if currentCount >= maxPhotos {
 		return 0, errors.New("album photo limit reached")
@@ -88,7 +88,7 @@ func (r *AlbumRepo) UploadPhoto(ctx context.Context, albumID uint64, filePath st
 
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
@@ -98,7 +98,7 @@ func (r *AlbumRepo) UploadPhoto(ctx context.Context, albumID uint64, filePath st
 		filePath,
 	).Scan(&photoID)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("insert photo: %w", err)
 	}
 
 	var maxOrder int
@@ -112,15 +112,14 @@ func (r *AlbumRepo) UploadPhoto(ctx context.Context, albumID uint64, filePath st
 		albumID, photoID, maxOrder+1,
 	)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("insert album_photo: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return 0, err
+		return 0, fmt.Errorf("commit tx: %w", err)
 	}
 	return photoID, nil
 }
-
 func (r *AlbumRepo) AddPhoto(ctx context.Context, albumID, photoID uint64, order int16) error {
 	_, err := r.db.Exec(ctx, `INSERT INTO album_photo (album_id, photo_id, order_index, created_at)
 		VALUES ($1, $2, $3, NOW())`, albumID, photoID, order)
