@@ -121,9 +121,9 @@ func main() {
 	authOnly.HandleFunc("/profile/avatar", profileHandler.GetAvatar).Methods("GET", "OPTIONS")
 	authOnly.HandleFunc("/profile/avatar", profileHandler.UploadAvatar).Methods("POST", "OPTIONS")
 	authOnly.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.AddPhoto).Methods("POST", "OPTIONS")
+	authOnly.HandleFunc("/logout", authHandler.Logout).Methods("POST", "OPTIONS")
 
 	// С CSRF
-	protected.HandleFunc("/logout", authHandler.Logout).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/user/me", authHandler.Me).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/profile", profileHandler.GetProfile).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/profile", profileHandler.UpdateProfile).Methods("PUT", "OPTIONS")
