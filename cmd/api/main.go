@@ -43,10 +43,8 @@ func main() {
 	}
 	defer dbPool.Close()
 
-	// ИНИЦИАЛИЗАЦИЯ S3 С ВОЗМОЖНОСТЬЮ ПРОДОЛЖИТЬ БЕЗ НЕГО
 	s3Client, err := storage.NewS3Client(cfg)
 	if err != nil {
-		// Ошибка уже залогирована внутри NewS3Client, но на всякий случай
 		log.Printf("S3 init failed: %v; continuing without S3 features", err)
 		s3Client = nil
 	}
@@ -106,9 +104,42 @@ func main() {
 
 	authMiddleware := middleware.NewAuthMiddleware(sessionRepo)
 
+	csrfKey := []byte(cfg.CSRFSecret)
+
+	csrfProtect := csrf.Protect(
+		csrfKey,
+		csrf.Secure(false),
+		csrf.Path("/"),
+		csrf.TrustedOrigins(cfg.AllowedOrigins),
+		csrf.ErrorHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			logger.Warn(r.Context(), "CSRF token invalid", logrus.Fields{
+				"method": r.Method,
+				"path":   r.URL.Path,
+			})
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			json.NewEncoder(w).Encode(map[string]string{"error": "CSRF token invalid or missing"})
+		})),
+	)
+
+	// ── Роутер ───────────────────────────────────────────────────────────────
 	r := mux.NewRouter()
 	r.Use(logger.Middleware)
 	r.Use(middleware.CORS(cfg.AllowedOrigins...))
+
+	// restoreMethodMiddleware восстанавливает оригинальный метод после того как
+	// csrf.Protect его обработал (метод мог быть подменён exemptWrapper-ом).
+	// Middleware устанавливается на весь роутер и берёт оригинальный метод
+	// из специального заголовка, который выставляет exemptWrapper.
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if orig := r.Header.Get("X-Original-Method"); orig != "" {
+				r.Method = orig
+				r.Header.Del("X-Original-Method")
+			}
+			next.ServeHTTP(w, r)
+		})
+	})
 
 	r.HandleFunc("/api/register", authHandler.Register).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/login", authHandler.Login).Methods("POST", "OPTIONS")
@@ -154,30 +185,26 @@ func main() {
 	r.HandleFunc("/api/categories/{id:[0-9]+}", authMiddleware.Authenticate(categoryHandler.Delete)).Methods("DELETE", "OPTIONS")
 
 	r.HandleFunc("/api/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
-
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 
-	csrfMiddleware := csrf.Protect(
-		[]byte(cfg.CSRFSecret),
-		csrf.Secure(false),
-		csrf.Path("/"),
-		csrf.TrustedOrigins(cfg.AllowedOrigins),
-		csrf.ErrorHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			logger.Warn(r.Context(), "CSRF token invalid", logrus.Fields{
-				"method": r.Method,
-				"path":   r.URL.Path,
-			})
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusForbidden)
-			json.NewEncoder(w).Encode(map[string]string{"error": "CSRF token invalid or missing"})
-		})),
-	)
+	exemptPaths := map[string]bool{
+		"/api/login":    true,
+		"/api/register": true,
+	}
 
-	handler := csrfMiddleware(r)
+	protectedChain := csrfProtect(r)
+
+	finalHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && exemptPaths[r.URL.Path] {
+			r.Header.Set("X-Original-Method", r.Method)
+			r.Method = http.MethodGet
+		}
+		protectedChain.ServeHTTP(w, r)
+	})
 
 	logger.Log.Info("Server started on :" + cfg.Port)
-	log.Fatal(http.ListenAndServe(":"+cfg.Port, handler))
+	log.Fatal(http.ListenAndServe(":"+cfg.Port, finalHandler))
 }
 
 func getEnv(key, fallback string) string {
