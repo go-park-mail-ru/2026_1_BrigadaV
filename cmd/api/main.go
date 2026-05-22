@@ -50,6 +50,7 @@ func main() {
 		log.Println("S3 client is nil – avatar upload will not work")
 	}
 
+	// gRPC подключения
 	authConn, err := grpc.Dial(getEnv("AUTH_GRPC_ADDR", "localhost:8085"), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("failed to connect to auth service: %v", err)
@@ -71,6 +72,7 @@ func main() {
 	dbAdapter := &repository.PgxPoolAdapter{Pool: dbPool}
 	authAdapter := &authrepo.PgxPoolAdapter{Pool: dbPool}
 
+	// Репозитории
 	placeRepo := repository.NewPlaceRepo(dbAdapter)
 	tripRepo := repository.NewTripRepo(dbAdapter)
 	categoryRepo := repository.NewCategoryRepo(dbAdapter)
@@ -78,13 +80,13 @@ func main() {
 	userRepo := authrepo.NewUserRepo(authAdapter)
 	sessionRepo := authrepo.NewSessionRepo(authAdapter)
 
-	// Создаём репозитории для трипов
-
+	// Сервисы
 	placeService := service.NewPlaceService(placeRepo, reviewRepo)
 	tripService := service.NewTripService(tripRepo)
 	categoryService := service.NewCategoryService(categoryRepo)
 	profileService := service.NewProfileService(userRepo)
 
+	// Handlers
 	authHandler := handlers.NewAuthHandler(authClient, cfg)
 	albumHandler := handlers.NewAlbumHandler(albumClient)
 	reviewHandler := handlers.NewReviewHandler(reviewClient)
@@ -100,13 +102,13 @@ func main() {
 	r.Use(logger.Middleware)
 	r.Use(middleware.CORS(cfg.AllowedOrigins...))
 
-	// Публичные эндпоинты (без авторизации и без CSRF)
+	// Публичные эндпоинты (без авторизации)
 	public := r.PathPrefix("/api").Subrouter()
 	public.HandleFunc("/register", authHandler.Register).Methods("POST", "OPTIONS")
 	public.HandleFunc("/login", authHandler.Login).Methods("POST", "OPTIONS")
 	public.HandleFunc("/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
 
-	// Защищённые эндпоинты с авторизацией, но без CSRF (для загрузки файлов и GET-запросов, где CSRF не нужен)
+	// Защищённые эндпоинты с авторизацией, но без CSRF (для файлов и GET-запросов)
 	authOnly := r.PathPrefix("/api").Subrouter()
 	authOnly.Use(authMiddleware.Authenticate)
 
@@ -115,27 +117,23 @@ func main() {
 	protected.Use(authMiddleware.Authenticate)
 	protected.Use(csrf.Protect([]byte(cfg.CSRFSecret), csrf.Secure(cfg.SecureCookies), csrf.Path("/")))
 
-	// Эндпоинты, которые требуют только авторизацию, без CSRF
+	// Без CSRF
 	authOnly.HandleFunc("/profile/avatar", profileHandler.GetAvatar).Methods("GET", "OPTIONS")
 	authOnly.HandleFunc("/profile/avatar", profileHandler.UploadAvatar).Methods("POST", "OPTIONS")
 	authOnly.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.AddPhoto).Methods("POST", "OPTIONS")
 
-	// Эндпоинты с CSRF (стандартные мутирующие операции)
+	// С CSRF
 	protected.HandleFunc("/logout", authHandler.Logout).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/user/me", authHandler.Me).Methods("GET", "OPTIONS")
-
 	protected.HandleFunc("/profile", profileHandler.GetProfile).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/profile", profileHandler.UpdateProfile).Methods("PUT", "OPTIONS")
-
 	protected.HandleFunc("/places", placeHandler.List).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/places/search", placeHandler.Search).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/places/{id:[0-9]+}", placeHandler.GetDetails).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/places/{id:[0-9]+}/reviews", placeHandler.GetReviews).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/places/{id:[0-9]+}/in-trip", placeHandler.CheckPlaceInTrip).Methods("GET", "OPTIONS")
-
 	protected.HandleFunc("/reviews", reviewHandler.Create).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/reviews/{id:[0-9]+}", reviewHandler.Delete).Methods("DELETE", "OPTIONS")
-
 	protected.HandleFunc("/trips", tripHandler.List).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/trips", tripHandler.Create).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.GetDetails).Methods("GET", "OPTIONS")
@@ -144,11 +142,9 @@ func main() {
 	protected.HandleFunc("/trips/{id:[0-9]+}/places", tripHandler.GetTripPlaces).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/trips/{id:[0-9]+}/places", tripHandler.AddPlace).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/trips/{id:[0-9]+}/places/{placeId:[0-9]+}", tripHandler.RemovePlace).Methods("DELETE", "OPTIONS")
-
 	protected.HandleFunc("/trips/{tripID:[0-9]+}/album", albumHandler.GetByTrip).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/albums/{id:[0-9]+}/photos/{photoId:[0-9]+}", albumHandler.RemovePhoto).Methods("DELETE", "OPTIONS")
 	protected.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.GetPhotos).Methods("GET", "OPTIONS")
-
 	protected.HandleFunc("/categories", categoryHandler.List).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Get).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/categories", categoryHandler.Create).Methods("POST", "OPTIONS")
