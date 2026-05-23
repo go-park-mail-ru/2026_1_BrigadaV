@@ -309,19 +309,21 @@ func (h *PlaceHandler) CheckPlaceInTrip(w http.ResponseWriter, r *http.Request) 
 
 func (h *PlaceHandler) Search(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
-	if query == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "missing query parameter 'q'"})
-		return
-	}
-
 	filter := parseFilter(r)
 
-	places, err := h.placeService.Search(r.Context(), query, filter)
+	var places []models.Place
+	var err error
+
+	if query == "" {
+		places, err = h.placeService.GetAll(r.Context(), filter)
+	} else {
+		places, err = h.placeService.Search(r.Context(), query, filter)
+	}
+
 	if err != nil {
-		logger.Error(r.Context(), "Failed to search places", logrus.Fields{"error": err})
+		logger.Error(r.Context(), "Failed to search/filter places", logrus.Fields{"error": err})
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to search places"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to search/filter places"})
 		return
 	}
 
