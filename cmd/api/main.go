@@ -176,6 +176,7 @@ func main() {
 	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 
 	logger.Log.Info("Server started on :" + cfg.Port)
+	log.Fatal(http.ListenAndServe(":"+cfg.Port, r))
 }
 
 func getEnv(key, fallback string) string {
