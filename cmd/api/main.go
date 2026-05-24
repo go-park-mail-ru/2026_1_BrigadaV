@@ -70,6 +70,7 @@ func main() {
 	placeRepo := repository.NewPlaceRepo(dbAdapter)
 	tripRepo := repository.NewTripRepo(dbAdapter)
 	categoryRepo := repository.NewCategoryRepo(dbAdapter)
+	countryRepo := repository.NewCountryRepo(dbAdapter)
 	reviewRepo := repository.NewReviewRepo(dbAdapter)
 	userRepo := authrepo.NewUserRepo(authAdapter)
 	sessionRepo := authrepo.NewSessionRepo(authAdapter)
@@ -98,6 +99,7 @@ func main() {
 	placeService := service.NewPlaceService(placeRepo, reviewRepo, elasticSearcher)
 	tripService := service.NewTripService(tripRepo)
 	categoryService := service.NewCategoryService(categoryRepo)
+	countryService := service.NewCountryService(countryRepo)
 	profileService := service.NewProfileService(userRepo)
 
 	authHandler := handlers.NewAuthHandler(authClient)
@@ -107,6 +109,7 @@ func main() {
 	profileHandler := handlers.NewProfileHandler(profileService)
 	tripHandler := handlers.NewTripHandler(tripService)
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
+	countryHandler := handlers.NewCountryHandler(countryService)
 	csrfHandler := handlers.NewCSRFHandler()
 
 	authMiddleware := middleware.NewAuthMiddleware(sessionRepo)
@@ -149,6 +152,9 @@ func main() {
 	r.HandleFunc("/api/albums/{id:[0-9]+}/photos", authMiddleware.Authenticate(albumHandler.AddPhoto)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/albums/{id:[0-9]+}/photos/{photoId:[0-9]+}", authMiddleware.Authenticate(albumHandler.RemovePhoto)).Methods("DELETE", "OPTIONS")
 	r.HandleFunc("/api/albums/{id:[0-9]+}/photos", authMiddleware.Authenticate(albumHandler.GetPhotos)).Methods("GET", "OPTIONS")
+
+	r.HandleFunc("/api/countries", countryHandler.List).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/countries/{id:[0-9]+}/localities", countryHandler.GetWithLocalities).Methods("GET", "OPTIONS")
 
 	r.HandleFunc("/api/categories", categoryHandler.List).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/categories/{id:[0-9]+}", categoryHandler.Get).Methods("GET", "OPTIONS")

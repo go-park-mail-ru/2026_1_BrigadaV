@@ -1,8 +1,0 @@
-.env
-*.env.local
-*.env.production
-/bin/
-*.exe
-/uploads/
-coverage.out
-*.test
