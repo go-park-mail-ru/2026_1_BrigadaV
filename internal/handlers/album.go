@@ -20,7 +20,7 @@ import (
 
 const (
 	uploadDir    = "./uploads/photos"
-	maxPhotoSize = 20 << 20 // 20 МБ
+	maxPhotoSize = 30 << 20
 )
 
 type AlbumHandler struct {
