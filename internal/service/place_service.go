@@ -49,6 +49,6 @@ func (s *placeServiceImpl) FilterByReviewsAndRating(ctx context.Context, filter 
 	return s.placeRepo.FilterByReviewsAndRating(ctx, filter)
 }
 
-func (s *placeServiceImpl) Search(ctx context.Context, query string) ([]models.Place, error) {
+func (s *placeServiceImpl) Search(ctx context.Context, query string, filter PlaceFilter) ([]models.Place, error) {
 	return s.placeSearch.Search(ctx, query)
 }

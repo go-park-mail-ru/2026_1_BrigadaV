@@ -166,7 +166,7 @@ func main() {
 }
 
 func indexAllPlaces(ctx context.Context, repo repository.PlaceRepository, indexer *elasticsearch.PlaceIndexer) error {
-	places, err := repo.GetAll(ctx)
+	places, err := repo.GetAll(ctx, repository.PlaceFilter{})
 	if err != nil {
 		return err
 	}
