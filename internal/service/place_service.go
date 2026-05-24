@@ -24,8 +24,8 @@ func NewPlaceService(
 	}
 }
 
-func (s *placeServiceImpl) GetAll(ctx context.Context) ([]models.Place, error) {
-	return s.placeRepo.GetAll(ctx)
+func (s *placeServiceImpl) GetAll(ctx context.Context, filter PlaceFilter) ([]models.Place, error) {
+	return s.placeRepo.GetAll(ctx, filter)
 }
 
 func (s *placeServiceImpl) GetByCategory(ctx context.Context, categoryID uint64) ([]models.Place, error) {
@@ -44,7 +44,11 @@ func (s *placeServiceImpl) IsPlaceInTrip(ctx context.Context, placeID, tripID ui
 	return s.placeRepo.IsPlaceInTrip(ctx, placeID, tripID)
 }
 
-// Search использует ElasticSearch через PlaceSearchRepository.
+
+func (s *placeServiceImpl) FilterByReviewsAndRating(ctx context.Context, filter PlaceFilter) ([]models.Place, error) {
+	return s.placeRepo.FilterByReviewsAndRating(ctx, filter)
+}
+
 func (s *placeServiceImpl) Search(ctx context.Context, query string) ([]models.Place, error) {
 	return s.placeSearch.Search(ctx, query)
 }

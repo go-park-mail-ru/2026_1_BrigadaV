@@ -44,7 +44,7 @@ func TestPlaceRepo_GetAll(t *testing.T) {
 	mockPool.ExpectQuery(`SELECT p\.id, p\.name, p\.description, p\.photo_url, p\.price, p\.created_at, p\.updated_at,`).
 		WillReturnRows(rows)
 
-	places, err := repo.GetAll(context.Background())
+	places, err := repo.GetAll(context.Background(), PlaceFilter{})
 	assert.NoError(t, err)
 	assert.Len(t, places, 1)
 	assert.Equal(t, "Eiffel Tower", places[0].Name)
@@ -132,7 +132,7 @@ func TestPlaceRepo_GetAll_DBError(t *testing.T) {
 	repo := NewPlaceRepo(mockPool)
 
 	mockPool.ExpectQuery(`SELECT p\.id, p\.name`).WillReturnError(errors.New("db error"))
-	_, err := repo.GetAll(context.Background())
+	_, err := repo.GetAll(context.Background(), PlaceFilter{})
 	assert.Error(t, err)
 }
 
@@ -182,7 +182,7 @@ func TestPlaceRepo_Search_DBError(t *testing.T) {
 	repo := NewPlaceRepo(mockPool)
 
 	mockPool.ExpectQuery(`SELECT p\.id`).WithArgs("%query%").WillReturnError(errors.New("db error"))
-	_, err := repo.Search(context.Background(), "query")
+	_, err := repo.Search(context.Background(), "query", PlaceFilter{})
 	assert.Error(t, err)
 }
 
@@ -241,7 +241,7 @@ func TestPlaceRepo_Search_Success(t *testing.T) {
 		WithArgs(pattern).
 		WillReturnRows(rows)
 
-	places, err := repo.Search(context.Background(), "eiffel")
+	places, err := repo.Search(context.Background(), "eiffel", PlaceFilter{})
 	assert.NoError(t, err)
 	assert.Len(t, places, 1)
 }

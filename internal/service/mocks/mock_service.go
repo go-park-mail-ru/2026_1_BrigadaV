@@ -37,18 +37,18 @@ func (m *MockPlaceService) EXPECT() *MockPlaceServiceMockRecorder {
 }
 
 // GetAll mocks base method.
-func (m *MockPlaceService) GetAll(arg0 context.Context) ([]models.Place, error) {
+func (m *MockPlaceService) GetAll(arg0 context.Context, arg1 service.PlaceFilter) ([]models.Place, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetAll", arg0)
+	ret := m.ctrl.Call(m, "GetAll", arg0, arg1)
 	ret0, _ := ret[0].([]models.Place)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetAll indicates an expected call of GetAll.
-func (mr *MockPlaceServiceMockRecorder) GetAll(arg0 interface{}) *gomock.Call {
+func (mr *MockPlaceServiceMockRecorder) GetAll(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockPlaceService)(nil).GetAll), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockPlaceService)(nil).GetAll), arg0, arg1)
 }
 
 // GetByCategory mocks base method.
@@ -112,18 +112,18 @@ func (mr *MockPlaceServiceMockRecorder) IsPlaceInTrip(arg0, arg1, arg2 interface
 }
 
 // Search mocks base method.
-func (m *MockPlaceService) Search(arg0 context.Context, arg1 string) ([]models.Place, error) {
+func (m *MockPlaceService) Search(arg0 context.Context, arg1 string, arg2 service.PlaceFilter) ([]models.Place, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Search", arg0, arg1)
+	ret := m.ctrl.Call(m, "Search", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]models.Place)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Search indicates an expected call of Search.
-func (mr *MockPlaceServiceMockRecorder) Search(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockPlaceServiceMockRecorder) Search(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockPlaceService)(nil).Search), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockPlaceService)(nil).Search), arg0, arg1, arg2)
 }
 
 // MockProfileService is a mock of ProfileService interface.
