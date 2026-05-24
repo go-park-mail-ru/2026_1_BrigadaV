@@ -47,3 +47,8 @@ type CategoryService interface {
 	Update(ctx context.Context, c *models.Category) error
 	Delete(ctx context.Context, id uint64) error
 }
+
+type CountryService interface {
+	GetAll(ctx context.Context) ([]models.Country, error)
+	GetWithLocalities(ctx context.Context, countryID uint64) (*models.Country, []models.Locality, error)
+}

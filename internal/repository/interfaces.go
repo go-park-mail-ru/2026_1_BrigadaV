@@ -69,3 +69,8 @@ type ReviewRepository interface {
 	GetByPlaceIDWithAuthor(ctx context.Context, placeID uint64) ([]models.ReviewWithAuthor, error)
 	Delete(ctx context.Context, id uint64) error
 }
+
+type CountryRepository interface {
+	GetAll(ctx context.Context) ([]models.Country, error)
+	GetLocalitiesByCountryID(ctx context.Context, countryID uint64) ([]models.Locality, error)
+}
