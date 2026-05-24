@@ -9,12 +9,13 @@ import (
 )
 
 type Config struct {
-	Port           string
-	DatabaseURL    string
-	JWTSecret      string
-	FrontendURL    string
-	AllowedOrigins []string
-	SecureCookies  bool
+	Port             string
+	DatabaseURL      string
+	JWTSecret        string
+	FrontendURL      string
+	AllowedOrigins   []string
+	SecureCookies    bool
+	ElasticSearchURL string
 }
 
 func Load() (*Config, error) {
@@ -44,12 +45,13 @@ func Load() (*Config, error) {
 	}
 
 	return &Config{
-		Port:           getEnv("PORT", "8080"),
-		DatabaseURL:    dbURL,
-		JWTSecret:      jwtSecret,
-		FrontendURL:    frontendURL,
-		AllowedOrigins: origins,
-		SecureCookies:  getEnvBool("SECURE_COOKIES", true),
+		Port:             getEnv("PORT", "8080"),
+		DatabaseURL:      dbURL,
+		JWTSecret:        jwtSecret,
+		FrontendURL:      frontendURL,
+		AllowedOrigins:   origins,
+		SecureCookies:    getEnvBool("SECURE_COOKIES", true),
+		ElasticSearchURL: getEnv("ELASTICSEARCH_URL", "http://localhost:9200"),
 	}, nil
 }
 

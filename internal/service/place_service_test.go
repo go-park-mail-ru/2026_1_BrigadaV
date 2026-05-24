@@ -5,7 +5,6 @@ package service
 // 	"errors"
 // 	"testing"
 
-// 	"guidely-app/internal/repository"
 // 	"guidely-app/internal/repository/mocks"
 // 	"guidely-app/pkg/models"
 
@@ -22,9 +21,9 @@ package service
 // 	svc := NewPlaceService(mockPlaceRepo, mockReviewRepo)
 
 // 	expectedPlaces := []models.Place{{ID: 1, Name: "Eiffel Tower"}}
-// 	mockPlaceRepo.EXPECT().GetAll(gomock.Any(), repository.PlaceFilter{}).Return(expectedPlaces, nil)
+// 	mockPlaceRepo.EXPECT().GetAll(gomock.Any()).Return(expectedPlaces, nil)
 
-// 	places, err := svc.GetAll(context.Background(), PlaceFilter{})
+// 	places, err := svc.GetAll(context.Background())
 // 	assert.NoError(t, err)
 // 	assert.Len(t, places, 1)
 // 	assert.Equal(t, "Eiffel Tower", places[0].Name)
@@ -38,9 +37,9 @@ package service
 // 	mockReviewRepo := mocks.NewMockReviewRepository(ctrl)
 // 	svc := NewPlaceService(mockPlaceRepo, mockReviewRepo)
 
-// 	mockPlaceRepo.EXPECT().GetAll(gomock.Any(), repository.PlaceFilter{}).Return(nil, errors.New("db error"))
+// 	mockPlaceRepo.EXPECT().GetAll(gomock.Any()).Return(nil, errors.New("db error"))
 
-// 	places, err := svc.GetAll(context.Background(), PlaceFilter{})
+// 	places, err := svc.GetAll(context.Background())
 // 	assert.Error(t, err)
 // 	assert.Nil(t, places)
 // }
@@ -95,8 +94,8 @@ package service
 // 	svc := NewPlaceService(mockPlaceRepo, mockReviewRepo)
 
 // 	places := []models.Place{{ID: 1, Name: "Eiffel Tower"}}
-// 	mockPlaceRepo.EXPECT().Search(gomock.Any(), "eiffel", repository.PlaceFilter{}).Return(places, nil)
-// 	result, err := svc.Search(context.Background(), "eiffel", PlaceFilter{})
+// 	mockPlaceRepo.EXPECT().Search(gomock.Any(), "eiffel").Return(places, nil)
+// 	result, err := svc.Search(context.Background(), "eiffel")
 // 	assert.NoError(t, err)
 // 	assert.Len(t, result, 1)
 // }
@@ -108,8 +107,8 @@ package service
 // 	mockReviewRepo := mocks.NewMockReviewRepository(ctrl)
 // 	svc := NewPlaceService(mockPlaceRepo, mockReviewRepo)
 
-// 	mockPlaceRepo.EXPECT().Search(gomock.Any(), "eiffel", repository.PlaceFilter{}).Return(nil, errors.New("db error"))
-// 	_, err := svc.Search(context.Background(), "eiffel", PlaceFilter{})
+// 	mockPlaceRepo.EXPECT().Search(gomock.Any(), "eiffel").Return(nil, errors.New("db error"))
+// 	_, err := svc.Search(context.Background(), "eiffel")
 // 	assert.Error(t, err)
 // }
 
