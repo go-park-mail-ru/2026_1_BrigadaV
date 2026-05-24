@@ -33,6 +33,7 @@ func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	userIDVal := r.Context().Value("user_id")
 	userID, ok := userIDVal.(uint64)
 	if !ok {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
@@ -40,6 +41,7 @@ func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	user, err := h.profileService.GetProfile(r.Context(), userID)
 	if err != nil {
 		logger.Error(r.Context(), "GetProfile failed", logrus.Fields{"error": err, "user_id": userID})
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
 		return
@@ -62,6 +64,7 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	userIDVal := r.Context().Value("user_id")
 	userID, ok := userIDVal.(uint64)
 	if !ok {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
@@ -106,6 +109,7 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	userIDVal := r.Context().Value("user_id")
 	userID, ok := userIDVal.(uint64)
 	if !ok {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
@@ -213,6 +217,7 @@ func (h *ProfileHandler) GetAvatar(w http.ResponseWriter, r *http.Request) {
 	userIDVal := r.Context().Value("user_id")
 	userID, ok := userIDVal.(uint64)
 	if !ok {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
@@ -220,12 +225,14 @@ func (h *ProfileHandler) GetAvatar(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.profileService.GetProfile(r.Context(), userID)
 	if err != nil || user == nil {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
 		return
 	}
 
 	if user.AvatarURL == "" {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(map[string]string{"error": "avatar not set"})
 		return

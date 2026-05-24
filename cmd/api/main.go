@@ -47,7 +47,7 @@ func main() {
 		s3Client = nil
 	}
 	if s3Client == nil {
-		log.Println("S3 client is nil – avatar upload will not work")
+		log.Println("S3 client is nil – avatar will be stored locally")
 	}
 
 	// gRPC подключения
@@ -95,8 +95,28 @@ func main() {
 	tripHandler := handlers.NewTripHandler(tripService)
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
 	csrfHandler := handlers.NewCSRFHandler()
+	yandexHandler := handlers.NewYandexOAuthHandler(
+		cfg.YandexClientID,
+		cfg.YandexClientSecret,
+		cfg.YandexRedirectURL,
+		cfg.FrontendURL,
+		cfg.SecureCookies,
+		userRepo,
+		sessionRepo,
+	)
 
 	authMiddleware := middleware.NewAuthMiddleware(sessionRepo)
+
+	csrfMiddleware := csrf.Protect(
+		[]byte(cfg.CSRFSecret),
+		csrf.Secure(cfg.SecureCookies),
+		csrf.Path("/"),
+		csrf.ErrorHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte(`{"error":"csrf token invalid"}`))
+		})),
+	)
 
 	r := mux.NewRouter()
 	r.Use(logger.Middleware)
@@ -114,25 +134,31 @@ func main() {
 	public.HandleFunc("/categories", categoryHandler.List).Methods("GET", "OPTIONS")
 	public.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Get).Methods("GET", "OPTIONS")
 
+	// Yandex OAuth – публичные (callback редиректит браузер, CSRF здесь неприменим)
+	public.HandleFunc("/auth/yandex/login", yandexHandler.Login).Methods("GET", "OPTIONS")
+	public.HandleFunc("/auth/yandex/callback", yandexHandler.Callback).Methods("GET", "OPTIONS")
+
+	// Роуты только с авторизацией (без CSRF – используются из SPA через fetch без side-effect форм)
 	authOnly := r.PathPrefix("/api").Subrouter()
 	authOnly.Use(authMiddleware.Authenticate)
 
+	authOnly.HandleFunc("/logout", authHandler.Logout).Methods("POST", "OPTIONS")
 	authOnly.HandleFunc("/profile/avatar", profileHandler.GetAvatar).Methods("GET", "OPTIONS")
 	authOnly.HandleFunc("/profile/avatar", profileHandler.UploadAvatar).Methods("POST", "OPTIONS")
-	authOnly.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.AddPhoto).Methods("POST", "OPTIONS")
-	authOnly.HandleFunc("/logout", authHandler.Logout).Methods("POST", "OPTIONS")
 	authOnly.HandleFunc("/reviews", reviewHandler.Create).Methods("POST", "OPTIONS")
+	authOnly.HandleFunc("/reviews/{id:[0-9]+}", reviewHandler.Delete).Methods("DELETE", "OPTIONS")
 	authOnly.HandleFunc("/trips/{id:[0-9]+}/places", tripHandler.AddPlace).Methods("POST", "OPTIONS")
 	authOnly.HandleFunc("/places/{id:[0-9]+}/in-trip", placeHandler.CheckPlaceInTrip).Methods("GET", "OPTIONS")
+	authOnly.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.AddPhoto).Methods("POST", "OPTIONS")
+	authOnly.HandleFunc("/albums/{id:[0-9]+}/photos/{photoId:[0-9]+}", albumHandler.RemovePhoto).Methods("DELETE", "OPTIONS")
 
 	protected := r.PathPrefix("/api").Subrouter()
 	protected.Use(authMiddleware.Authenticate)
-	protected.Use(csrf.Protect([]byte(cfg.CSRFSecret), csrf.Secure(cfg.SecureCookies), csrf.Path("/")))
+	protected.Use(csrfMiddleware)
 
 	protected.HandleFunc("/user/me", authHandler.Me).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/profile", profileHandler.GetProfile).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/profile", profileHandler.UpdateProfile).Methods("PUT", "OPTIONS")
-	protected.HandleFunc("/reviews/{id:[0-9]+}", reviewHandler.Delete).Methods("DELETE", "OPTIONS")
 	protected.HandleFunc("/trips", tripHandler.List).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/trips", tripHandler.Create).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.GetDetails).Methods("GET", "OPTIONS")
@@ -141,7 +167,6 @@ func main() {
 	protected.HandleFunc("/trips/{id:[0-9]+}/places", tripHandler.GetTripPlaces).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/trips/{id:[0-9]+}/places/{placeId:[0-9]+}", tripHandler.RemovePlace).Methods("DELETE", "OPTIONS")
 	protected.HandleFunc("/trips/{tripID:[0-9]+}/album", albumHandler.GetByTrip).Methods("GET", "OPTIONS")
-	protected.HandleFunc("/albums/{id:[0-9]+}/photos/{photoId:[0-9]+}", albumHandler.RemovePhoto).Methods("DELETE", "OPTIONS")
 	protected.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.GetPhotos).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/categories", categoryHandler.Create).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Update).Methods("PUT", "OPTIONS")
@@ -150,10 +175,7 @@ func main() {
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 
-	handler := r
-
 	logger.Log.Info("Server started on :" + cfg.Port)
-	log.Fatal(http.ListenAndServe(":"+cfg.Port, handler))
 }
 
 func getEnv(key, fallback string) string {

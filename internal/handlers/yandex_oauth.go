@@ -17,26 +17,29 @@ import (
 )
 
 type YandexOAuthHandler struct {
-	clientID     string
-	clientSecret string
-	redirectURL  string
-	frontendURL  string
-	userRepo     repository.UserRepository
-	sessionRepo  repository.SessionRepository
+	clientID      string
+	clientSecret  string
+	redirectURL   string
+	frontendURL   string
+	secureCookies bool
+	userRepo      repository.UserRepository
+	sessionRepo   repository.SessionRepository
 }
 
 func NewYandexOAuthHandler(
 	clientID, clientSecret, redirectURL, frontendURL string,
+	secureCookies bool,
 	userRepo repository.UserRepository,
 	sessionRepo repository.SessionRepository,
 ) *YandexOAuthHandler {
 	return &YandexOAuthHandler{
-		clientID:     clientID,
-		clientSecret: clientSecret,
-		redirectURL:  redirectURL,
-		frontendURL:  frontendURL,
-		userRepo:     userRepo,
-		sessionRepo:  sessionRepo,
+		clientID:      clientID,
+		clientSecret:  clientSecret,
+		redirectURL:   redirectURL,
+		frontendURL:   frontendURL,
+		secureCookies: secureCookies,
+		userRepo:      userRepo,
+		sessionRepo:   sessionRepo,
 	}
 }
 
@@ -47,6 +50,7 @@ func (h *YandexOAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Value:    state,
 		MaxAge:   300,
 		HttpOnly: true,
+		Secure:   h.secureCookies,
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 	})
@@ -113,6 +117,7 @@ func (h *YandexOAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   7 * 24 * 60 * 60,
 		Expires:  time.Now().Add(7 * 24 * time.Hour),
 		HttpOnly: true,
+		Secure:   h.secureCookies,
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 	})
@@ -196,6 +201,11 @@ func (h *YandexOAuthHandler) findOrCreate(ctx context.Context, yi *yandexUserInf
 	login := yi.DefaultEmail
 	if login == "" {
 		login = yi.Login + "@yandex.ru"
+	}
+
+	// Проверяем, не занят ли login
+	if ex, _ := h.userRepo.GetByLogin(ctx, login); ex != nil {
+		login = yi.Login + "+" + yi.ID[:4] + "@yandex.ru"
 	}
 
 	yandexID := yi.ID
