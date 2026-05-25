@@ -329,13 +329,18 @@ func (s *tripService) AcceptInvite(ctx context.Context, token string, userID uin
 	if invite.IsOneTime && invite.UsedAt != nil {
 		return 0, "", errors.New("invite already used")
 	}
-	if err := s.memberRepo.AddMember(ctx, invite.TripID, userID, invite.Role); err != nil {
+	// Нормализуем роль: "companion" -> "editor" для trip_member (CHECK constraint)
+	memberRole := invite.Role
+	if memberRole == "companion" {
+		memberRole = "editor"
+	}
+	if err := s.memberRepo.AddMember(ctx, invite.TripID, userID, memberRole); err != nil {
 		return 0, "", err
 	}
 	if invite.IsOneTime {
 		_ = s.inviteRepo.MarkUsed(ctx, invite.ID)
 	}
-	return invite.TripID, invite.Role, nil
+	return invite.TripID, memberRole, nil
 }
 
 // GetTripMembers возвращает список участников (только владелец).
@@ -347,7 +352,16 @@ func (s *tripService) GetTripMembers(ctx context.Context, tripID, userID uint64)
 	if !owner {
 		return nil, errors.New("only owner can view members")
 	}
-	return s.memberRepo.GetTripMembers(ctx, tripID)
+	members, err := s.memberRepo.GetTripMembers(ctx, tripID)
+	if err != nil {
+		return nil, err
+	}
+	for i := range members {
+		if members[i].Role == "companion" {
+			members[i].Role = "editor"
+		}
+	}
+	return members, nil
 }
 
 // RemoveMember удаляет участника из поездки (только владелец).

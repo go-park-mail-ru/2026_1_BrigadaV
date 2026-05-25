@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 
 	"guidely-app/internal/dto"
@@ -22,6 +23,17 @@ type TripHandler struct {
 
 func NewTripHandler(tripService service.TripService) *TripHandler {
 	return &TripHandler{tripService: tripService}
+}
+
+// getFrontendURL возвращает базовый URL фронтенда для редиректов
+func getFrontendURL() string {
+	if base := os.Getenv("SHARE_BASE_URL"); base != "" {
+		return base
+	}
+	if front := os.Getenv("FRONTEND_URL"); front != "" {
+		return front
+	}
+	return "http://localhost:3000"
 }
 
 // List возвращает все поездки, где пользователь является участником, с его ролью
@@ -362,9 +374,11 @@ func (h *TripHandler) AcceptInviteRedirect(w http.ResponseWriter, r *http.Reques
 	vars := mux.Vars(r)
 	token := vars["token"]
 	userID := middleware.GetUserIDFromContext(r)
+	frontendURL := getFrontendURL()
+
 	if userID == 0 {
-		// Сохраняем токен в сессию или параметр редиректа
-		http.Redirect(w, r, "/login?redirect=/share/edit/"+token, http.StatusFound)
+		redirectURL := fmt.Sprintf("%s/login?redirect=/share/edit/%s", frontendURL, token)
+		http.Redirect(w, r, redirectURL, http.StatusFound)
 		return
 	}
 	tripID, role, err := h.tripService.AcceptInvite(r.Context(), token, userID)
@@ -373,7 +387,7 @@ func (h *TripHandler) AcceptInviteRedirect(w http.ResponseWriter, r *http.Reques
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	redirectURL := fmt.Sprintf("/trips/%d?role=%s", tripID, role)
+	redirectURL := fmt.Sprintf("%s/trips/%d?role=%s", frontendURL, tripID, role)
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
@@ -446,17 +460,7 @@ func (h *TripHandler) ViewSharedTrip(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid share link", http.StatusNotFound)
 		return
 	}
-	_, places, err := h.tripService.GetTripDetails(r.Context(), trip.ID)
-	if err != nil {
-		logger.Error(r.Context(), "Failed to get attractions for shared trip", logrus.Fields{"error": err})
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	response := map[string]interface{}{
-		"trip":        trip,
-		"attractions": places,
-		"role":        role,
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	frontendURL := getFrontendURL()
+	redirectURL := fmt.Sprintf("%s/trips/%d?token=%s&role=%s", frontendURL, trip.ID, token, role)
+	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
