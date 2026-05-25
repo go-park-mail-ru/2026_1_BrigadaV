@@ -19,13 +19,27 @@ type SessionRepository interface {
 	DeleteByToken(ctx context.Context, token string) error
 }
 
+type PlaceFilter struct {
+	CategoryIDs []uint64
+	MinRating   float64
+	MinReviews  int
+}
+
 type PlaceRepository interface {
-	GetAll(ctx context.Context) ([]models.Place, error)
+	GetAll(ctx context.Context, filter PlaceFilter) ([]models.Place, error)
 	GetByID(ctx context.Context, id uint64) (*models.Place, error)
+	GetByIDs(ctx context.Context, ids []uint64) ([]models.Place, error)
 	GetWithRatingAndLike(ctx context.Context, placeID, userID uint64) (*models.PlaceWithRating, error)
 	IsPlaceInTrip(ctx context.Context, placeID, tripID uint64) (bool, error)
-	Search(ctx context.Context, query string) ([]models.Place, error)
+	Search(ctx context.Context, query string, filter PlaceFilter) ([]models.Place, error)
 	GetByCategory(ctx context.Context, categoryID uint64) ([]models.Place, error)
+	FilterByReviewsAndRating(ctx context.Context, filter PlaceFilter) ([]models.Place, error)
+}
+
+// PlaceSearchRepository — интерфейс для полнотекстового поиска (ElasticSearch).
+// Позволяет подменить реализацию в тестах или откатиться на SQL при недоступности ES.
+type PlaceSearchRepository interface {
+	Search(ctx context.Context, query string) ([]models.Place, error)
 }
 
 type TripRepository interface {
@@ -54,4 +68,9 @@ type ReviewRepository interface {
 	GetByID(ctx context.Context, id uint64) (*models.Review, error)
 	GetByPlaceIDWithAuthor(ctx context.Context, placeID uint64) ([]models.ReviewWithAuthor, error)
 	Delete(ctx context.Context, id uint64) error
+}
+
+type CountryRepository interface {
+	GetAll(ctx context.Context) ([]models.Country, error)
+	GetLocalitiesByCountryID(ctx context.Context, countryID uint64) ([]models.Locality, error)
 }

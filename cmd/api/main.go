@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	_ "guidely-app/docs"
 	authrepo "guidely-app/internal/auth/repository"
@@ -15,6 +18,8 @@ import (
 	"guidely-app/pkg/config"
 	"guidely-app/pkg/db"
 	"guidely-app/pkg/storage"
+	"guidely-app/pkg/elasticsearch"
+	"guidely-app/pkg/metrics"
 
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
@@ -76,14 +81,36 @@ func main() {
 	placeRepo := repository.NewPlaceRepo(dbAdapter)
 	tripRepo := repository.NewTripRepo(dbAdapter)
 	categoryRepo := repository.NewCategoryRepo(dbAdapter)
+	countryRepo := repository.NewCountryRepo(dbAdapter)
 	reviewRepo := repository.NewReviewRepo(dbAdapter)
 	userRepo := authrepo.NewUserRepo(authAdapter)
 	sessionRepo := authrepo.NewSessionRepo(authAdapter)
 
-	// Сервисы
-	placeService := service.NewPlaceService(placeRepo, reviewRepo)
+	// --- ElasticSearch ---
+	esClient := elasticsearch.NewClient(cfg.ElasticSearchURL)
+	placeIndexer := elasticsearch.NewPlaceIndexer(esClient)
+
+	go func() {
+		if err := waitForElastic(context.Background(), esClient, 30, 5*time.Second); err != nil {
+			log.Printf("warning: elasticsearch not ready: %v", err)
+			return
+		}
+		if err := placeIndexer.EnsureIndex(context.Background()); err != nil {
+			log.Printf("warning: failed to ensure elasticsearch index: %v", err)
+			return
+		}
+		if err := indexAllPlaces(context.Background(), placeRepo, placeIndexer); err != nil {
+			log.Printf("warning: failed to index places on startup: %v", err)
+		}
+	}()
+
+	elasticSearcher := repository.NewElasticPlaceSearcher(esClient, placeRepo)
+	// ---------------------
+
+	placeService := service.NewPlaceService(placeRepo, reviewRepo, elasticSearcher)
 	tripService := service.NewTripService(tripRepo)
 	categoryService := service.NewCategoryService(categoryRepo)
+	countryService := service.NewCountryService(countryRepo)
 	profileService := service.NewProfileService(userRepo)
 
 	// Handlers
@@ -94,6 +121,7 @@ func main() {
 	profileHandler := handlers.NewProfileHandler(profileService, s3Client)
 	tripHandler := handlers.NewTripHandler(tripService)
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
+	countryHandler := handlers.NewCountryHandler(countryService)
 	csrfHandler := handlers.NewCSRFHandler()
 	yandexHandler := handlers.NewYandexOAuthHandler(
 		cfg.YandexClientID,
@@ -119,66 +147,84 @@ func main() {
 		})),
 	)
 
-	r := mux.NewRouter()
-	r.Use(logger.Middleware)
-	r.Use(middleware.CORS(cfg.AllowedOrigins...))
+// ... после создания всех хендлеров
 
-	// Публичные роуты (без авторизации и CSRF)
-	public := r.PathPrefix("/api").Subrouter()
-	public.HandleFunc("/register", authHandler.Register).Methods("POST", "OPTIONS")
-	public.HandleFunc("/login", authHandler.Login).Methods("POST", "OPTIONS")
+r := mux.NewRouter()
+r.Use(logger.Middleware)
+r.Use(middleware.CORS(cfg.AllowedOrigins...))
+r.Use(metrics.HTTPMetricsMiddleware) // если используется в dev
 
+// Публичные эндпоинты (без авторизации и CSRF)
+public := r.PathPrefix("/api").Subrouter()
+public.HandleFunc("/register", authHandler.Register).Methods("POST", "OPTIONS")
+public.HandleFunc("/login", authHandler.Login).Methods("POST", "OPTIONS")
+public.HandleFunc("/places", placeHandler.List).Methods("GET", "OPTIONS")
+public.HandleFunc("/places/search", placeHandler.Search).Methods("GET", "OPTIONS")
+public.HandleFunc("/places/filter", placeHandler.FilterByReviewsAndRating).Methods("GET", "OPTIONS") // из dev
+public.HandleFunc("/places/{id:[0-9]+}", placeHandler.GetDetails).Methods("GET", "OPTIONS")
+public.HandleFunc("/places/{id:[0-9]+}/reviews", placeHandler.GetReviews).Methods("GET", "OPTIONS")
+public.HandleFunc("/categories", categoryHandler.List).Methods("GET", "OPTIONS")
+public.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Get).Methods("GET", "OPTIONS")
+public.HandleFunc("/countries", countryHandler.List).Methods("GET", "OPTIONS")
+public.HandleFunc("/countries/{id:[0-9]+}/localities", countryHandler.GetWithLocalities).Methods("GET", "OPTIONS")
+public.HandleFunc("/share/view/{token}", tripHandler.ViewSharedTrip).Methods("GET")
+public.HandleFunc("/share/edit/{token}", tripHandler.AcceptInviteRedirect).Methods("GET")
 
-	public.HandleFunc("/places", placeHandler.List).Methods("GET", "OPTIONS")
-	public.HandleFunc("/places/search", placeHandler.Search).Methods("GET", "OPTIONS")
-	public.HandleFunc("/places/{id:[0-9]+}", placeHandler.GetDetails).Methods("GET", "OPTIONS")
-	public.HandleFunc("/places/{id:[0-9]+}/reviews", placeHandler.GetReviews).Methods("GET", "OPTIONS")
-	public.HandleFunc("/categories", categoryHandler.List).Methods("GET", "OPTIONS")
-	public.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Get).Methods("GET", "OPTIONS")
+// Yandex OAuth
+public.HandleFunc("/auth/yandex/login", yandexHandler.Login).Methods("GET", "OPTIONS")
+public.HandleFunc("/auth/yandex/callback", yandexHandler.Callback).Methods("GET", "OPTIONS")
 
-	// Yandex OAuth – публичные (callback редиректит браузер, CSRF здесь неприменим)
-	public.HandleFunc("/auth/yandex/login", yandexHandler.Login).Methods("GET", "OPTIONS")
-	public.HandleFunc("/auth/yandex/callback", yandexHandler.Callback).Methods("GET", "OPTIONS")
+// Только авторизация (без CSRF)
+authOnly := r.PathPrefix("/api").Subrouter()
+authOnly.Use(authMiddleware.Authenticate)
 
-	// Роуты только с авторизацией (без CSRF – используются из SPA через fetch без side-effect форм)
-	authOnly := r.PathPrefix("/api").Subrouter()
-	authOnly.Use(authMiddleware.Authenticate)
+authOnly.HandleFunc("/logout", authHandler.Logout).Methods("POST", "OPTIONS")
+authOnly.HandleFunc("/profile/avatar", profileHandler.GetAvatar).Methods("GET", "OPTIONS")
+authOnly.HandleFunc("/profile/avatar", profileHandler.UploadAvatar).Methods("POST", "OPTIONS")
+authOnly.HandleFunc("/reviews", reviewHandler.Create).Methods("POST", "OPTIONS")
+authOnly.HandleFunc("/reviews/{id:[0-9]+}", reviewHandler.Delete).Methods("DELETE", "OPTIONS")
+authOnly.HandleFunc("/trips/{id:[0-9]+}/places", tripHandler.AddPlace).Methods("POST", "OPTIONS")
+authOnly.HandleFunc("/places/{id:[0-9]+}/in-trip", placeHandler.CheckPlaceInTrip).Methods("GET", "OPTIONS")
+authOnly.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.AddPhoto).Methods("POST", "OPTIONS")
+authOnly.HandleFunc("/albums/{id:[0-9]+}/photos/{photoId:[0-9]+}", albumHandler.RemovePhoto).Methods("DELETE", "OPTIONS")
+authOnly.HandleFunc("/trips", tripHandler.Create).Methods("POST", "OPTIONS")
+authOnly.HandleFunc("/profile", profileHandler.UpdateProfile).Methods("PUT", "OPTIONS")
 
-	authOnly.HandleFunc("/logout", authHandler.Logout).Methods("POST", "OPTIONS")
-	authOnly.HandleFunc("/profile/avatar", profileHandler.GetAvatar).Methods("GET", "OPTIONS")
-	authOnly.HandleFunc("/profile/avatar", profileHandler.UploadAvatar).Methods("POST", "OPTIONS")
-	authOnly.HandleFunc("/reviews", reviewHandler.Create).Methods("POST", "OPTIONS")
-	authOnly.HandleFunc("/reviews/{id:[0-9]+}", reviewHandler.Delete).Methods("DELETE", "OPTIONS")
-	authOnly.HandleFunc("/trips/{id:[0-9]+}/places", tripHandler.AddPlace).Methods("POST", "OPTIONS")
-	authOnly.HandleFunc("/places/{id:[0-9]+}/in-trip", placeHandler.CheckPlaceInTrip).Methods("GET", "OPTIONS")
-	authOnly.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.AddPhoto).Methods("POST", "OPTIONS")
-	authOnly.HandleFunc("/albums/{id:[0-9]+}/photos/{photoId:[0-9]+}", albumHandler.RemovePhoto).Methods("DELETE", "OPTIONS")
+// Шеринг
+authOnly.HandleFunc("/trips/{id:[0-9]+}/share/view", tripHandler.CreateViewShareLink).Methods("POST", "OPTIONS")
+authOnly.HandleFunc("/trips/{id:[0-9]+}/share/edit", tripHandler.CreateEditShareLink).Methods("POST", "OPTIONS")
+authOnly.HandleFunc("/trips/{id:[0-9]+}/members", tripHandler.GetTripMembers).Methods("GET", "OPTIONS")
+authOnly.HandleFunc("/trips/{id:[0-9]+}/members/{member_id:[0-9]+}", tripHandler.RemoveMember).Methods("DELETE", "OPTIONS")
 
-	// Суброутер только с CSRF middleware (без авторизации) — для получения токена
-	csrfOnly := r.PathPrefix("/api").Subrouter()
-	csrfOnly.Use(csrfMiddleware)
-	csrfOnly.HandleFunc("/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
+// Только CSRF (без авторизации)
+csrfOnly := r.PathPrefix("/api").Subrouter()
+csrfOnly.Use(csrfMiddleware)
+csrfOnly.HandleFunc("/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
 
-	// Роуты с авторизацией + CSRF
-	protected := r.PathPrefix("/api").Subrouter()
-	protected.Use(authMiddleware.Authenticate)
-	protected.Use(csrfMiddleware)
+// Авторизация + CSRF
+protected := r.PathPrefix("/api").Subrouter()
+protected.Use(authMiddleware.Authenticate)
+protected.Use(csrfMiddleware)
 
-	protected.HandleFunc("/user/me", authHandler.Me).Methods("GET", "OPTIONS")
-	protected.HandleFunc("/profile", profileHandler.GetProfile).Methods("GET", "OPTIONS")
-	protected.HandleFunc("/profile", profileHandler.UpdateProfile).Methods("PUT", "OPTIONS")
-	protected.HandleFunc("/trips", tripHandler.List).Methods("GET", "OPTIONS")
-	protected.HandleFunc("/trips", tripHandler.Create).Methods("POST", "OPTIONS")
-	protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.GetDetails).Methods("GET", "OPTIONS")
-	protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.Update).Methods("PUT", "OPTIONS")
-	protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.Delete).Methods("DELETE", "OPTIONS")
-	protected.HandleFunc("/trips/{id:[0-9]+}/places", tripHandler.GetTripPlaces).Methods("GET", "OPTIONS")
-	protected.HandleFunc("/trips/{id:[0-9]+}/places/{placeId:[0-9]+}", tripHandler.RemovePlace).Methods("DELETE", "OPTIONS")
-	protected.HandleFunc("/trips/{tripID:[0-9]+}/album", albumHandler.GetByTrip).Methods("GET", "OPTIONS")
-	protected.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.GetPhotos).Methods("GET", "OPTIONS")
-	protected.HandleFunc("/categories", categoryHandler.Create).Methods("POST", "OPTIONS")
-	protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Update).Methods("PUT", "OPTIONS")
-	protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Delete).Methods("DELETE", "OPTIONS")
+protected.HandleFunc("/user/me", authHandler.Me).Methods("GET", "OPTIONS")
+protected.HandleFunc("/profile", profileHandler.GetProfile).Methods("GET", "OPTIONS")
+protected.HandleFunc("/trips", tripHandler.List).Methods("GET", "OPTIONS")
+protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.GetDetails).Methods("GET", "OPTIONS")
+protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.Update).Methods("PUT", "OPTIONS")
+protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.Delete).Methods("DELETE", "OPTIONS")
+protected.HandleFunc("/trips/{id:[0-9]+}/places", tripHandler.GetTripPlaces).Methods("GET", "OPTIONS")
+protected.HandleFunc("/trips/{id:[0-9]+}/places/{placeId:[0-9]+}", tripHandler.RemovePlace).Methods("DELETE", "OPTIONS")
+protected.HandleFunc("/trips/{tripID:[0-9]+}/album", albumHandler.GetByTrip).Methods("GET", "OPTIONS")
+protected.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.GetPhotos).Methods("GET", "OPTIONS")
+protected.HandleFunc("/albums/{id:[0-9]+}/photos/{photoId:[0-9]+}", albumHandler.RemovePhoto).Methods("DELETE", "OPTIONS")
+protected.HandleFunc("/categories", categoryHandler.Create).Methods("POST", "OPTIONS")
+protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Update).Methods("PUT", "OPTIONS")
+protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Delete).Methods("DELETE", "OPTIONS")
+protected.HandleFunc("/trips/{id:[0-9]+}/export/pdf", tripHandler.ExportTripToPDF).Methods("GET", "OPTIONS")
+
+// Статика и Swagger
+r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
+r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
@@ -187,9 +233,39 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, r))
 }
 
+func indexAllPlaces(ctx context.Context, repo repository.PlaceRepository, indexer *elasticsearch.PlaceIndexer) error {
+	places, err := repo.GetAll(ctx, repository.PlaceFilter{})
+	if err != nil {
+		return err
+	}
+	for _, p := range places {
+		if err := indexer.IndexPlace(ctx, p); err != nil {
+			log.Printf("warning: failed to index place %d: %v", p.ID, err)
+		}
+	}
+	log.Printf("indexed %d places in elasticsearch", len(places))
+	return nil
+}
+
 func getEnv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
 	}
 	return fallback
+}
+
+func waitForElastic(ctx context.Context, client *elasticsearch.Client, attempts int, delay time.Duration) error {
+	for i := 0; i < attempts; i++ {
+		_, status, err := client.HealthCheck(ctx)
+		if err == nil && status < 400 {
+			return nil
+		}
+		log.Printf("elasticsearch not ready (attempt %d/%d), retrying in %s...", i+1, attempts, delay)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(delay):
+		}
+	}
+	return fmt.Errorf("elasticsearch not ready after %d attempts", attempts)
 }
