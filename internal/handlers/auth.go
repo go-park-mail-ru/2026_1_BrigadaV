@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"guidely-app/internal/logger"
+	"guidely-app/pkg/config"
 	pb "guidely-app/pkg/pb/auth"
 
 	"github.com/gorilla/csrf"
@@ -16,10 +17,11 @@ import (
 
 type AuthHandler struct {
 	client pb.AuthServiceClient
+	cfg    *config.Config
 }
 
-func NewAuthHandler(client pb.AuthServiceClient) *AuthHandler {
-	return &AuthHandler{client: client}
+func NewAuthHandler(client pb.AuthServiceClient, cfg *config.Config) *AuthHandler {
+	return &AuthHandler{client: client, cfg: cfg}
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
@@ -71,7 +73,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   7 * 24 * 60 * 60,
 		Expires:  time.Now().Add(7 * 24 * time.Hour),
 		HttpOnly: true,
-		Secure:   false,
+		Secure:   h.cfg.SecureCookies,
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 	})
@@ -122,7 +124,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   7 * 24 * 60 * 60,
 		Expires:  time.Now().Add(7 * 24 * time.Hour),
 		HttpOnly: true,
-		Secure:   false,
+		Secure:   h.cfg.SecureCookies,
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 	})
@@ -157,6 +159,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
+		Secure:   h.cfg.SecureCookies,
 		SameSite: http.SameSiteLaxMode,
 	})
 	w.WriteHeader(http.StatusNoContent)
