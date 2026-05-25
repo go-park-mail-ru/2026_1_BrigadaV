@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"guidely-app/internal/dto"
 	"guidely-app/internal/logger"
@@ -27,13 +28,26 @@ func NewTripHandler(tripService service.TripService) *TripHandler {
 
 // getFrontendURL возвращает базовый URL фронтенда для редиректов
 func getFrontendURL() string {
-	if base := os.Getenv("SHARE_BASE_URL"); base != "" {
-		return base
+	base := os.Getenv("SHARE_BASE_URL")
+	if base == "" {
+		base = os.Getenv("FRONTEND_URL")
 	}
-	if front := os.Getenv("FRONTEND_URL"); front != "" {
-		return front
+	if base == "" {
+		return "https://localhost:3000"
 	}
-	return "http://localhost:3000"
+
+	// Принудительное переключение на https
+	if os.Getenv("FORCE_HTTPS") == "true" && strings.HasPrefix(base, "http://") {
+		base = "https://" + strings.TrimPrefix(base, "http://")
+	}
+	// Если домен не localhost, тоже меняем http на https
+	if strings.HasPrefix(base, "https://") {
+		host := strings.TrimPrefix(base, "https://")
+		if !strings.Contains(host, "localhost") && !strings.Contains(host, "127.0.0.1") {
+			base = "https://" + host
+		}
+	}
+	return base
 }
 
 // List возвращает все поездки, где пользователь является участником, с его ролью
