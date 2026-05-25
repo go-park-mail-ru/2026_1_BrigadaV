@@ -144,6 +144,7 @@ func main() {
 	authOnly.HandleFunc("/trips/{id:[0-9]+}/members", tripHandler.GetTripMembers).Methods("GET", "OPTIONS")
 	authOnly.HandleFunc("/trips/{id:[0-9]+}/members/{member_id:[0-9]+}", tripHandler.RemoveMember).Methods("DELETE", "OPTIONS")
 	authOnly.HandleFunc("/trips", tripHandler.Create).Methods("POST", "OPTIONS")
+	authOnly.HandleFunc("/profile", profileHandler.UpdateProfile).Methods("PUT", "OPTIONS")
 
 	// Защищённые с CSRF
 	protected := r.PathPrefix("/api").Subrouter()
@@ -152,7 +153,6 @@ func main() {
 
 	protected.HandleFunc("/user/me", authHandler.Me).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/profile", profileHandler.GetProfile).Methods("GET", "OPTIONS")
-	protected.HandleFunc("/profile", profileHandler.UpdateProfile).Methods("PUT", "OPTIONS")
 	protected.HandleFunc("/trips", tripHandler.List).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.GetDetails).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.Update).Methods("PUT", "OPTIONS")
