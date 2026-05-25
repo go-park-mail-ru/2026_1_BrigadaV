@@ -309,8 +309,6 @@ func (h *TripHandler) RemovePlace(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// ----- Методы шеринга -----
-
 // CreateViewShareLink – постоянная ссылка для просмотра
 func (h *TripHandler) CreateViewShareLink(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)

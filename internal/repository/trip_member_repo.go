@@ -44,7 +44,7 @@ func (r *tripMemberRepo) GetMemberRole(ctx context.Context, tripID, userID uint6
 	var role string
 	err := r.db.QueryRow(ctx, query, tripID, userID).Scan(&role)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", nil // нет роли -> не участник
+		return "", nil
 	}
 	if err != nil {
 		logger.Error(ctx, "failed to get member role", logrus.Fields{"error": err})
@@ -76,7 +76,7 @@ func (r *tripMemberRepo) HasEditPermission(ctx context.Context, tripID, userID u
 	if err != nil {
 		return false, err
 	}
-	return role == "owner" || role == "editor", nil
+	return role == "owner" || role == "companion", nil
 }
 
 func (r *tripMemberRepo) HasViewPermission(ctx context.Context, tripID, userID uint64) (bool, error) {
@@ -84,5 +84,5 @@ func (r *tripMemberRepo) HasViewPermission(ctx context.Context, tripID, userID u
 	if err != nil {
 		return false, err
 	}
-	return role != "", nil // любой участник имеет право просмотра
+	return role != "", nil
 }
