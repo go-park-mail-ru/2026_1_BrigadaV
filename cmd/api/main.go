@@ -147,6 +147,9 @@ func main() {
 	authOnly.HandleFunc("/trips/{id:[0-9]+}/members", tripHandler.GetTripMembers).Methods("GET", "OPTIONS")
 	authOnly.HandleFunc("/trips/{id:[0-9]+}/members/{member_id:[0-9]+}", tripHandler.RemoveMember).Methods("DELETE", "OPTIONS")
 
+	// ===== СОЗДАНИЕ ПОЕЗДКИ – ПЕРЕМЕЩЕНО В authOnly =====
+	authOnly.HandleFunc("/trips", tripHandler.Create).Methods("POST", "OPTIONS")
+
 	// ==================== ЗАЩИЩЁННЫЕ ЭНДПОИНТЫ (авторизация + CSRF) ====================
 	protected := r.PathPrefix("/api").Subrouter()
 	protected.Use(authMiddleware.Authenticate)
@@ -156,7 +159,6 @@ func main() {
 	protected.HandleFunc("/profile", profileHandler.GetProfile).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/profile", profileHandler.UpdateProfile).Methods("PUT", "OPTIONS")
 	protected.HandleFunc("/trips", tripHandler.List).Methods("GET", "OPTIONS")
-	protected.HandleFunc("/trips", tripHandler.Create).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.GetDetails).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.Update).Methods("PUT", "OPTIONS")
 	protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.Delete).Methods("DELETE", "OPTIONS")
