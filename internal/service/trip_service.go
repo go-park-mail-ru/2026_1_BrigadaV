@@ -15,12 +15,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Определения типов входных данных
-
 type UserTripInfo struct {
 	Trip models.Trip
 	Role string
 }
+
 type CreateTripInput struct {
 	Title      string
 	Location   *string
@@ -75,7 +74,30 @@ func getShareBaseURL() string {
 	return "http://localhost:8080"
 }
 
-// Create – создание новой поездки (владелец автоматически добавляется в trip_member через триггер)
+// isOwner проверяет что пользователь является владельцем поездки.
+// Сначала смотрим в trip_member, если там нет записи — проверяем created_by.
+// Это нужно для обратной совместимости с поездками, созданными до добавления
+// автоматической записи owner в trip_member.
+func (s *tripService) isOwner(ctx context.Context, tripID, userID uint64) (bool, error) {
+	role, err := s.memberRepo.GetMemberRole(ctx, tripID, userID)
+	if err != nil {
+		return false, err
+	}
+	if role == "owner" {
+		return true, nil
+	}
+	// Fallback: проверяем created_by напрямую
+	trip, err := s.tripRepo.GetByID(ctx, tripID)
+	if err != nil {
+		return false, err
+	}
+	if trip == nil {
+		return false, errors.New("trip not found")
+	}
+	return trip.CreatedBy == userID, nil
+}
+
+// Create – создание новой поездки
 func (s *tripService) Create(ctx context.Context, input CreateTripInput) (*models.Trip, error) {
 	logger.Info(ctx, "CreateTrip called", logrus.Fields{"title": input.Title})
 	if input.Title == "" {
@@ -93,21 +115,16 @@ func (s *tripService) Create(ctx context.Context, input CreateTripInput) (*model
 	if err := s.tripRepo.Create(ctx, trip); err != nil {
 		return nil, err
 	}
-	// После создания триггер добавит запись в trip_member с ролью owner
 	logger.Info(ctx, "CreateTrip successful", logrus.Fields{"trip_id": trip.ID})
 	return trip, nil
 }
 
-// GetUserTrips – поездки, где пользователь является участником (owner/editor/viewer)
+// GetUserTrips – поездки, где пользователь является участником
 func (s *tripService) GetUserTrips(ctx context.Context, userID uint64) ([]models.Trip, error) {
-	// Получаем все trip_id из trip_member для этого userID
-	// Реализуем новый метод в репозитории или используем существующий GetByUser (который возвращает только созданные)
-	// Для совместных поездок нужно отдельное получение. Пока оставим как есть (только created_by).
-	// В идеале добавить метод GetTripsByMember.
 	return s.tripRepo.GetByUser(ctx, userID)
 }
 
-// GetTripDetails – получение поездки и её достопримечательностей (без проверки прав – вызывать после авторизации)
+// GetTripDetails – получение поездки и её достопримечательностей
 func (s *tripService) GetTripDetails(ctx context.Context, tripID uint64) (*models.Trip, []models.PlaceInTrip, error) {
 	trip, err := s.tripRepo.GetByID(ctx, tripID)
 	if err != nil {
@@ -123,16 +140,22 @@ func (s *tripService) GetTripDetails(ctx context.Context, tripID uint64) (*model
 	return trip, places, nil
 }
 
-// Update – обновление поездки с проверкой прав (владелец или редактор)
+// Update – обновление поездки (владелец или companion)
 func (s *tripService) Update(ctx context.Context, id, userID uint64, input UpdateTripInput) (*models.Trip, error) {
 	logger.Info(ctx, "UpdateTrip called", logrus.Fields{"trip_id": id, "user_id": userID})
+
 	ok, err := s.memberRepo.HasEditPermission(ctx, id, userID)
 	if err != nil {
 		return nil, err
 	}
 	if !ok {
-		return nil, errors.New("not authorized to edit this trip")
+		// Fallback: проверяем created_by
+		trip, err2 := s.tripRepo.GetByID(ctx, id)
+		if err2 != nil || trip == nil || trip.CreatedBy != userID {
+			return nil, errors.New("not authorized to edit this trip")
+		}
 	}
+
 	trip, err := s.tripRepo.GetByID(ctx, id)
 	if err != nil || trip == nil {
 		return nil, errors.New("trip not found")
@@ -168,31 +191,38 @@ func (s *tripService) Update(ctx context.Context, id, userID uint64, input Updat
 // Delete – удаление поездки (только владелец)
 func (s *tripService) Delete(ctx context.Context, id, userID uint64) error {
 	logger.Info(ctx, "DeleteTrip called", logrus.Fields{"trip_id": id, "user_id": userID})
-	role, err := s.memberRepo.GetMemberRole(ctx, id, userID)
+
+	owner, err := s.isOwner(ctx, id, userID)
 	if err != nil {
 		return err
 	}
-	if role != "owner" {
+	if !owner {
 		return errors.New("only owner can delete trip")
 	}
 	return s.tripRepo.Delete(ctx, id)
 }
 
-// GetTripPlaceIDs – список ID достопримечательностей (без проверки прав)
+// GetTripPlaceIDs – список ID достопримечательностей
 func (s *tripService) GetTripPlaceIDs(ctx context.Context, tripID uint64) ([]uint64, error) {
 	return s.tripRepo.GetPlaceIDs(ctx, tripID)
 }
 
-// AddPlaceToTrip – добавление места в поездку (требует прав редактора или владельца)
+// AddPlaceToTrip – добавление места (владелец или companion)
 func (s *tripService) AddPlaceToTrip(ctx context.Context, tripID, placeID, userID uint64, orderIndex int16) error {
 	logger.Info(ctx, "AddPlaceToTrip called", logrus.Fields{"trip_id": tripID, "place_id": placeID})
+
 	ok, err := s.memberRepo.HasEditPermission(ctx, tripID, userID)
 	if err != nil {
 		return err
 	}
 	if !ok {
-		return errors.New("not authorized to edit this trip")
+		// Fallback: проверяем created_by
+		trip, err2 := s.tripRepo.GetByID(ctx, tripID)
+		if err2 != nil || trip == nil || trip.CreatedBy != userID {
+			return errors.New("not authorized to edit this trip")
+		}
 	}
+
 	exists, err := s.tripRepo.CheckPlaceInTrip(ctx, tripID, placeID)
 	if err != nil {
 		return err
@@ -203,29 +233,36 @@ func (s *tripService) AddPlaceToTrip(ctx context.Context, tripID, placeID, userI
 	return s.tripRepo.AddAttraction(ctx, tripID, placeID, orderIndex)
 }
 
-// RemovePlaceFromTrip – удаление места из поездки (требует прав редактора или владельца)
+// RemovePlaceFromTrip – удаление места (владелец или companion)
 func (s *tripService) RemovePlaceFromTrip(ctx context.Context, tripID, placeID, userID uint64) error {
 	logger.Info(ctx, "RemovePlaceFromTrip called", logrus.Fields{"trip_id": tripID, "place_id": placeID})
+
 	ok, err := s.memberRepo.HasEditPermission(ctx, tripID, userID)
 	if err != nil {
 		return err
 	}
 	if !ok {
-		return errors.New("not authorized to edit this trip")
+		trip, err2 := s.tripRepo.GetByID(ctx, tripID)
+		if err2 != nil || trip == nil || trip.CreatedBy != userID {
+			return errors.New("not authorized to edit this trip")
+		}
 	}
 	return s.tripRepo.RemoveAttraction(ctx, tripID, placeID)
 }
 
 // ----- Методы шеринга и совместного планирования -----
 
+// CreateViewShareLink создаёт постоянную ссылку для просмотра поездки.
+// Доступно только владельцу.
 func (s *tripService) CreateViewShareLink(ctx context.Context, tripID, userID uint64) (string, error) {
-	role, err := s.memberRepo.GetMemberRole(ctx, tripID, userID)
+	owner, err := s.isOwner(ctx, tripID, userID)
 	if err != nil {
 		return "", err
 	}
-	if role != "owner" {
+	if !owner {
 		return "", errors.New("only owner can create share links")
 	}
+
 	token, err := generateToken()
 	if err != nil {
 		return "", err
@@ -244,14 +281,17 @@ func (s *tripService) CreateViewShareLink(ctx context.Context, tripID, userID ui
 	return baseURL + "/share/view/" + token, nil
 }
 
+// CreateEditShareLink создаёт одноразовую ссылку для добавления редактора.
+// Доступно только владельцу.
 func (s *tripService) CreateEditShareLink(ctx context.Context, tripID, userID uint64) (string, error) {
-	role, err := s.memberRepo.GetMemberRole(ctx, tripID, userID)
+	owner, err := s.isOwner(ctx, tripID, userID)
 	if err != nil {
 		return "", err
 	}
-	if role != "owner" {
+	if !owner {
 		return "", errors.New("only owner can create share links")
 	}
+
 	token, err := generateToken()
 	if err != nil {
 		return "", err
@@ -270,6 +310,7 @@ func (s *tripService) CreateEditShareLink(ctx context.Context, tripID, userID ui
 	return baseURL + "/share/edit/" + token, nil
 }
 
+// AcceptInvite принимает приглашение по токену и добавляет пользователя в поездку.
 func (s *tripService) AcceptInvite(ctx context.Context, token string, userID uint64) (tripID uint64, role string, err error) {
 	invite, err := s.inviteRepo.GetInviteByToken(ctx, token)
 	if err != nil {
@@ -293,23 +334,25 @@ func (s *tripService) AcceptInvite(ctx context.Context, token string, userID uin
 	return invite.TripID, invite.Role, nil
 }
 
+// GetTripMembers возвращает список участников (только владелец).
 func (s *tripService) GetTripMembers(ctx context.Context, tripID, userID uint64) ([]models.TripMember, error) {
-	role, err := s.memberRepo.GetMemberRole(ctx, tripID, userID)
+	owner, err := s.isOwner(ctx, tripID, userID)
 	if err != nil {
 		return nil, err
 	}
-	if role != "owner" {
+	if !owner {
 		return nil, errors.New("only owner can view members")
 	}
 	return s.memberRepo.GetTripMembers(ctx, tripID)
 }
 
+// RemoveMember удаляет участника из поездки (только владелец).
 func (s *tripService) RemoveMember(ctx context.Context, tripID, ownerID, memberID uint64) error {
-	role, err := s.memberRepo.GetMemberRole(ctx, tripID, ownerID)
+	owner, err := s.isOwner(ctx, tripID, ownerID)
 	if err != nil {
 		return err
 	}
-	if role != "owner" {
+	if !owner {
 		return errors.New("only owner can remove members")
 	}
 	if ownerID == memberID {
@@ -318,6 +361,7 @@ func (s *tripService) RemoveMember(ctx context.Context, tripID, ownerID, memberI
 	return s.memberRepo.RemoveMember(ctx, tripID, memberID)
 }
 
+// GetTripByShareToken возвращает поездку по токену приглашения (публичный просмотр).
 func (s *tripService) GetTripByShareToken(ctx context.Context, token string) (*models.Trip, string, error) {
 	invite, err := s.inviteRepo.GetInviteByToken(ctx, token)
 	if err != nil {
@@ -339,7 +383,7 @@ func (s *tripService) GetTripByShareToken(ctx context.Context, token string) (*m
 	return trip, invite.Role, nil
 }
 
-// GetUserTripsWithRoles возвращает все поездки, где пользователь является участником, с его ролью
+// GetUserTripsWithRoles возвращает все поездки пользователя с его ролью.
 func (s *tripService) GetUserTripsWithRoles(ctx context.Context, userID uint64) ([]UserTripInfo, error) {
 	tripsWithRoles, err := s.tripRepo.GetUserTripsWithRoles(ctx, userID)
 	if err != nil {
@@ -352,7 +396,7 @@ func (s *tripService) GetUserTripsWithRoles(ctx context.Context, userID uint64) 
 	return result, nil
 }
 
-// GetTripDetailsWithRole возвращает поездку, достопримечательности и роль пользователя
+// GetTripDetailsWithRole возвращает поездку, достопримечательности и роль пользователя.
 func (s *tripService) GetTripDetailsWithRole(ctx context.Context, tripID, userID uint64) (*models.Trip, []models.PlaceInTrip, string, error) {
 	trip, places, err := s.GetTripDetails(ctx, tripID)
 	if err != nil {

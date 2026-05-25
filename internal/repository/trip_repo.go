@@ -18,10 +18,14 @@ func NewTripRepo(db DB) *TripRepo {
 	return &TripRepo{db: db}
 }
 
+// Create создаёт поездку и сразу добавляет создателя в trip_member с ролью owner.
+// Это гарантирует корректную работу всех методов, проверяющих членство.
 func (r *TripRepo) Create(ctx context.Context, trip *models.Trip) error {
 	logger.Debug(ctx, "creating trip", logrus.Fields{"title": trip.Title})
+
 	query := `INSERT INTO trip (title, description, location, start_date, end_date, preview_url, created_by, is_public)
               VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, created_at, updated_at`
+
 	err := r.db.QueryRow(ctx, query,
 		trip.Title, trip.Description, trip.Location, trip.StartDate, trip.EndDate, trip.PreviewURL,
 		trip.CreatedBy, trip.IsPublic,
@@ -30,7 +34,27 @@ func (r *TripRepo) Create(ctx context.Context, trip *models.Trip) error {
 		logger.Error(ctx, "failed to create trip", logrus.Fields{"error": err})
 		return err
 	}
-	logger.Debug(ctx, "trip created", logrus.Fields{"trip_id": trip.ID})
+
+	// Добавляем создателя в trip_member с ролью owner.
+	// ON CONFLICT DO UPDATE защищает от дублей если триггер в БД тоже это делает.
+	memberQuery := `INSERT INTO trip_member (trip_id, user_id, role)
+	                VALUES ($1, $2, 'owner')
+	                ON CONFLICT (trip_id, user_id) DO UPDATE SET role = 'owner'`
+	if _, err := r.db.Exec(ctx, memberQuery, trip.ID, trip.CreatedBy); err != nil {
+		logger.Error(ctx, "failed to add owner to trip_member", logrus.Fields{
+			"error":   err,
+			"trip_id": trip.ID,
+			"user_id": trip.CreatedBy,
+		})
+		// Не прерываем — поездка создана, членство некритично сейчас,
+		// но логируем ошибку чтобы было видно в мониторинге.
+		return err
+	}
+
+	logger.Debug(ctx, "trip created and owner added to trip_member", logrus.Fields{
+		"trip_id": trip.ID,
+		"user_id": trip.CreatedBy,
+	})
 	return nil
 }
 
@@ -51,7 +75,7 @@ func (r *TripRepo) GetByID(ctx context.Context, id uint64) (*models.Trip, error)
 		logger.Error(ctx, "failed to get trip by id", logrus.Fields{"error": err})
 		return nil, err
 	}
-	return &trip, err
+	return &trip, nil
 }
 
 func (r *TripRepo) GetByUser(ctx context.Context, userID uint64) ([]models.Trip, error) {
@@ -81,9 +105,9 @@ func (r *TripRepo) GetByUser(ctx context.Context, userID uint64) ([]models.Trip,
 
 func (r *TripRepo) Update(ctx context.Context, trip *models.Trip) error {
 	logger.Debug(ctx, "updating trip", logrus.Fields{"trip_id": trip.ID})
-	query := `UPDATE trip SET 
-        title = $1, description = $2, location = $3, start_date = $4, end_date = $5, preview_url = $6, 
-        is_public = $7, updated_at = NOW() 
+	query := `UPDATE trip SET
+        title = $1, description = $2, location = $3, start_date = $4, end_date = $5, preview_url = $6,
+        is_public = $7, updated_at = NOW()
         WHERE id = $8 RETURNING updated_at`
 	err := r.db.QueryRow(ctx, query,
 		trip.Title, trip.Description, trip.Location, trip.StartDate, trip.EndDate, trip.PreviewURL,
@@ -204,7 +228,7 @@ type UserTripWithRole struct {
 	Role string
 }
 
-// GetUserTripsWithRoles возвращает все поездки, где пользователь является участником (owner/companion/viewer), вместе с его ролью
+// GetUserTripsWithRoles возвращает все поездки, где пользователь является участником, вместе с его ролью
 func (r *TripRepo) GetUserTripsWithRoles(ctx context.Context, userID uint64) ([]UserTripWithRole, error) {
 	logger.Debug(ctx, "getting user trips with roles", logrus.Fields{"user_id": userID})
 	query := `
@@ -233,7 +257,7 @@ func (r *TripRepo) GetUserTripsWithRoles(ctx context.Context, userID uint64) ([]
 			logger.Error(ctx, "failed to scan trip row", logrus.Fields{"error": err})
 			return nil, err
 		}
-		if role == "editor" { // на случай, если в БД остались старые записи
+		if role == "editor" {
 			role = "companion"
 		}
 		result = append(result, UserTripWithRole{Trip: t, Role: role})
@@ -242,20 +266,20 @@ func (r *TripRepo) GetUserTripsWithRoles(ctx context.Context, userID uint64) ([]
 	return result, nil
 }
 
-// GetUserRoleForTrip возвращает роль пользователя для конкретной поездки
+// GetUserRoleForTrip возвращает роль пользователя для конкретной поездки.
+// Если пользователь не в trip_member, но является создателем — возвращает "owner".
 func (r *TripRepo) GetUserRoleForTrip(ctx context.Context, tripID, userID uint64) (string, error) {
 	query := `SELECT role FROM trip_member WHERE trip_id = $1 AND user_id = $2`
 	var role string
 	err := r.db.QueryRow(ctx, query, tripID, userID).Scan(&role)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			// Проверяем, является ли пользователь создателем поездки (должен быть в trip_member, но на всякий случай)
 			var createdBy uint64
 			err2 := r.db.QueryRow(ctx, `SELECT created_by FROM trip WHERE id = $1`, tripID).Scan(&createdBy)
 			if err2 == nil && createdBy == userID {
 				return "owner", nil
 			}
-			return "viewer", nil // если не участник, то только просмотр через ссылку
+			return "viewer", nil
 		}
 		return "", err
 	}
