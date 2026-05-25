@@ -340,7 +340,21 @@ func (s *tripService) AcceptInvite(ctx context.Context, token string, userID uin
 	if memberRole == "companion" {
 		memberRole = "editor"
 	}
+
+	// Не перезаписывать роль, если пользователь уже является владельцем
+	existingRole, err := s.memberRepo.GetMemberRole(ctx, invite.TripID, userID)
+	if err != nil {
+		return 0, "", err
+	}
+	if existingRole == "owner" {
+		if invite.IsOneTime {
+			_ = s.inviteRepo.MarkUsed(ctx, invite.ID)
+		}
+		return invite.TripID, existingRole, nil
+	}
+
 	if err := s.memberRepo.AddMember(ctx, invite.TripID, userID, memberRole); err != nil {
+		// ON CONFLICT DO UPDATE уже обрабатывает дублирование — если всё же ошибка, пробрасываем
 		return 0, "", err
 	}
 	if invite.IsOneTime {
