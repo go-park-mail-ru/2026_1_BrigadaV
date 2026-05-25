@@ -8,11 +8,13 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"guidely-app/internal/logger"
 	"guidely-app/internal/middleware"
 	pb "guidely-app/pkg/pb/album"
+	"guidely-app/pkg/storage"
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -20,22 +22,21 @@ import (
 
 const (
 	uploadDir    = "./uploads/photos"
-	maxPhotoSize = 30 << 20
+	maxPhotoSize = 30 << 20 // 30 MB
 )
 
 type AlbumHandler struct {
 	client pb.AlbumServiceClient
+	s3     *storage.S3Client
 }
 
-func NewAlbumHandler(client pb.AlbumServiceClient) *AlbumHandler {
-	// Создаём папку для фото при старте, если её нет
+func NewAlbumHandler(client pb.AlbumServiceClient, s3 *storage.S3Client) *AlbumHandler {
 	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
 		logrus.Warnf("failed to create upload dir: %v", err)
 	}
-	return &AlbumHandler{client: client}
+	return &AlbumHandler{client: client, s3: s3}
 }
 
-// photoResponse — то что ждёт фронтенд: { id, url }
 type photoResponse struct {
 	ID  uint64 `json:"id"`
 	URL string `json:"url"`
@@ -95,7 +96,6 @@ func (h *AlbumHandler) Get(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-// GetByTrip — GET /api/trips/{tripID}/album
 func (h *AlbumHandler) GetByTrip(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	tripID, err := strconv.ParseUint(vars["tripID"], 10, 64)
@@ -188,9 +188,14 @@ func (h *AlbumHandler) AddPhoto(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ограничение размера файла — 20 МБ
+	// Ограничение размера тела — 30 МБ (multipart overhead ~10%)
+	r.Body = http.MaxBytesReader(w, r.Body, maxPhotoSize+1<<20)
 	if err := r.ParseMultipartForm(maxPhotoSize); err != nil {
-		http.Error(w, "file too large or invalid form", http.StatusBadRequest)
+		if strings.Contains(err.Error(), "too large") || strings.Contains(err.Error(), "request body too large") {
+			http.Error(w, "file too large (max 30 MB)", http.StatusRequestEntityTooLarge)
+			return
+		}
+		http.Error(w, "invalid form: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -202,14 +207,13 @@ func (h *AlbumHandler) AddPhoto(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 
 	if header.Size > maxPhotoSize {
-		http.Error(w, "file too large (max 20 MB)", http.StatusBadRequest)
+		http.Error(w, "file too large (max 30 MB)", http.StatusRequestEntityTooLarge)
 		return
 	}
 
-	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
-		logger.Error(r.Context(), "mkdir error", logrus.Fields{"error": err, "dir": uploadDir})
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
+	contentType := header.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "image/jpeg"
 	}
 
 	ext := filepath.Ext(header.Filename)
@@ -217,32 +221,56 @@ func (h *AlbumHandler) AddPhoto(w http.ResponseWriter, r *http.Request) {
 		ext = ".jpg"
 	}
 	filename := fmt.Sprintf("%d_%d%s", albumID, time.Now().UnixNano(), ext)
-	savePath := filepath.Join(uploadDir, filename)
-	relativePath := "/uploads/photos/" + filename
 
-	dst, err := os.Create(savePath)
-	if err != nil {
-		logger.Error(r.Context(), "file create error", logrus.Fields{"error": err, "path": savePath})
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	defer dst.Close()
-	if _, err := io.Copy(dst, file); err != nil {
-		logger.Error(r.Context(), "file copy error", logrus.Fields{"error": err})
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
+	var fileURL string
+
+	if h.s3 != nil {
+		// Загрузка в S3
+		objectName := "photos/" + filename
+		fileURL, err = h.s3.UploadFile(r.Context(), objectName, file, header.Size, contentType)
+		if err != nil {
+			logger.Error(r.Context(), "S3 upload failed", logrus.Fields{"error": err, "album_id": albumID})
+			http.Error(w, "internal error: failed to upload photo", http.StatusInternalServerError)
+			return
+		}
+		logger.Info(r.Context(), "photo uploaded to S3", logrus.Fields{"url": fileURL, "album_id": albumID})
+	} else {
+		// Локальное сохранение
+		if err := os.MkdirAll(uploadDir, 0o755); err != nil {
+			logger.Error(r.Context(), "mkdir error", logrus.Fields{"error": err, "dir": uploadDir})
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		savePath := filepath.Join(uploadDir, filename)
+		dst, err := os.Create(savePath)
+		if err != nil {
+			logger.Error(r.Context(), "file create error", logrus.Fields{"error": err, "path": savePath})
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		defer dst.Close()
+		if _, err := io.Copy(dst, file); err != nil {
+			logger.Error(r.Context(), "file copy error", logrus.Fields{"error": err})
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		fileURL = "/uploads/photos/" + filename
+		logger.Info(r.Context(), "photo saved locally", logrus.Fields{"path": fileURL, "album_id": albumID})
 	}
 
 	addResp, err := h.client.UploadPhoto(r.Context(), &pb.UploadPhotoRequest{
 		AlbumId:  albumID,
-		FilePath: relativePath,
+		FilePath: fileURL,
 	})
 	if err != nil {
 		logger.Error(r.Context(), "album upload photo gRPC error", logrus.Fields{
 			"error":    err,
 			"album_id": albumID,
 		})
-		os.Remove(savePath)
+		// Удаляем локальный файл если он был создан
+		if h.s3 == nil {
+			os.Remove(filepath.Join(uploadDir, filename))
+		}
 		http.Error(w, "internal error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -250,14 +278,14 @@ func (h *AlbumHandler) AddPhoto(w http.ResponseWriter, r *http.Request) {
 	logger.Info(r.Context(), "photo added to album", logrus.Fields{
 		"album_id": albumID,
 		"photo_id": addResp.PhotoId,
-		"path":     relativePath,
+		"url":      fileURL,
 	})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(photoResponse{
 		ID:  addResp.PhotoId,
-		URL: relativePath,
+		URL: fileURL,
 	})
 }
 

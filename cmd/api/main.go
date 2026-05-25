@@ -115,7 +115,7 @@ func main() {
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(authClient, cfg)
-	albumHandler := handlers.NewAlbumHandler(albumClient)
+	albumHandler := handlers.NewAlbumHandler(albumClient, s3Client)
 	reviewHandler := handlers.NewReviewHandler(reviewClient)
 	placeHandler := handlers.NewPlaceHandler(placeService, tripService)
 	profileHandler := handlers.NewProfileHandler(profileService, s3Client)

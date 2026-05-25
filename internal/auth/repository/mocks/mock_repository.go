@@ -49,6 +49,20 @@ func (mr *MockUserRepositoryMockRecorder) Create(arg0, arg1 interface{}) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockUserRepository)(nil).Create), arg0, arg1)
 }
 
+// CreateOAuth mocks base method.
+func (m *MockUserRepository) CreateOAuth(arg0 context.Context, arg1 *models.User) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateOAuth", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CreateOAuth indicates an expected call of CreateOAuth.
+func (mr *MockUserRepositoryMockRecorder) CreateOAuth(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateOAuth", reflect.TypeOf((*MockUserRepository)(nil).CreateOAuth), arg0, arg1)
+}
+
 // GetByID mocks base method.
 func (m *MockUserRepository) GetByID(arg0 context.Context, arg1 uint64) (*models.User, error) {
 	m.ctrl.T.Helper()
@@ -92,6 +106,21 @@ func (m *MockUserRepository) GetByNickname(arg0 context.Context, arg1 string) (*
 func (mr *MockUserRepositoryMockRecorder) GetByNickname(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByNickname", reflect.TypeOf((*MockUserRepository)(nil).GetByNickname), arg0, arg1)
+}
+
+// GetByYandexID mocks base method.
+func (m *MockUserRepository) GetByYandexID(arg0 context.Context, arg1 string) (*models.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByYandexID", arg0, arg1)
+	ret0, _ := ret[0].(*models.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByYandexID indicates an expected call of GetByYandexID.
+func (mr *MockUserRepositoryMockRecorder) GetByYandexID(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByYandexID", reflect.TypeOf((*MockUserRepository)(nil).GetByYandexID), arg0, arg1)
 }
 
 // Update mocks base method.

@@ -36,6 +36,21 @@ func (m *MockPlaceRepository) EXPECT() *MockPlaceRepositoryMockRecorder {
 	return m.recorder
 }
 
+// FilterByReviewsAndRating mocks base method.
+func (m *MockPlaceRepository) FilterByReviewsAndRating(arg0 context.Context, arg1 repository.PlaceFilter) ([]models.Place, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FilterByReviewsAndRating", arg0, arg1)
+	ret0, _ := ret[0].([]models.Place)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FilterByReviewsAndRating indicates an expected call of FilterByReviewsAndRating.
+func (mr *MockPlaceRepositoryMockRecorder) FilterByReviewsAndRating(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FilterByReviewsAndRating", reflect.TypeOf((*MockPlaceRepository)(nil).FilterByReviewsAndRating), arg0, arg1)
+}
+
 // GetAll mocks base method.
 func (m *MockPlaceRepository) GetAll(arg0 context.Context, arg1 repository.PlaceFilter) ([]models.Place, error) {
 	m.ctrl.T.Helper()
@@ -79,6 +94,21 @@ func (m *MockPlaceRepository) GetByID(arg0 context.Context, arg1 uint64) (*model
 func (mr *MockPlaceRepositoryMockRecorder) GetByID(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByID", reflect.TypeOf((*MockPlaceRepository)(nil).GetByID), arg0, arg1)
+}
+
+// GetByIDs mocks base method.
+func (m *MockPlaceRepository) GetByIDs(arg0 context.Context, arg1 []uint64) ([]models.Place, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByIDs", arg0, arg1)
+	ret0, _ := ret[0].([]models.Place)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByIDs indicates an expected call of GetByIDs.
+func (mr *MockPlaceRepositoryMockRecorder) GetByIDs(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByIDs", reflect.TypeOf((*MockPlaceRepository)(nil).GetByIDs), arg0, arg1)
 }
 
 // GetWithRatingAndLike mocks base method.

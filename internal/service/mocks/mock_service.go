@@ -6,6 +6,7 @@ package mocks
 
 import (
 	context "context"
+	repository "guidely-app/internal/repository"
 	service "guidely-app/internal/service"
 	models "guidely-app/pkg/models"
 	reflect "reflect"
@@ -36,8 +37,23 @@ func (m *MockPlaceService) EXPECT() *MockPlaceServiceMockRecorder {
 	return m.recorder
 }
 
+// FilterByReviewsAndRating mocks base method.
+func (m *MockPlaceService) FilterByReviewsAndRating(arg0 context.Context, arg1 repository.PlaceFilter) ([]models.Place, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FilterByReviewsAndRating", arg0, arg1)
+	ret0, _ := ret[0].([]models.Place)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FilterByReviewsAndRating indicates an expected call of FilterByReviewsAndRating.
+func (mr *MockPlaceServiceMockRecorder) FilterByReviewsAndRating(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FilterByReviewsAndRating", reflect.TypeOf((*MockPlaceService)(nil).FilterByReviewsAndRating), arg0, arg1)
+}
+
 // GetAll mocks base method.
-func (m *MockPlaceService) GetAll(arg0 context.Context, arg1 service.PlaceFilter) ([]models.Place, error) {
+func (m *MockPlaceService) GetAll(arg0 context.Context, arg1 repository.PlaceFilter) ([]models.Place, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAll", arg0, arg1)
 	ret0, _ := ret[0].([]models.Place)
@@ -112,7 +128,7 @@ func (mr *MockPlaceServiceMockRecorder) IsPlaceInTrip(arg0, arg1, arg2 interface
 }
 
 // Search mocks base method.
-func (m *MockPlaceService) Search(arg0 context.Context, arg1 string, arg2 service.PlaceFilter) ([]models.Place, error) {
+func (m *MockPlaceService) Search(arg0 context.Context, arg1 string, arg2 repository.PlaceFilter) ([]models.Place, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Search", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]models.Place)
