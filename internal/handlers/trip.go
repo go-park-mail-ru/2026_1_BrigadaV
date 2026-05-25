@@ -401,7 +401,7 @@ func (h *TripHandler) AcceptInviteRedirect(w http.ResponseWriter, r *http.Reques
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	redirectURL := fmt.Sprintf("%s/trips/%d?role=%s", frontendURL, tripID, role)
+	redirectURL := fmt.Sprintf("%s/trip/%d?role=%s", frontendURL, tripID, role)
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
@@ -475,6 +475,6 @@ func (h *TripHandler) ViewSharedTrip(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	frontendURL := getFrontendURL()
-	redirectURL := fmt.Sprintf("%s/trips/%d?token=%s&role=%s", frontendURL, trip.ID, token, role)
+	redirectURL := fmt.Sprintf("%s/trip/%d?token=%s&role=%s", frontendURL, trip.ID, token, role)
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
