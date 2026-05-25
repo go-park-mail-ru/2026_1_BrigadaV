@@ -2,14 +2,15 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"strconv"
 
+	"guidely-app/internal/logger"
 	"guidely-app/internal/service"
 	"guidely-app/pkg/models"
 
 	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
 )
 
 type CategoryHandler struct {
@@ -23,8 +24,10 @@ func NewCategoryHandler(svc service.CategoryService) *CategoryHandler {
 func (h *CategoryHandler) List(w http.ResponseWriter, r *http.Request) {
 	categories, err := h.svc.GetAll(r.Context())
 	if err != nil {
-		log.Printf("category list error: %v", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		logger.Error(r.Context(), "category list error", logrus.Fields{"error": err})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "internal error"})
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -40,7 +43,7 @@ func (h *CategoryHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 	c, err := h.svc.GetByID(r.Context(), id)
 	if err != nil {
-		log.Printf("category get error: %v", err)
+		logger.Error(r.Context(), "category get error", logrus.Fields{"error": err, "id": id})
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -48,6 +51,7 @@ func (h *CategoryHandler) Get(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "category not found", http.StatusNotFound)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(c)
 }
 
@@ -58,10 +62,11 @@ func (h *CategoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.svc.Create(r.Context(), &cat); err != nil {
-		log.Printf("category create error: %v", err)
+		logger.Error(r.Context(), "category create error", logrus.Fields{"error": err})
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(cat)
 }
@@ -80,10 +85,11 @@ func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	cat.ID = id
 	if err := h.svc.Update(r.Context(), &cat); err != nil {
-		log.Printf("category update error: %v", err)
+		logger.Error(r.Context(), "category update error", logrus.Fields{"error": err, "id": id})
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(cat)
 }
 
@@ -95,7 +101,7 @@ func (h *CategoryHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.svc.Delete(r.Context(), id); err != nil {
-		log.Printf("category delete error: %v", err)
+		logger.Error(r.Context(), "category delete error", logrus.Fields{"error": err, "id": id})
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}

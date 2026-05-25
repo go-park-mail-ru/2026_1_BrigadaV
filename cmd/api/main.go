@@ -17,9 +17,11 @@ import (
 	"guidely-app/internal/service"
 	"guidely-app/pkg/config"
 	"guidely-app/pkg/db"
+	"guidely-app/pkg/storage"
 	"guidely-app/pkg/elasticsearch"
 	"guidely-app/pkg/metrics"
 
+	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
 	"google.golang.org/grpc"
@@ -44,11 +46,16 @@ func main() {
 	}
 	defer dbPool.Close()
 
-	metrics.StartMetricsServer("9100")
+	s3Client, err := storage.NewS3Client(cfg)
+	if err != nil {
+		log.Printf("S3 init warning: %v; continuing without S3", err)
+		s3Client = nil
+	}
+	if s3Client == nil {
+		log.Println("S3 client is nil – avatar will be stored locally")
+	}
 
-	dbAdapter := &repository.PgxPoolAdapter{Pool: dbPool}
-	authAdapter := &authrepo.PgxPoolAdapter{Pool: dbPool}
-
+	// gRPC подключения
 	authConn, err := grpc.Dial(getEnv("AUTH_GRPC_ADDR", "localhost:8085"), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("failed to connect to auth service: %v", err)
@@ -67,6 +74,10 @@ func main() {
 	}
 	reviewClient := pbreview.NewReviewServiceClient(reviewConn)
 
+	dbAdapter := &repository.PgxPoolAdapter{Pool: dbPool}
+	authAdapter := &authrepo.PgxPoolAdapter{Pool: dbPool}
+
+	// Репозитории
 	placeRepo := repository.NewPlaceRepo(dbAdapter)
 	tripRepo := repository.NewTripRepo(dbAdapter)
 	categoryRepo := repository.NewCategoryRepo(dbAdapter)
@@ -102,67 +113,118 @@ func main() {
 	countryService := service.NewCountryService(countryRepo)
 	profileService := service.NewProfileService(userRepo)
 
-	authHandler := handlers.NewAuthHandler(authClient)
+	// Handlers
+	authHandler := handlers.NewAuthHandler(authClient, cfg)
 	albumHandler := handlers.NewAlbumHandler(albumClient)
 	reviewHandler := handlers.NewReviewHandler(reviewClient)
 	placeHandler := handlers.NewPlaceHandler(placeService, tripService)
-	profileHandler := handlers.NewProfileHandler(profileService)
+	profileHandler := handlers.NewProfileHandler(profileService, s3Client)
 	tripHandler := handlers.NewTripHandler(tripService)
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
 	countryHandler := handlers.NewCountryHandler(countryService)
 	csrfHandler := handlers.NewCSRFHandler()
+	yandexHandler := handlers.NewYandexOAuthHandler(
+		cfg.YandexClientID,
+		cfg.YandexClientSecret,
+		cfg.YandexRedirectURL,
+		cfg.FrontendURL,
+		cfg.SecureCookies,
+		userRepo,
+		sessionRepo,
+	)
 
 	authMiddleware := middleware.NewAuthMiddleware(sessionRepo)
 
-	r := mux.NewRouter()
-	r.Use(logger.Middleware)
-	r.Use(middleware.CORS(cfg.AllowedOrigins...))
-	r.Use(metrics.HTTPMetricsMiddleware)
+	csrfMiddleware := csrf.Protect(
+		[]byte(cfg.CSRFSecret),
+		csrf.Secure(cfg.SecureCookies),
+		csrf.Path("/"),
+		csrf.TrustedOrigins(cfg.AllowedOrigins),
+		csrf.ErrorHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte(`{"error":"csrf token invalid"}`))
+		})),
+	)
 
-	r.HandleFunc("/api/register", authHandler.Register).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/login", authHandler.Login).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/logout", authMiddleware.Authenticate(authHandler.Logout)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/user/me", authMiddleware.Authenticate(authHandler.Me)).Methods("GET", "OPTIONS")
+// ... после создания всех хендлеров
 
-	r.HandleFunc("/api/profile", authMiddleware.Authenticate(profileHandler.GetProfile)).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/profile", authMiddleware.Authenticate(profileHandler.UpdateProfile)).Methods("PUT", "OPTIONS")
-	r.HandleFunc("/api/profile/avatar", authMiddleware.Authenticate(profileHandler.UploadAvatar)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/profile/avatar", authMiddleware.Authenticate(profileHandler.GetAvatar)).Methods("GET", "OPTIONS")
+r := mux.NewRouter()
+r.Use(logger.Middleware)
+r.Use(middleware.CORS(cfg.AllowedOrigins...))
+r.Use(metrics.HTTPMetricsMiddleware) // если используется в dev
 
-	r.HandleFunc("/api/places", placeHandler.List).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/places/search", placeHandler.Search).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/places/filter", placeHandler.FilterByReviewsAndRating).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/places/{id:[0-9]+}", placeHandler.GetDetails).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/places/{id:[0-9]+}/reviews", placeHandler.GetReviews).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/places/{id:[0-9]+}/in-trip", authMiddleware.Authenticate(placeHandler.CheckPlaceInTrip)).Methods("GET", "OPTIONS")
+// Публичные эндпоинты (без авторизации и CSRF)
+public := r.PathPrefix("/api").Subrouter()
+public.HandleFunc("/register", authHandler.Register).Methods("POST", "OPTIONS")
+public.HandleFunc("/login", authHandler.Login).Methods("POST", "OPTIONS")
+public.HandleFunc("/places", placeHandler.List).Methods("GET", "OPTIONS")
+public.HandleFunc("/places/search", placeHandler.Search).Methods("GET", "OPTIONS")
+public.HandleFunc("/places/filter", placeHandler.FilterByReviewsAndRating).Methods("GET", "OPTIONS") // из dev
+public.HandleFunc("/places/{id:[0-9]+}", placeHandler.GetDetails).Methods("GET", "OPTIONS")
+public.HandleFunc("/places/{id:[0-9]+}/reviews", placeHandler.GetReviews).Methods("GET", "OPTIONS")
+public.HandleFunc("/categories", categoryHandler.List).Methods("GET", "OPTIONS")
+public.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Get).Methods("GET", "OPTIONS")
+public.HandleFunc("/countries", countryHandler.List).Methods("GET", "OPTIONS")
+public.HandleFunc("/countries/{id:[0-9]+}/localities", countryHandler.GetWithLocalities).Methods("GET", "OPTIONS")
+public.HandleFunc("/share/view/{token}", tripHandler.ViewSharedTrip).Methods("GET")
+public.HandleFunc("/share/edit/{token}", tripHandler.AcceptInviteRedirect).Methods("GET")
 
-	r.HandleFunc("/api/reviews", authMiddleware.Authenticate(reviewHandler.Create)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/reviews/{id:[0-9]+}", authMiddleware.Authenticate(reviewHandler.Delete)).Methods("DELETE", "OPTIONS")
+// Yandex OAuth
+public.HandleFunc("/auth/yandex/login", yandexHandler.Login).Methods("GET", "OPTIONS")
+public.HandleFunc("/auth/yandex/callback", yandexHandler.Callback).Methods("GET", "OPTIONS")
 
-	r.HandleFunc("/api/trips", authMiddleware.Authenticate(tripHandler.List)).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/trips", authMiddleware.Authenticate(tripHandler.Create)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/trips/{id:[0-9]+}", authMiddleware.Authenticate(tripHandler.GetDetails)).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/trips/{id:[0-9]+}", authMiddleware.Authenticate(tripHandler.Update)).Methods("PUT", "OPTIONS")
-	r.HandleFunc("/api/trips/{id:[0-9]+}", authMiddleware.Authenticate(tripHandler.Delete)).Methods("DELETE", "OPTIONS")
-	r.HandleFunc("/api/trips/{id:[0-9]+}/places", authMiddleware.Authenticate(tripHandler.GetTripPlaces)).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/trips/{id:[0-9]+}/places", authMiddleware.Authenticate(tripHandler.AddPlace)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/trips/{id:[0-9]+}/places/{placeId:[0-9]+}", authMiddleware.Authenticate(tripHandler.RemovePlace)).Methods("DELETE", "OPTIONS")
+// Только авторизация (без CSRF)
+authOnly := r.PathPrefix("/api").Subrouter()
+authOnly.Use(authMiddleware.Authenticate)
 
-	r.HandleFunc("/api/trips/{tripID:[0-9]+}/album", authMiddleware.Authenticate(albumHandler.GetByTrip)).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/albums/{id:[0-9]+}/photos", authMiddleware.Authenticate(albumHandler.AddPhoto)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/albums/{id:[0-9]+}/photos/{photoId:[0-9]+}", authMiddleware.Authenticate(albumHandler.RemovePhoto)).Methods("DELETE", "OPTIONS")
-	r.HandleFunc("/api/albums/{id:[0-9]+}/photos", authMiddleware.Authenticate(albumHandler.GetPhotos)).Methods("GET", "OPTIONS")
+authOnly.HandleFunc("/logout", authHandler.Logout).Methods("POST", "OPTIONS")
+authOnly.HandleFunc("/profile/avatar", profileHandler.GetAvatar).Methods("GET", "OPTIONS")
+authOnly.HandleFunc("/profile/avatar", profileHandler.UploadAvatar).Methods("POST", "OPTIONS")
+authOnly.HandleFunc("/reviews", reviewHandler.Create).Methods("POST", "OPTIONS")
+authOnly.HandleFunc("/reviews/{id:[0-9]+}", reviewHandler.Delete).Methods("DELETE", "OPTIONS")
+authOnly.HandleFunc("/trips/{id:[0-9]+}/places", tripHandler.AddPlace).Methods("POST", "OPTIONS")
+authOnly.HandleFunc("/places/{id:[0-9]+}/in-trip", placeHandler.CheckPlaceInTrip).Methods("GET", "OPTIONS")
+authOnly.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.AddPhoto).Methods("POST", "OPTIONS")
+authOnly.HandleFunc("/albums/{id:[0-9]+}/photos/{photoId:[0-9]+}", albumHandler.RemovePhoto).Methods("DELETE", "OPTIONS")
+authOnly.HandleFunc("/trips", tripHandler.Create).Methods("POST", "OPTIONS")
+authOnly.HandleFunc("/profile", profileHandler.UpdateProfile).Methods("PUT", "OPTIONS")
 
-	r.HandleFunc("/api/countries", countryHandler.List).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/countries/{id:[0-9]+}/localities", countryHandler.GetWithLocalities).Methods("GET", "OPTIONS")
+// Шеринг
+authOnly.HandleFunc("/trips/{id:[0-9]+}/share/view", tripHandler.CreateViewShareLink).Methods("POST", "OPTIONS")
+authOnly.HandleFunc("/trips/{id:[0-9]+}/share/edit", tripHandler.CreateEditShareLink).Methods("POST", "OPTIONS")
+authOnly.HandleFunc("/trips/{id:[0-9]+}/members", tripHandler.GetTripMembers).Methods("GET", "OPTIONS")
+authOnly.HandleFunc("/trips/{id:[0-9]+}/members/{member_id:[0-9]+}", tripHandler.RemoveMember).Methods("DELETE", "OPTIONS")
 
-	r.HandleFunc("/api/categories", categoryHandler.List).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/categories/{id:[0-9]+}", categoryHandler.Get).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/categories", authMiddleware.Authenticate(categoryHandler.Create)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/categories/{id:[0-9]+}", authMiddleware.Authenticate(categoryHandler.Update)).Methods("PUT", "OPTIONS")
-	r.HandleFunc("/api/categories/{id:[0-9]+}", authMiddleware.Authenticate(categoryHandler.Delete)).Methods("DELETE", "OPTIONS")
+// Только CSRF (без авторизации)
+csrfOnly := r.PathPrefix("/api").Subrouter()
+csrfOnly.Use(csrfMiddleware)
+csrfOnly.HandleFunc("/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
 
-	r.HandleFunc("/api/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
+// Авторизация + CSRF
+protected := r.PathPrefix("/api").Subrouter()
+protected.Use(authMiddleware.Authenticate)
+protected.Use(csrfMiddleware)
+
+protected.HandleFunc("/user/me", authHandler.Me).Methods("GET", "OPTIONS")
+protected.HandleFunc("/profile", profileHandler.GetProfile).Methods("GET", "OPTIONS")
+protected.HandleFunc("/trips", tripHandler.List).Methods("GET", "OPTIONS")
+protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.GetDetails).Methods("GET", "OPTIONS")
+protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.Update).Methods("PUT", "OPTIONS")
+protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.Delete).Methods("DELETE", "OPTIONS")
+protected.HandleFunc("/trips/{id:[0-9]+}/places", tripHandler.GetTripPlaces).Methods("GET", "OPTIONS")
+protected.HandleFunc("/trips/{id:[0-9]+}/places/{placeId:[0-9]+}", tripHandler.RemovePlace).Methods("DELETE", "OPTIONS")
+protected.HandleFunc("/trips/{tripID:[0-9]+}/album", albumHandler.GetByTrip).Methods("GET", "OPTIONS")
+protected.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.GetPhotos).Methods("GET", "OPTIONS")
+protected.HandleFunc("/albums/{id:[0-9]+}/photos/{photoId:[0-9]+}", albumHandler.RemovePhoto).Methods("DELETE", "OPTIONS")
+protected.HandleFunc("/categories", categoryHandler.Create).Methods("POST", "OPTIONS")
+protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Update).Methods("PUT", "OPTIONS")
+protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Delete).Methods("DELETE", "OPTIONS")
+protected.HandleFunc("/trips/{id:[0-9]+}/export/pdf", tripHandler.ExportTripToPDF).Methods("GET", "OPTIONS")
+
+// Статика и Swagger
+r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
+r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))

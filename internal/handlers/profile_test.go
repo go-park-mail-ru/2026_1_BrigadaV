@@ -24,7 +24,7 @@ func TestProfileHandler_GetProfile_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockProfileService := mocks.NewMockProfileService(ctrl)
-	handler := NewProfileHandler(mockProfileService)
+	handler := NewProfileHandler(mockProfileService, nil)
 
 	user := &models.User{
 		ID:         1,
@@ -59,8 +59,7 @@ func TestProfileHandler_GetProfile_Unauthorized(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockProfileService := mocks.NewMockProfileService(ctrl)
-	handler := NewProfileHandler(mockProfileService)
-
+	handler := NewProfileHandler(mockProfileService, nil)
 	req := httptest.NewRequest("GET", "/api/profile", nil)
 	w := httptest.NewRecorder()
 
@@ -74,7 +73,7 @@ func TestProfileHandler_UpdateProfile_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockProfileService := mocks.NewMockProfileService(ctrl)
-	handler := NewProfileHandler(mockProfileService)
+	handler := NewProfileHandler(mockProfileService, nil)
 
 	reqBody := dto.UpdateProfileRequest{
 		Nickname:  testutil.PtrString("new_nick"),
@@ -115,7 +114,7 @@ func TestProfileHandler_UpdateProfile_InvalidJSON(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockProfileService := mocks.NewMockProfileService(ctrl)
-	handler := NewProfileHandler(mockProfileService)
+	handler := NewProfileHandler(mockProfileService, nil)
 
 	req := httptest.NewRequest("PUT", "/api/profile", bytes.NewReader([]byte(`{invalid json}`)))
 	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
@@ -132,7 +131,7 @@ func TestProfileHandler_UpdateProfile_Unauthorized(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockProfileService := mocks.NewMockProfileService(ctrl)
-	handler := NewProfileHandler(mockProfileService)
+	handler := NewProfileHandler(mockProfileService, nil)
 
 	reqBody := dto.UpdateProfileRequest{Nickname: testutil.PtrString("new")}
 	body, _ := json.Marshal(reqBody)
@@ -148,7 +147,7 @@ func TestProfileHandler_UploadAvatar_Unauthorized(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	mockProfileService := mocks.NewMockProfileService(ctrl)
-	handler := NewProfileHandler(mockProfileService)
+	handler := NewProfileHandler(mockProfileService, nil)
 
 	req := httptest.NewRequest("POST", "/api/profile/avatar", nil)
 	w := httptest.NewRecorder()
@@ -160,7 +159,7 @@ func TestProfileHandler_UploadAvatar_NoFile(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	mockProfileService := mocks.NewMockProfileService(ctrl)
-	handler := NewProfileHandler(mockProfileService)
+	handler := NewProfileHandler(mockProfileService, nil)
 
 	req := httptest.NewRequest("POST", "/api/profile/avatar", nil)
 	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
@@ -174,7 +173,7 @@ func TestProfileHandler_UploadAvatar_NotImage(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	mockProfileService := mocks.NewMockProfileService(ctrl)
-	handler := NewProfileHandler(mockProfileService)
+	handler := NewProfileHandler(mockProfileService, nil)
 
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
@@ -195,7 +194,7 @@ func TestProfileHandler_GetAvatar_NotFound(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	mockProfileService := mocks.NewMockProfileService(ctrl)
-	handler := NewProfileHandler(mockProfileService)
+	handler := NewProfileHandler(mockProfileService, nil)
 
 	ctx := context.WithValue(context.Background(), "user_id", uint64(1))
 	req := httptest.NewRequest("GET", "/api/profile/avatar", nil).WithContext(ctx)
