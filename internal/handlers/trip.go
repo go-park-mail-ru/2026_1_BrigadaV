@@ -412,11 +412,18 @@ func (h *TripHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	tripID, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
+		logger.Error(r.Context(), "Invalid trip id in RemoveMember", logrus.Fields{"id": vars["id"], "error": err})
 		http.Error(w, "invalid trip id", http.StatusBadRequest)
 		return
 	}
-	memberID, err := strconv.ParseUint(vars["member_id"], 10, 64)
+	memberIDStr, ok := vars["member_id"]
+	if !ok || memberIDStr == "" {
+		http.Error(w, "missing member id", http.StatusBadRequest)
+		return
+	}
+	memberID, err := strconv.ParseUint(memberIDStr, 10, 64)
 	if err != nil {
+		logger.Error(r.Context(), "Invalid member id in RemoveMember", logrus.Fields{"member_id": memberIDStr, "error": err})
 		http.Error(w, "invalid member id", http.StatusBadRequest)
 		return
 	}

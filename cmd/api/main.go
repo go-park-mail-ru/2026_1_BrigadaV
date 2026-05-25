@@ -100,7 +100,7 @@ func main() {
 
 	authMiddleware := middleware.NewAuthMiddleware(sessionRepo)
 
-	// CSRF middleware (общая конфигурация)
+	// CSRF middleware
 	csrfMiddleware := csrf.Protect(
 		[]byte(cfg.CSRFSecret),
 		csrf.Secure(cfg.SecureCookies),
@@ -112,7 +112,7 @@ func main() {
 	r.Use(logger.Middleware)
 	r.Use(middleware.CORS(cfg.AllowedOrigins...))
 
-	// ==================== ПУБЛИЧНЫЕ ЭНДПОИНТЫ (без авторизации, без CSRF) ====================
+	// Публичные эндпоинты
 	public := r.PathPrefix("/api").Subrouter()
 	public.HandleFunc("/register", authHandler.Register).Methods("POST", "OPTIONS")
 	public.HandleFunc("/login", authHandler.Login).Methods("POST", "OPTIONS")
@@ -120,7 +120,6 @@ func main() {
 	public.HandleFunc("/share/view/{token}", tripHandler.ViewSharedTrip).Methods("GET")
 	public.HandleFunc("/share/edit/{token}", tripHandler.AcceptInviteRedirect).Methods("GET")
 
-	// Публичное чтение мест, отзывов, категорий
 	public.HandleFunc("/places", placeHandler.List).Methods("GET", "OPTIONS")
 	public.HandleFunc("/places/search", placeHandler.Search).Methods("GET", "OPTIONS")
 	public.HandleFunc("/places/{id:[0-9]+}", placeHandler.GetDetails).Methods("GET", "OPTIONS")
@@ -128,7 +127,7 @@ func main() {
 	public.HandleFunc("/categories", categoryHandler.List).Methods("GET", "OPTIONS")
 	public.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Get).Methods("GET", "OPTIONS")
 
-	// ==================== ЗАЩИЩЁННЫЕ ЭНДПОИНТЫ (только авторизация, без CSRF) ====================
+	// Защищённые без CSRF
 	authOnly := r.PathPrefix("/api").Subrouter()
 	authOnly.Use(authMiddleware.Authenticate)
 
@@ -140,17 +139,13 @@ func main() {
 	authOnly.HandleFunc("/reviews/{id:[0-9]+}", reviewHandler.Delete).Methods("DELETE", "OPTIONS")
 	authOnly.HandleFunc("/trips/{id:[0-9]+}/places", tripHandler.AddPlace).Methods("POST", "OPTIONS")
 	authOnly.HandleFunc("/places/{id:[0-9]+}/in-trip", placeHandler.CheckPlaceInTrip).Methods("GET", "OPTIONS")
-
-	// Шеринг – защищённые эндпоинты (без CSRF)
 	authOnly.HandleFunc("/trips/{id:[0-9]+}/share/view", tripHandler.CreateViewShareLink).Methods("POST", "OPTIONS")
 	authOnly.HandleFunc("/trips/{id:[0-9]+}/share/edit", tripHandler.CreateEditShareLink).Methods("POST", "OPTIONS")
 	authOnly.HandleFunc("/trips/{id:[0-9]+}/members", tripHandler.GetTripMembers).Methods("GET", "OPTIONS")
 	authOnly.HandleFunc("/trips/{id:[0-9]+}/members/{member_id:[0-9]+}", tripHandler.RemoveMember).Methods("DELETE", "OPTIONS")
-
-	// ===== СОЗДАНИЕ ПОЕЗДКИ – ПЕРЕМЕЩЕНО В authOnly =====
 	authOnly.HandleFunc("/trips", tripHandler.Create).Methods("POST", "OPTIONS")
 
-	// ==================== ЗАЩИЩЁННЫЕ ЭНДПОИНТЫ (авторизация + CSRF) ====================
+	// Защищённые с CSRF
 	protected := r.PathPrefix("/api").Subrouter()
 	protected.Use(authMiddleware.Authenticate)
 	protected.Use(csrfMiddleware)
