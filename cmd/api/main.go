@@ -17,9 +17,9 @@ import (
 	"guidely-app/internal/service"
 	"guidely-app/pkg/config"
 	"guidely-app/pkg/db"
-	"guidely-app/pkg/storage"
 	"guidely-app/pkg/elasticsearch"
 	"guidely-app/pkg/metrics"
+	"guidely-app/pkg/storage"
 
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
@@ -147,84 +147,75 @@ func main() {
 		})),
 	)
 
-// ... после создания всех хендлеров
+	// ... после создания всех хендлеров
 
-r := mux.NewRouter()
-r.Use(logger.Middleware)
-r.Use(middleware.CORS(cfg.AllowedOrigins...))
-r.Use(metrics.HTTPMetricsMiddleware) // если используется в dev
+	r := mux.NewRouter()
+	r.Use(logger.Middleware)
+	r.Use(middleware.CORS(cfg.AllowedOrigins...))
+	r.Use(metrics.HTTPMetricsMiddleware) // если используется в dev
 
-// Публичные эндпоинты (без авторизации и CSRF)
-public := r.PathPrefix("/api").Subrouter()
-public.HandleFunc("/register", authHandler.Register).Methods("POST", "OPTIONS")
-public.HandleFunc("/login", authHandler.Login).Methods("POST", "OPTIONS")
-public.HandleFunc("/places", placeHandler.List).Methods("GET", "OPTIONS")
-public.HandleFunc("/places/search", placeHandler.Search).Methods("GET", "OPTIONS")
-public.HandleFunc("/places/filter", placeHandler.FilterByReviewsAndRating).Methods("GET", "OPTIONS") // из dev
-public.HandleFunc("/places/{id:[0-9]+}", placeHandler.GetDetails).Methods("GET", "OPTIONS")
-public.HandleFunc("/places/{id:[0-9]+}/reviews", placeHandler.GetReviews).Methods("GET", "OPTIONS")
-public.HandleFunc("/categories", categoryHandler.List).Methods("GET", "OPTIONS")
-public.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Get).Methods("GET", "OPTIONS")
-public.HandleFunc("/countries", countryHandler.List).Methods("GET", "OPTIONS")
-public.HandleFunc("/countries/{id:[0-9]+}/localities", countryHandler.GetWithLocalities).Methods("GET", "OPTIONS")
-public.HandleFunc("/share/view/{token}", tripHandler.ViewSharedTrip).Methods("GET")
-public.HandleFunc("/share/edit/{token}", tripHandler.AcceptInviteRedirect).Methods("GET")
+	// Публичные эндпоинты (без авторизации и CSRF)
+	public := r.PathPrefix("/api").Subrouter()
+	public.HandleFunc("/register", authHandler.Register).Methods("POST", "OPTIONS")
+	public.HandleFunc("/login", authHandler.Login).Methods("POST", "OPTIONS")
+	public.HandleFunc("/places", placeHandler.List).Methods("GET", "OPTIONS")
+	public.HandleFunc("/places/search", placeHandler.Search).Methods("GET", "OPTIONS")
+	public.HandleFunc("/places/filter", placeHandler.FilterByReviewsAndRating).Methods("GET", "OPTIONS") // из dev
+	public.HandleFunc("/places/{id:[0-9]+}", placeHandler.GetDetails).Methods("GET", "OPTIONS")
+	public.HandleFunc("/places/{id:[0-9]+}/reviews", placeHandler.GetReviews).Methods("GET", "OPTIONS")
+	public.HandleFunc("/categories", categoryHandler.List).Methods("GET", "OPTIONS")
+	public.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Get).Methods("GET", "OPTIONS")
+	public.HandleFunc("/countries", countryHandler.List).Methods("GET", "OPTIONS")
+	public.HandleFunc("/countries/{id:[0-9]+}/localities", countryHandler.GetWithLocalities).Methods("GET", "OPTIONS")
 
-// Yandex OAuth
-public.HandleFunc("/auth/yandex/login", yandexHandler.Login).Methods("GET", "OPTIONS")
-public.HandleFunc("/auth/yandex/callback", yandexHandler.Callback).Methods("GET", "OPTIONS")
+	// Yandex OAuth
+	public.HandleFunc("/auth/yandex/login", yandexHandler.Login).Methods("GET", "OPTIONS")
+	public.HandleFunc("/auth/yandex/callback", yandexHandler.Callback).Methods("GET", "OPTIONS")
 
-// Только авторизация (без CSRF)
-authOnly := r.PathPrefix("/api").Subrouter()
-authOnly.Use(authMiddleware.Authenticate)
+	// Только авторизация (без CSRF)
+	authOnly := r.PathPrefix("/api").Subrouter()
+	authOnly.Use(authMiddleware.Authenticate)
 
-authOnly.HandleFunc("/logout", authHandler.Logout).Methods("POST", "OPTIONS")
-authOnly.HandleFunc("/profile/avatar", profileHandler.GetAvatar).Methods("GET", "OPTIONS")
-authOnly.HandleFunc("/profile/avatar", profileHandler.UploadAvatar).Methods("POST", "OPTIONS")
-authOnly.HandleFunc("/reviews", reviewHandler.Create).Methods("POST", "OPTIONS")
-authOnly.HandleFunc("/reviews/{id:[0-9]+}", reviewHandler.Delete).Methods("DELETE", "OPTIONS")
-authOnly.HandleFunc("/trips/{id:[0-9]+}/places", tripHandler.AddPlace).Methods("POST", "OPTIONS")
-authOnly.HandleFunc("/places/{id:[0-9]+}/in-trip", placeHandler.CheckPlaceInTrip).Methods("GET", "OPTIONS")
-authOnly.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.AddPhoto).Methods("POST", "OPTIONS")
-authOnly.HandleFunc("/albums/{id:[0-9]+}/photos/{photoId:[0-9]+}", albumHandler.RemovePhoto).Methods("DELETE", "OPTIONS")
-authOnly.HandleFunc("/trips", tripHandler.Create).Methods("POST", "OPTIONS")
-authOnly.HandleFunc("/profile", profileHandler.UpdateProfile).Methods("PUT", "OPTIONS")
+	authOnly.HandleFunc("/logout", authHandler.Logout).Methods("POST", "OPTIONS")
+	authOnly.HandleFunc("/profile/avatar", profileHandler.GetAvatar).Methods("GET", "OPTIONS")
+	authOnly.HandleFunc("/profile/avatar", profileHandler.UploadAvatar).Methods("POST", "OPTIONS")
+	authOnly.HandleFunc("/reviews", reviewHandler.Create).Methods("POST", "OPTIONS")
+	authOnly.HandleFunc("/reviews/{id:[0-9]+}", reviewHandler.Delete).Methods("DELETE", "OPTIONS")
+	authOnly.HandleFunc("/trips/{id:[0-9]+}/places", tripHandler.AddPlace).Methods("POST", "OPTIONS")
+	authOnly.HandleFunc("/places/{id:[0-9]+}/in-trip", placeHandler.CheckPlaceInTrip).Methods("GET", "OPTIONS")
+	authOnly.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.AddPhoto).Methods("POST", "OPTIONS")
+	authOnly.HandleFunc("/albums/{id:[0-9]+}/photos/{photoId:[0-9]+}", albumHandler.RemovePhoto).Methods("DELETE", "OPTIONS")
+	authOnly.HandleFunc("/trips", tripHandler.Create).Methods("POST", "OPTIONS")
+	authOnly.HandleFunc("/profile", profileHandler.UpdateProfile).Methods("PUT", "OPTIONS")
 
-// Шеринг
-authOnly.HandleFunc("/trips/{id:[0-9]+}/share/view", tripHandler.CreateViewShareLink).Methods("POST", "OPTIONS")
-authOnly.HandleFunc("/trips/{id:[0-9]+}/share/edit", tripHandler.CreateEditShareLink).Methods("POST", "OPTIONS")
-authOnly.HandleFunc("/trips/{id:[0-9]+}/members", tripHandler.GetTripMembers).Methods("GET", "OPTIONS")
-authOnly.HandleFunc("/trips/{id:[0-9]+}/members/{member_id:[0-9]+}", tripHandler.RemoveMember).Methods("DELETE", "OPTIONS")
+	// Только CSRF (без авторизации)
+	csrfOnly := r.PathPrefix("/api").Subrouter()
+	csrfOnly.Use(csrfMiddleware)
+	csrfOnly.HandleFunc("/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
 
-// Только CSRF (без авторизации)
-csrfOnly := r.PathPrefix("/api").Subrouter()
-csrfOnly.Use(csrfMiddleware)
-csrfOnly.HandleFunc("/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
+	// Авторизация + CSRF
+	protected := r.PathPrefix("/api").Subrouter()
+	protected.Use(authMiddleware.Authenticate)
+	protected.Use(csrfMiddleware)
 
-// Авторизация + CSRF
-protected := r.PathPrefix("/api").Subrouter()
-protected.Use(authMiddleware.Authenticate)
-protected.Use(csrfMiddleware)
+	protected.HandleFunc("/user/me", authHandler.Me).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/profile", profileHandler.GetProfile).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/trips", tripHandler.List).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.GetDetails).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.Update).Methods("PUT", "OPTIONS")
+	protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.Delete).Methods("DELETE", "OPTIONS")
+	protected.HandleFunc("/trips/{id:[0-9]+}/places", tripHandler.GetTripPlaces).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/trips/{id:[0-9]+}/places/{placeId:[0-9]+}", tripHandler.RemovePlace).Methods("DELETE", "OPTIONS")
+	protected.HandleFunc("/trips/{tripID:[0-9]+}/album", albumHandler.GetByTrip).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.GetPhotos).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/albums/{id:[0-9]+}/photos/{photoId:[0-9]+}", albumHandler.RemovePhoto).Methods("DELETE", "OPTIONS")
+	protected.HandleFunc("/categories", categoryHandler.Create).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Update).Methods("PUT", "OPTIONS")
+	protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Delete).Methods("DELETE", "OPTIONS")
 
-protected.HandleFunc("/user/me", authHandler.Me).Methods("GET", "OPTIONS")
-protected.HandleFunc("/profile", profileHandler.GetProfile).Methods("GET", "OPTIONS")
-protected.HandleFunc("/trips", tripHandler.List).Methods("GET", "OPTIONS")
-protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.GetDetails).Methods("GET", "OPTIONS")
-protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.Update).Methods("PUT", "OPTIONS")
-protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.Delete).Methods("DELETE", "OPTIONS")
-protected.HandleFunc("/trips/{id:[0-9]+}/places", tripHandler.GetTripPlaces).Methods("GET", "OPTIONS")
-protected.HandleFunc("/trips/{id:[0-9]+}/places/{placeId:[0-9]+}", tripHandler.RemovePlace).Methods("DELETE", "OPTIONS")
-protected.HandleFunc("/trips/{tripID:[0-9]+}/album", albumHandler.GetByTrip).Methods("GET", "OPTIONS")
-protected.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.GetPhotos).Methods("GET", "OPTIONS")
-protected.HandleFunc("/albums/{id:[0-9]+}/photos/{photoId:[0-9]+}", albumHandler.RemovePhoto).Methods("DELETE", "OPTIONS")
-protected.HandleFunc("/categories", categoryHandler.Create).Methods("POST", "OPTIONS")
-protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Update).Methods("PUT", "OPTIONS")
-protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Delete).Methods("DELETE", "OPTIONS")
-protected.HandleFunc("/trips/{id:[0-9]+}/export/pdf", tripHandler.ExportTripToPDF).Methods("GET", "OPTIONS")
-
-// Статика и Swagger
-r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
-r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
+	// Статика и Swagger
+	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
+	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
