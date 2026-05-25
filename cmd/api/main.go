@@ -111,6 +111,7 @@ func main() {
 		[]byte(cfg.CSRFSecret),
 		csrf.Secure(cfg.SecureCookies),
 		csrf.Path("/"),
+		csrf.TrustedOrigins(cfg.AllowedOrigins),
 		csrf.ErrorHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusForbidden)
