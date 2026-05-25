@@ -68,8 +68,12 @@ func generateToken() (string, error) {
 }
 
 func getShareBaseURL() string {
+	// Приоритет: SHARE_BASE_URL → FRONTEND_URL → fallback
 	if base := os.Getenv("SHARE_BASE_URL"); base != "" {
 		return base
+	}
+	if front := os.Getenv("FRONTEND_URL"); front != "" {
+		return front
 	}
 	return "http://localhost:8080"
 }

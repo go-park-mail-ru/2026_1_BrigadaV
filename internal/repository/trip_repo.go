@@ -233,11 +233,9 @@ func (r *TripRepo) GetUserTripsWithRoles(ctx context.Context, userID uint64) ([]
 	logger.Debug(ctx, "getting user trips with roles", logrus.Fields{"user_id": userID})
 	query := `
         SELECT t.id, t.title, t.description, t.location, t.start_date, t.end_date, t.preview_url, t.created_by, t.is_public, t.created_at, t.updated_at,
-               COALESCE(tm.role, 'viewer') as role
+               tm.role as role
         FROM trip t
-        LEFT JOIN trip_member tm ON t.id = tm.trip_id AND tm.user_id = $1
-        WHERE tm.user_id = $1 OR t.created_by = $1
-        GROUP BY t.id, tm.role
+        INNER JOIN trip_member tm ON t.id = tm.trip_id AND tm.user_id = $1
         ORDER BY t.created_at DESC
     `
 	rows, err := r.db.Query(ctx, query, userID)
