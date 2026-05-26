@@ -148,13 +148,14 @@ func main() {
 	r.Use(middleware.CORS(cfg.AllowedOrigins...))
 	r.Use(metrics.HTTPMetricsMiddleware)
 
+	csrfTokenRouter := r.PathPrefix("/api").Subrouter()
+	csrfTokenRouter.Use(csrfMiddleware)
+	csrfTokenRouter.HandleFunc("/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
+
 	// Публичные эндпоинты
 	public := r.PathPrefix("/api").Subrouter()
 	public.HandleFunc("/register", authHandler.Register).Methods("POST", "OPTIONS")
 	public.HandleFunc("/login", authHandler.Login).Methods("POST", "OPTIONS")
-	public.HandleFunc("/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
-	public.HandleFunc("/share/view/{token}", tripHandler.ViewSharedTrip).Methods("GET")
-	public.HandleFunc("/share/edit/{token}", tripHandler.AcceptInviteRedirect).Methods("GET")
 
 	public.HandleFunc("/places", placeHandler.List).Methods("GET", "OPTIONS")
 	public.HandleFunc("/places/search", placeHandler.Search).Methods("GET", "OPTIONS")
@@ -184,15 +185,17 @@ func main() {
 	authOnly.HandleFunc("/trips/{id:[0-9]+}/members", tripHandler.GetTripMembers).Methods("GET", "OPTIONS")
 	authOnly.HandleFunc("/trips/{id:[0-9]+}/members/{member_id:[0-9]+}", tripHandler.RemoveMember).Methods("DELETE", "OPTIONS")
 	authOnly.HandleFunc("/trips", tripHandler.Create).Methods("POST", "OPTIONS")
+	authOnly.HandleFunc("/profile", profileHandler.UpdateProfile).Methods("PUT", "OPTIONS")
 
 	// Защищённые с CSRF
 	protected := r.PathPrefix("/api").Subrouter()
 	protected.Use(authMiddleware.Authenticate)
 	protected.Use(csrfMiddleware)
 
+	protected.HandleFunc("/share/view/{token}", tripHandler.ViewSharedTrip).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/share/edit/{token}", tripHandler.AcceptInviteRedirect).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/user/me", authHandler.Me).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/profile", profileHandler.GetProfile).Methods("GET", "OPTIONS")
-	protected.HandleFunc("/profile", profileHandler.UpdateProfile).Methods("PUT", "OPTIONS")
 	protected.HandleFunc("/trips", tripHandler.List).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.GetDetails).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.Update).Methods("PUT", "OPTIONS")

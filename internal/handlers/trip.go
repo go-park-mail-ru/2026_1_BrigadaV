@@ -2,9 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 
 	"guidely-app/internal/dto"
 	"guidely-app/internal/logger"
@@ -22,6 +23,30 @@ type TripHandler struct {
 
 func NewTripHandler(tripService service.TripService) *TripHandler {
 	return &TripHandler{tripService: tripService}
+}
+
+// getFrontendURL возвращает базовый URL фронтенда для редиректов
+func getFrontendURL() string {
+	base := os.Getenv("SHARE_BASE_URL")
+	if base == "" {
+		base = os.Getenv("FRONTEND_URL")
+	}
+	if base == "" {
+		return "https://localhost:3000"
+	}
+
+	// Принудительное переключение на https
+	if os.Getenv("FORCE_HTTPS") == "true" && strings.HasPrefix(base, "http://") {
+		base = "https://" + strings.TrimPrefix(base, "http://")
+	}
+	// Если домен не localhost, тоже меняем http на https
+	if strings.HasPrefix(base, "https://") {
+		host := strings.TrimPrefix(base, "https://")
+		if !strings.Contains(host, "localhost") && !strings.Contains(host, "127.0.0.1") {
+			base = "https://" + host
+		}
+	}
+	return base
 }
 
 // List возвращает все поездки, где пользователь является участником, с его ролью
@@ -357,24 +382,31 @@ func (h *TripHandler) CreateEditShareLink(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(map[string]string{"share_link": link})
 }
 
-// AcceptInviteRedirect – GET /api/share/edit/{token} – принимает приглашение и редиректит на страницу поездки
 func (h *TripHandler) AcceptInviteRedirect(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	token := vars["token"]
 	userID := middleware.GetUserIDFromContext(r)
+
 	if userID == 0 {
-		// Сохраняем токен в сессию или параметр редиректа
-		http.Redirect(w, r, "/login?redirect=/share/edit/"+token, http.StatusFound)
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
+
 	tripID, role, err := h.tripService.AcceptInvite(r.Context(), token, userID)
 	if err != nil {
 		logger.Error(r.Context(), "AcceptInvite failed", logrus.Fields{"error": err})
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
-	redirectURL := fmt.Sprintf("/trips/%d?role=%s", tripID, role)
-	http.Redirect(w, r, redirectURL, http.StatusFound)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"trip_id": tripID,
+		"role":    role,
+		"message": "invite accepted",
+	})
 }
 
 // GetTripMembers – GET /api/trips/{id}/members – список участников (только для владельца)
@@ -436,27 +468,29 @@ func (h *TripHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// ViewSharedTrip – GET /api/share/view/{token} – публичный просмотр поездки по ссылке
 func (h *TripHandler) ViewSharedTrip(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	token := vars["token"]
-	trip, role, err := h.tripService.GetTripByShareToken(r.Context(), token)
-	if err != nil {
-		logger.Error(r.Context(), "ViewSharedTrip failed", logrus.Fields{"error": err})
-		http.Error(w, "invalid share link", http.StatusNotFound)
+	userID := middleware.GetUserIDFromContext(r)
+
+	if userID == 0 {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
-	_, places, err := h.tripService.GetTripDetails(r.Context(), trip.ID)
+
+	tripID, role, err := h.tripService.AcceptInvite(r.Context(), token, userID)
 	if err != nil {
-		logger.Error(r.Context(), "Failed to get attractions for shared trip", logrus.Fields{"error": err})
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		logger.Error(r.Context(), "ViewSharedTrip AcceptInvite failed", logrus.Fields{"error": err})
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid share link"})
 		return
 	}
-	response := map[string]interface{}{
-		"trip":        trip,
-		"attractions": places,
-		"role":        role,
-	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"trip_id": tripID,
+		"role":    role,
+		"message": "invite accepted",
+	})
 }

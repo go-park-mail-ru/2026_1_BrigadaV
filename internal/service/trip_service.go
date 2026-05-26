@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"os"
+	"strings"
 	"time"
 
 	"guidely-app/internal/logger"
@@ -67,21 +68,34 @@ func generateToken() (string, error) {
 	return base64.URLEncoding.EncodeToString(b), nil
 }
 
+// getShareBaseURL возвращает базовый URL для ссылок приглашений.
+// Автоматически заменяет http на https, если включена принудительная настройка
+// или если домен не является localhost.
 func getShareBaseURL() string {
-	// Приоритет: SHARE_BASE_URL → FRONTEND_URL → fallback
-	if base := os.Getenv("SHARE_BASE_URL"); base != "" {
-		return base
+	base := os.Getenv("SHARE_BASE_URL")
+	if base == "" {
+		base = os.Getenv("FRONTEND_URL")
 	}
-	if front := os.Getenv("FRONTEND_URL"); front != "" {
-		return front
+	if base == "" {
+		return "https://localhost:3000" // безопасное значение по умолчанию
 	}
-	return "http://localhost:8080"
+
+	// Если переменная FORCE_HTTPS=true, заменяем http:// на https://
+	if os.Getenv("FORCE_HTTPS") == "true" && strings.HasPrefix(base, "http://") {
+		base = "https://" + strings.TrimPrefix(base, "http://")
+	}
+
+	// Если домен не localhost и не 127.0.0.1, то тоже заменяем http на https
+	if strings.HasPrefix(base, "http://") {
+		host := strings.TrimPrefix(base, "http://")
+		if !strings.Contains(host, "localhost") && !strings.Contains(host, "127.0.0.1") {
+			base = "https://" + host
+		}
+	}
+	return base
 }
 
 // isOwner проверяет что пользователь является владельцем поездки.
-// Сначала смотрим в trip_member, если там нет записи — проверяем created_by.
-// Это нужно для обратной совместимости с поездками, созданными до добавления
-// автоматической записи owner в trip_member.
 func (s *tripService) isOwner(ctx context.Context, tripID, userID uint64) (bool, error) {
 	role, err := s.memberRepo.GetMemberRole(ctx, tripID, userID)
 	if err != nil {
@@ -90,7 +104,6 @@ func (s *tripService) isOwner(ctx context.Context, tripID, userID uint64) (bool,
 	if role == "owner" {
 		return true, nil
 	}
-	// Fallback: проверяем created_by напрямую
 	trip, err := s.tripRepo.GetByID(ctx, tripID)
 	if err != nil {
 		return false, err
@@ -153,7 +166,6 @@ func (s *tripService) Update(ctx context.Context, id, userID uint64, input Updat
 		return nil, err
 	}
 	if !ok {
-		// Fallback: проверяем created_by
 		trip, err2 := s.tripRepo.GetByID(ctx, id)
 		if err2 != nil || trip == nil || trip.CreatedBy != userID {
 			return nil, errors.New("not authorized to edit this trip")
@@ -220,7 +232,6 @@ func (s *tripService) AddPlaceToTrip(ctx context.Context, tripID, placeID, userI
 		return err
 	}
 	if !ok {
-		// Fallback: проверяем created_by
 		trip, err2 := s.tripRepo.GetByID(ctx, tripID)
 		if err2 != nil || trip == nil || trip.CreatedBy != userID {
 			return errors.New("not authorized to edit this trip")
@@ -257,7 +268,6 @@ func (s *tripService) RemovePlaceFromTrip(ctx context.Context, tripID, placeID, 
 // ----- Методы шеринга и совместного планирования -----
 
 // CreateViewShareLink создаёт постоянную ссылку для просмотра поездки.
-// Доступно только владельцу.
 func (s *tripService) CreateViewShareLink(ctx context.Context, tripID, userID uint64) (string, error) {
 	owner, err := s.isOwner(ctx, tripID, userID)
 	if err != nil {
@@ -266,7 +276,6 @@ func (s *tripService) CreateViewShareLink(ctx context.Context, tripID, userID ui
 	if !owner {
 		return "", errors.New("only owner can create share links")
 	}
-
 	token, err := generateToken()
 	if err != nil {
 		return "", err
@@ -286,7 +295,6 @@ func (s *tripService) CreateViewShareLink(ctx context.Context, tripID, userID ui
 }
 
 // CreateEditShareLink создаёт одноразовую ссылку для добавления редактора.
-// Доступно только владельцу.
 func (s *tripService) CreateEditShareLink(ctx context.Context, tripID, userID uint64) (string, error) {
 	owner, err := s.isOwner(ctx, tripID, userID)
 	if err != nil {
@@ -295,7 +303,6 @@ func (s *tripService) CreateEditShareLink(ctx context.Context, tripID, userID ui
 	if !owner {
 		return "", errors.New("only owner can create share links")
 	}
-
 	token, err := generateToken()
 	if err != nil {
 		return "", err
@@ -329,13 +336,31 @@ func (s *tripService) AcceptInvite(ctx context.Context, token string, userID uin
 	if invite.IsOneTime && invite.UsedAt != nil {
 		return 0, "", errors.New("invite already used")
 	}
-	if err := s.memberRepo.AddMember(ctx, invite.TripID, userID, invite.Role); err != nil {
+	memberRole := invite.Role
+	if memberRole == "companion" {
+		memberRole = "editor"
+	}
+
+	// Не перезаписывать роль, если пользователь уже является владельцем
+	existingRole, err := s.memberRepo.GetMemberRole(ctx, invite.TripID, userID)
+	if err != nil {
+		return 0, "", err
+	}
+	if existingRole == "owner" {
+		if invite.IsOneTime {
+			_ = s.inviteRepo.MarkUsed(ctx, invite.ID)
+		}
+		return invite.TripID, existingRole, nil
+	}
+
+	if err := s.memberRepo.AddMember(ctx, invite.TripID, userID, memberRole); err != nil {
+		// ON CONFLICT DO UPDATE уже обрабатывает дублирование — если всё же ошибка, пробрасываем
 		return 0, "", err
 	}
 	if invite.IsOneTime {
 		_ = s.inviteRepo.MarkUsed(ctx, invite.ID)
 	}
-	return invite.TripID, invite.Role, nil
+	return invite.TripID, memberRole, nil
 }
 
 // GetTripMembers возвращает список участников (только владелец).
@@ -347,7 +372,16 @@ func (s *tripService) GetTripMembers(ctx context.Context, tripID, userID uint64)
 	if !owner {
 		return nil, errors.New("only owner can view members")
 	}
-	return s.memberRepo.GetTripMembers(ctx, tripID)
+	members, err := s.memberRepo.GetTripMembers(ctx, tripID)
+	if err != nil {
+		return nil, err
+	}
+	for i := range members {
+		if members[i].Role == "companion" {
+			members[i].Role = "editor"
+		}
+	}
+	return members, nil
 }
 
 // RemoveMember удаляет участника из поездки (только владелец).
