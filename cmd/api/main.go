@@ -174,6 +174,8 @@ func main() {
 	authOnly := r.PathPrefix("/api").Subrouter()
 	authOnly.Use(authMiddleware.Authenticate)
 
+	authOnly.HandleFunc("/share/edit/{token}", tripHandler.AcceptInviteAPI).Methods("POST", "OPTIONS")
+	authOnly.HandleFunc("/share/view/{token}", tripHandler.JoinViewShareAPI).Methods("POST", "OPTIONS")
 
 	authOnly.HandleFunc("/profile/avatar", profileHandler.GetAvatar).Methods("GET", "OPTIONS")
 	authOnly.HandleFunc("/profile/avatar", profileHandler.UploadAvatar).Methods("POST", "OPTIONS")
@@ -191,8 +193,6 @@ func main() {
 	authOnly.HandleFunc("/trips/{id:[0-9]+}/members", tripHandler.GetTripMembers).Methods("GET", "OPTIONS")
 	authOnly.HandleFunc("/trips/{id:[0-9]+}/members/{member_id:[0-9]+}", tripHandler.RemoveMember).Methods("DELETE", "OPTIONS")
 	authOnly.HandleFunc("/trips", tripHandler.Create).Methods("POST", "OPTIONS")
-	authOnly.HandleFunc("/share/edit/{token}", tripHandler.AcceptInviteAPI).Methods("POST", "OPTIONS")
-	authOnly.HandleFunc("/share/view/{token}", tripHandler.JoinViewShareAPI).Methods("POST", "OPTIONS")
 
 	// Защищённые с CSRF
 	protected := r.PathPrefix("/api").Subrouter()

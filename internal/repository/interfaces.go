@@ -29,6 +29,7 @@ type PlaceRepository interface {
 	GetAll(ctx context.Context, filter PlaceFilter) ([]models.Place, error)
 	GetByID(ctx context.Context, id uint64) (*models.Place, error)
 	GetByIDs(ctx context.Context, ids []uint64) ([]models.Place, error)
+	GetByIDsFiltered(ctx context.Context, ids []uint64, filter PlaceFilter) ([]models.Place, error)
 	GetWithRatingAndLike(ctx context.Context, placeID, userID uint64) (*models.PlaceWithRating, error)
 	IsPlaceInTrip(ctx context.Context, placeID, tripID uint64) (bool, error)
 	Search(ctx context.Context, query string, filter PlaceFilter) ([]models.Place, error)
@@ -39,7 +40,7 @@ type PlaceRepository interface {
 // PlaceSearchRepository — интерфейс для полнотекстового поиска (ElasticSearch).
 // Позволяет подменить реализацию в тестах или откатиться на SQL при недоступности ES.
 type PlaceSearchRepository interface {
-	Search(ctx context.Context, query string) ([]models.Place, error)
+	Search(ctx context.Context, query string, filter PlaceFilter) ([]models.Place, error)
 }
 
 type TripRepository interface {

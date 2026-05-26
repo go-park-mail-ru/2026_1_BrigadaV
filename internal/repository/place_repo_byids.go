@@ -11,6 +11,10 @@ import (
 )
 
 func (r *PlaceRepo) GetByIDs(ctx context.Context, ids []uint64) ([]models.Place, error) {
+	return r.GetByIDsFiltered(ctx, ids, PlaceFilter{})
+}
+
+func (r *PlaceRepo) GetByIDsFiltered(ctx context.Context, ids []uint64, filter PlaceFilter) ([]models.Place, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
@@ -20,6 +24,26 @@ func (r *PlaceRepo) GetByIDs(ctx context.Context, ids []uint64) ([]models.Place,
 	for i, id := range ids {
 		placeholders[i] = fmt.Sprintf("$%d", i+1)
 		args[i] = id
+	}
+
+	filterClause := ""
+	if len(filter.CategoryIDs) > 0 {
+		catPlaceholders := make([]string, len(filter.CategoryIDs))
+		for i, id := range filter.CategoryIDs {
+			args = append(args, id)
+			catPlaceholders[i] = fmt.Sprintf("$%d", len(args))
+		}
+		filterClause += fmt.Sprintf(" AND p.category_id IN (%s)", strings.Join(catPlaceholders, ","))
+	}
+	if filter.MinRating > 0 {
+		args = append(args, filter.MinRating)
+		filterClause += fmt.Sprintf(`
+			AND (SELECT COALESCE(AVG(r.rating), 0) FROM review r WHERE r.place_id = p.id) >= $%d`, len(args))
+	}
+	if filter.MinReviews > 0 {
+		args = append(args, filter.MinReviews)
+		filterClause += fmt.Sprintf(`
+			AND (SELECT COUNT(*) FROM review r WHERE r.place_id = p.id) >= $%d`, len(args))
 	}
 
 	q := fmt.Sprintf(`
@@ -34,8 +58,8 @@ func (r *PlaceRepo) GetByIDs(ctx context.Context, ids []uint64) ([]models.Place,
         LEFT JOIN category cat ON p.category_id = cat.id
         LEFT JOIN place_photo pp ON p.id = pp.place_id
         LEFT JOIN photo ph ON pp.photo_id = ph.id
-        WHERE p.id IN (%s)
-        ORDER BY p.id`, strings.Join(placeholders, ","))
+        WHERE p.id IN (%s)%s
+        ORDER BY p.id`, strings.Join(placeholders, ","), filterClause)
 
 	rows, err := r.db.Query(ctx, q, args...)
 	if err != nil {
