@@ -112,11 +112,14 @@ func main() {
 	r.Use(logger.Middleware)
 	r.Use(middleware.CORS(cfg.AllowedOrigins...))
 
+	csrfTokenRouter := r.PathPrefix("/api").Subrouter()
+	csrfTokenRouter.Use(csrfMiddleware)
+	csrfTokenRouter.HandleFunc("/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
+
 	// Публичные эндпоинты
 	public := r.PathPrefix("/api").Subrouter()
 	public.HandleFunc("/register", authHandler.Register).Methods("POST", "OPTIONS")
 	public.HandleFunc("/login", authHandler.Login).Methods("POST", "OPTIONS")
-	public.HandleFunc("/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
 
 	public.HandleFunc("/places", placeHandler.List).Methods("GET", "OPTIONS")
 	public.HandleFunc("/places/search", placeHandler.Search).Methods("GET", "OPTIONS")
