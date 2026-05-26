@@ -31,6 +31,9 @@ func (s *profileServiceImpl) UpdateProfile(ctx context.Context, userID uint64, i
 	if err != nil {
 		return nil, err
 	}
+	if user == nil {
+		return nil, err // репозиторий вернул nil, ошибки нет, но пользователь не найден
+	}
 	if input.Nickname != nil {
 		user.Nickname = *input.Nickname
 	}
@@ -56,6 +59,9 @@ func (s *profileServiceImpl) UpdateAvatar(ctx context.Context, userID uint64, av
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, err
+	}
+	if user == nil {
+		return nil, nil
 	}
 	user.AvatarURL = avatarURL
 	if err := s.userRepo.Update(ctx, user); err != nil {

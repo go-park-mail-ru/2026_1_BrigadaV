@@ -21,7 +21,7 @@ func TestAlbumHandler_Create_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	mockClient := pb.NewMockAlbumServiceClient(ctrl)
-	handler := NewAlbumHandler(mockClient)
+	handler := NewAlbumHandler(mockClient, nil) // исправлено
 
 	reqBody := map[string]interface{}{
 		"trip_id":     1,
@@ -43,7 +43,7 @@ func TestAlbumHandler_Create_Unauthorized(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	mockClient := pb.NewMockAlbumServiceClient(ctrl)
-	handler := NewAlbumHandler(mockClient)
+	handler := NewAlbumHandler(mockClient, nil)
 
 	req := httptest.NewRequest("POST", "/api/albums", nil)
 	w := httptest.NewRecorder()
@@ -56,7 +56,7 @@ func TestAlbumHandler_Create_Error(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	mockClient := pb.NewMockAlbumServiceClient(ctrl)
-	handler := NewAlbumHandler(mockClient)
+	handler := NewAlbumHandler(mockClient, nil)
 
 	reqBody := map[string]interface{}{
 		"trip_id": 1,
@@ -76,7 +76,7 @@ func TestAlbumHandler_Delete_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	mockClient := pb.NewMockAlbumServiceClient(ctrl)
-	handler := NewAlbumHandler(mockClient)
+	handler := NewAlbumHandler(mockClient, nil)
 
 	req := httptest.NewRequest("DELETE", "/api/albums/1", nil)
 	req = req.WithContext(context.WithValue(req.Context(), "user_id", uint64(1)))
@@ -92,7 +92,7 @@ func TestAlbumHandler_Delete_Error(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	mockClient := pb.NewMockAlbumServiceClient(ctrl)
-	handler := NewAlbumHandler(mockClient)
+	handler := NewAlbumHandler(mockClient, nil)
 
 	req := httptest.NewRequest("DELETE", "/api/albums/1", nil)
 	req = req.WithContext(context.WithValue(req.Context(), "user_id", uint64(1)))
