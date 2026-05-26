@@ -18,6 +18,7 @@ WORKDIR /root/
 COPY --from=builder /app/server .
 
 RUN mkdir -p uploads/photos
+COPY assets/fonts ./assets/fonts
 
 EXPOSE 8080
 
