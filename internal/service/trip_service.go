@@ -2,7 +2,6 @@ package service
 
 import (
 	"bytes"
-	"golang.org/x/text/encoding/charmap"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
@@ -416,34 +415,25 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 
 	pdf.AddUTF8Font("PTSans", "", "assets/fonts/PTSans-Regular.ttf")
 
-	tr := func(s string) string {
-		encoder := charmap.Windows1251.NewEncoder()
-		out, err := encoder.String(s)
-		if err != nil {
-			return s
-		}
-		return out
-	}
-
 	pdf.AddPage()
 
 	pdf.SetFont("PTSans", "", 16)
 
 	title := "Поездка: " + trip.Title
-	pdf.Cell(0, 10, tr(title))
+	pdf.Cell(0, 10, title)
 	pdf.Ln(12)
 
 	pdf.SetFont("PTSans", "", 12)
-	pdf.Cell(40, 10, tr("Направление:"))
+	pdf.Cell(40, 10, "Направление:")
 
 	location := "не указано"
 	if trip.Location != nil && *trip.Location != "" {
 		location = *trip.Location
 	}
-	pdf.Cell(0, 10, tr(location))
+	pdf.Cell(0, 10, location)
 	pdf.Ln(8)
 
-	pdf.Cell(40, 10, tr("Даты:"))
+	pdf.Cell(40, 10, "Даты:")
 	dateFrom := formatDatePtr(trip.StartDate)
 	dateTo := formatDatePtr(trip.EndDate)
 	dateStr := dateFrom
@@ -452,32 +442,32 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 	} else if dateTo != "не указана" {
 		dateStr = dateTo
 	}
-	pdf.Cell(0, 10, tr(dateStr))
+	pdf.Cell(0, 10, dateStr)
 	pdf.Ln(8)
 
 	if trip.Description != "" {
-		pdf.Cell(40, 10, tr("Описание:"))
+		pdf.Cell(40, 10, "Описание:")
 		pdf.Ln(6)
-		pdf.MultiCell(0, 6, tr(trip.Description), "", "", false)
+		pdf.MultiCell(0, 6, trip.Description, "", "", false)
 		pdf.Ln(4)
 	}
 
 	pdf.SetFont("PTSans", "", 14)
-	pdf.Cell(0, 10, tr("Достопримечательности:"))
+	pdf.Cell(0, 10, "Достопримечательности:")
 	pdf.Ln(10)
 
 	if len(places) == 0 {
 		pdf.SetFont("PTSans", "", 12)
-		pdf.Cell(0, 10, tr("Нет добавленных мест"))
+		pdf.Cell(0, 10, "Нет добавленных мест")
 	} else {
 		for i, place := range places {
 			pdf.SetFont("PTSans", "", 12)
-			pdf.Cell(0, 8, tr(fmt.Sprintf("%d. %s", i+1, place.Name)))
+			pdf.Cell(0, 8, fmt.Sprintf("%d. %s", i+1, place.Name))
 			pdf.Ln(6)
 
 			if place.Rating > 0 {
 				pdf.SetFont("PTSans", "", 10)
-				pdf.Cell(0, 5, tr(fmt.Sprintf("Рейтинг: %.1f", place.Rating)))
+				pdf.Cell(0, 5, fmt.Sprintf("Рейтинг: %.1f", place.Rating))
 				pdf.Ln(5)
 			}
 
@@ -487,7 +477,7 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 				if len(desc) > 200 {
 					desc = desc[:200] + "..."
 				}
-				pdf.MultiCell(0, 5, tr(desc), "", "", false)
+				pdf.MultiCell(0, 5, desc, "", "", false)
 				pdf.Ln(2)
 			}
 			pdf.Ln(2)
