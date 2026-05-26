@@ -442,3 +442,51 @@ func TestTripService_GetTripByShareToken_OneTimeUsed(t *testing.T) {
 	_, _, err := svc.GetTripByShareToken(context.Background(), "token")
 	assert.EqualError(t, err, "one-time link already used")
 }
+
+// TestTripService_ExportTripToPDF_Success
+func TestTripService_ExportTripToPDF_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	svc := NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+
+	trip := &models.Trip{
+		ID:          1,
+		Title:       "Test Trip",
+		Location:    testutil.PtrString("Paris"),
+		Description: "A wonderful trip",
+		StartDate:   testutil.PtrTime(time.Now()),
+		EndDate:     testutil.PtrTime(time.Now().AddDate(0, 0, 5)),
+	}
+	places := []models.PlaceInTrip{
+		{ID: 1, Name: "Eiffel Tower", Rating: 4.8, Description: "Famous tower"},
+	}
+
+	mockMemberRepo.EXPECT().HasViewPermission(gomock.Any(), uint64(1), uint64(100)).Return(true, nil)
+	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(trip, nil)
+	mockTripRepo.EXPECT().GetAttractions(gomock.Any(), uint64(1)).Return(places, nil)
+
+	pdfData, err := svc.ExportTripToPDF(context.Background(), 1, 100)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, pdfData)
+	assert.True(t, len(pdfData) > 4 && string(pdfData[:4]) == "%PDF")
+}
+
+func TestTripService_ExportTripToPDF_AccessDenied(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	svc := NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+
+	mockMemberRepo.EXPECT().HasViewPermission(gomock.Any(), uint64(1), uint64(200)).Return(false, nil)
+
+	_, err := svc.ExportTripToPDF(context.Background(), 1, 200)
+	assert.Error(t, err)
+	assert.Equal(t, "access denied", err.Error())
+}

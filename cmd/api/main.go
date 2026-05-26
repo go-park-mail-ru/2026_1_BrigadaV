@@ -174,6 +174,7 @@ func main() {
 	authOnly := r.PathPrefix("/api").Subrouter()
 	authOnly.Use(authMiddleware.Authenticate)
 
+
 	authOnly.HandleFunc("/profile/avatar", profileHandler.GetAvatar).Methods("GET", "OPTIONS")
 	authOnly.HandleFunc("/profile/avatar", profileHandler.UploadAvatar).Methods("POST", "OPTIONS")
 	authOnly.HandleFunc("/profile", profileHandler.UpdateProfile).Methods("PUT", "OPTIONS")
@@ -208,7 +209,7 @@ func main() {
 	protected.HandleFunc("/categories", categoryHandler.Create).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Update).Methods("PUT", "OPTIONS")
 	protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Delete).Methods("DELETE", "OPTIONS")
-
+  protected.HandleFunc("/trips/{id:[0-9]+}/export/pdf", tripHandler.ExportTripToPDF).Methods("GET", "OPTIONS")
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 
