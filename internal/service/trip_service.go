@@ -415,7 +415,7 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 
 	pdf.AddUTF8Font("PTSans", "", "assets/fonts/PTSans-Regular.ttf")
 
-	tr := pdf.UnicodeTranslatorFromDescriptor("")
+	tr := pdf.UnicodeTranslatorFromDescriptor("cp1251")
 
 	pdf.AddPage()
 
