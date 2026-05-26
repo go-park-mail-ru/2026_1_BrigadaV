@@ -140,11 +140,6 @@ func main() {
 		csrf.Secure(cfg.SecureCookies),
 		csrf.Path("/"),
 		csrf.TrustedOrigins(cfg.AllowedOrigins),
-		csrf.ErrorHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusForbidden)
-			w.Write([]byte(`{"error":"csrf token invalid"}`))
-		})),
 	)
 
 	// ... после создания всех хендлеров
@@ -152,7 +147,11 @@ func main() {
 	r := mux.NewRouter()
 	r.Use(logger.Middleware)
 	r.Use(middleware.CORS(cfg.AllowedOrigins...))
-	r.Use(metrics.HTTPMetricsMiddleware) // если используется в dev
+	r.Use(metrics.HTTPMetricsMiddleware)
+
+	csrfTokenRouter := r.PathPrefix("/api").Subrouter()
+	csrfTokenRouter.Use(csrfMiddleware)
+	csrfTokenRouter.HandleFunc("/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
 
 	// Публичные эндпоинты (без авторизации и CSRF)
 	public := r.PathPrefix("/api").Subrouter()
@@ -176,22 +175,16 @@ func main() {
 	authOnly := r.PathPrefix("/api").Subrouter()
 	authOnly.Use(authMiddleware.Authenticate)
 
-	authOnly.HandleFunc("/logout", authHandler.Logout).Methods("POST", "OPTIONS")
 	authOnly.HandleFunc("/profile/avatar", profileHandler.GetAvatar).Methods("GET", "OPTIONS")
 	authOnly.HandleFunc("/profile/avatar", profileHandler.UploadAvatar).Methods("POST", "OPTIONS")
+	authOnly.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.AddPhoto).Methods("POST", "OPTIONS")
+	authOnly.HandleFunc("/logout", authHandler.Logout).Methods("POST", "OPTIONS")
 	authOnly.HandleFunc("/reviews", reviewHandler.Create).Methods("POST", "OPTIONS")
 	authOnly.HandleFunc("/reviews/{id:[0-9]+}", reviewHandler.Delete).Methods("DELETE", "OPTIONS")
 	authOnly.HandleFunc("/trips/{id:[0-9]+}/places", tripHandler.AddPlace).Methods("POST", "OPTIONS")
 	authOnly.HandleFunc("/places/{id:[0-9]+}/in-trip", placeHandler.CheckPlaceInTrip).Methods("GET", "OPTIONS")
-	authOnly.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.AddPhoto).Methods("POST", "OPTIONS")
-	authOnly.HandleFunc("/albums/{id:[0-9]+}/photos/{photoId:[0-9]+}", albumHandler.RemovePhoto).Methods("DELETE", "OPTIONS")
 	authOnly.HandleFunc("/trips", tripHandler.Create).Methods("POST", "OPTIONS")
 	authOnly.HandleFunc("/profile", profileHandler.UpdateProfile).Methods("PUT", "OPTIONS")
-
-	// Только CSRF (без авторизации)
-	csrfOnly := r.PathPrefix("/api").Subrouter()
-	csrfOnly.Use(csrfMiddleware)
-	csrfOnly.HandleFunc("/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
 
 	// Авторизация + CSRF
 	protected := r.PathPrefix("/api").Subrouter()
