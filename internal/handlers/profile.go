@@ -145,6 +145,13 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Проверяем доступность S3 только после того, как файл получен и валиден
+	if h.s3 == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{"error": "avatar upload is disabled (S3 not configured)"})
+		return
+	}
+
 	ext := filepath.Ext(header.Filename)
 	if ext == "" {
 		ext = ".jpg"
@@ -212,7 +219,6 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// GetAvatar – возвращает URL аватара
 func (h *ProfileHandler) GetAvatar(w http.ResponseWriter, r *http.Request) {
 	userIDVal := r.Context().Value("user_id")
 	userID, ok := userIDVal.(uint64)

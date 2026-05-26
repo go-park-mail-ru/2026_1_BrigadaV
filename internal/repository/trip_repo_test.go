@@ -9,6 +9,7 @@ import (
 	"guidely-app/internal/testutil"
 	"guidely-app/pkg/models"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/pashagolub/pgxmock/v4"
 	"github.com/stretchr/testify/assert"
 )
@@ -269,4 +270,64 @@ func TestTripRepo_CheckPlaceInTrip(t *testing.T) {
 	exists, err := repo.CheckPlaceInTrip(context.Background(), 1, 5)
 	assert.NoError(t, err)
 	assert.True(t, exists)
+}
+
+func TestTripMemberRepo_AddMember(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+
+	repo := NewTripMemberRepo(mockPool)
+
+	mockPool.ExpectExec(`INSERT INTO trip_member`).
+		WithArgs(uint64(1), uint64(2), "editor").
+		WillReturnResult(pgxmock.NewResult("INSERT", 1))
+
+	err = repo.AddMember(context.Background(), 1, 2, "editor")
+	assert.NoError(t, err)
+	assert.NoError(t, mockPool.ExpectationsWereMet())
+}
+
+func TestTripMemberRepo_GetMemberRole(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewTripMemberRepo(mockPool)
+
+	rows := mockPool.NewRows([]string{"role"}).AddRow("owner")
+	mockPool.ExpectQuery(`SELECT role FROM trip_member`).
+		WithArgs(uint64(1), uint64(2)).
+		WillReturnRows(rows)
+
+	role, err := repo.GetMemberRole(context.Background(), 1, 2)
+	assert.NoError(t, err)
+	assert.Equal(t, "owner", role)
+}
+
+func TestTripRepo_Update_NoRows(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+
+	repo := NewTripRepo(mockPool)
+
+	trip := &models.Trip{ID: 999, Title: "Nonexistent"}
+	mockPool.ExpectQuery(`UPDATE trip SET`).WithArgs(trip.Title, trip.Description, trip.Location, trip.StartDate, trip.EndDate, trip.PreviewURL, trip.IsPublic, uint64(999)).WillReturnError(pgx.ErrNoRows)
+
+	err = repo.Update(context.Background(), trip)
+	assert.Error(t, err)
+}
+
+// TestTripRepo_Delete_NoRows
+func TestTripRepo_Delete_NoRows(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+
+	repo := NewTripRepo(mockPool)
+
+	mockPool.ExpectExec(`DELETE FROM trip WHERE id = \$1`).WithArgs(uint64(999)).WillReturnResult(pgxmock.NewResult("DELETE", 0))
+
+	err = repo.Delete(context.Background(), 999)
+	assert.NoError(t, err) // удаление несуществующей записи не ошибка
 }

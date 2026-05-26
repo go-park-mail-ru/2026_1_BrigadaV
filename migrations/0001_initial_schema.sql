@@ -188,6 +188,26 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS trip_after_insert ON trip;
 CREATE TRIGGER trip_after_insert AFTER INSERT ON trip FOR EACH ROW EXECUTE FUNCTION create_default_album();
 
+-- Триггер: добавляем создателя поездки в trip_member с ролью owner
+CREATE OR REPLACE FUNCTION add_trip_owner_to_members() RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO trip_member (trip_id, user_id, role)
+    VALUES (NEW.id, NEW.created_by, 'owner')
+    ON CONFLICT (trip_id, user_id) DO UPDATE SET role = 'owner';
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trip_add_owner ON trip;
+CREATE TRIGGER trip_add_owner
+    AFTER INSERT ON trip
+    FOR EACH ROW EXECUTE FUNCTION add_trip_owner_to_members();
+
+-- Бэкфилл: добавляем owner для всех уже существующих поездок
+INSERT INTO trip_member (trip_id, user_id, role)
+SELECT id, created_by, 'owner' FROM trip
+ON CONFLICT (trip_id, user_id) DO UPDATE SET role = 'owner';
+
 CREATE INDEX IF NOT EXISTS idx_place_search ON place USING GIN (to_tsvector('russian', name || ' ' || COALESCE(description, '')));
 
 

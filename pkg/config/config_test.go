@@ -20,7 +20,7 @@ func TestLoad_Defaults(t *testing.T) {
 	cfg, err := Load()
 	assert.NoError(t, err)
 	assert.Equal(t, "8080", cfg.Port)
-	assert.Equal(t, "http://localhost:5173", cfg.FrontendURL)
+	assert.Equal(t, "http://localhost:3000", cfg.FrontendURL)
 	assert.False(t, cfg.SecureCookies)
 }
 
@@ -126,4 +126,18 @@ func TestGetEnvBool(t *testing.T) {
 	assert.True(t, getEnvBool("TEST_BOOL", false))
 	os.Setenv("TEST_BOOL", "no")
 	assert.False(t, getEnvBool("TEST_BOOL", false))
+}
+
+// TestLoad_S3Enabled
+func TestLoad_S3Enabled(t *testing.T) {
+	os.Setenv("DATABASE_URL", "postgres://localhost/test")
+	os.Setenv("JWT_SECRET", "a-very-long-secret-key-that-is-at-least-32-characters")
+	os.Setenv("S3_ENABLED", "false")
+	defer os.Unsetenv("DATABASE_URL")
+	defer os.Unsetenv("JWT_SECRET")
+	defer os.Unsetenv("S3_ENABLED")
+
+	cfg, err := Load()
+	assert.NoError(t, err)
+	assert.False(t, cfg.S3Enabled)
 }

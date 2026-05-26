@@ -53,6 +53,8 @@ type TripRepository interface {
 	GetPlaceIDs(ctx context.Context, tripID uint64) ([]uint64, error)
 	RemoveAttraction(ctx context.Context, tripID, placeID uint64) error
 	CheckPlaceInTrip(ctx context.Context, tripID, placeID uint64) (bool, error)
+	GetUserTripsWithRoles(ctx context.Context, userID uint64) ([]UserTripWithRole, error)
+	GetUserRoleForTrip(ctx context.Context, tripID, userID uint64) (string, error)
 }
 
 type CategoryRepository interface {
@@ -73,4 +75,21 @@ type ReviewRepository interface {
 type CountryRepository interface {
 	GetAll(ctx context.Context) ([]models.Country, error)
 	GetLocalitiesByCountryID(ctx context.Context, countryID uint64) ([]models.Locality, error)
+}
+
+type TripMemberRepository interface {
+	AddMember(ctx context.Context, tripID, userID uint64, role string) error
+	RemoveMember(ctx context.Context, tripID, userID uint64) error
+	GetMemberRole(ctx context.Context, tripID, userID uint64) (string, error)
+	GetTripMembers(ctx context.Context, tripID uint64) ([]models.TripMember, error)
+	HasEditPermission(ctx context.Context, tripID, userID uint64) (bool, error)
+	HasViewPermission(ctx context.Context, tripID, userID uint64) (bool, error)
+}
+
+type TripInviteRepository interface {
+	CreateInvite(ctx context.Context, invite *models.TripInvite) error
+	GetInviteByToken(ctx context.Context, token string) (*models.TripInvite, error)
+	MarkUsed(ctx context.Context, id uint64) error
+	DeleteInvite(ctx context.Context, id uint64) error
+	GetInvitesByTrip(ctx context.Context, tripID uint64) ([]models.TripInvite, error)
 }

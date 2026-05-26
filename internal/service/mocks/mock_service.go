@@ -233,6 +233,22 @@ func (m *MockTripService) EXPECT() *MockTripServiceMockRecorder {
 	return m.recorder
 }
 
+// AcceptInvite mocks base method.
+func (m *MockTripService) AcceptInvite(arg0 context.Context, arg1 string, arg2 uint64) (uint64, string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AcceptInvite", arg0, arg1, arg2)
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(string)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// AcceptInvite indicates an expected call of AcceptInvite.
+func (mr *MockTripServiceMockRecorder) AcceptInvite(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AcceptInvite", reflect.TypeOf((*MockTripService)(nil).AcceptInvite), arg0, arg1, arg2)
+}
+
 // AddPlaceToTrip mocks base method.
 func (m *MockTripService) AddPlaceToTrip(arg0 context.Context, arg1, arg2, arg3 uint64, arg4 int16) error {
 	m.ctrl.T.Helper()
@@ -262,6 +278,36 @@ func (mr *MockTripServiceMockRecorder) Create(arg0, arg1 interface{}) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockTripService)(nil).Create), arg0, arg1)
 }
 
+// CreateEditShareLink mocks base method.
+func (m *MockTripService) CreateEditShareLink(arg0 context.Context, arg1, arg2 uint64) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateEditShareLink", arg0, arg1, arg2)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateEditShareLink indicates an expected call of CreateEditShareLink.
+func (mr *MockTripServiceMockRecorder) CreateEditShareLink(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateEditShareLink", reflect.TypeOf((*MockTripService)(nil).CreateEditShareLink), arg0, arg1, arg2)
+}
+
+// CreateViewShareLink mocks base method.
+func (m *MockTripService) CreateViewShareLink(arg0 context.Context, arg1, arg2 uint64) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateViewShareLink", arg0, arg1, arg2)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateViewShareLink indicates an expected call of CreateViewShareLink.
+func (mr *MockTripServiceMockRecorder) CreateViewShareLink(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateViewShareLink", reflect.TypeOf((*MockTripService)(nil).CreateViewShareLink), arg0, arg1, arg2)
+}
+
 // Delete mocks base method.
 func (m *MockTripService) Delete(arg0 context.Context, arg1, arg2 uint64) error {
 	m.ctrl.T.Helper()
@@ -274,6 +320,22 @@ func (m *MockTripService) Delete(arg0 context.Context, arg1, arg2 uint64) error 
 func (mr *MockTripServiceMockRecorder) Delete(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockTripService)(nil).Delete), arg0, arg1, arg2)
+}
+
+// GetTripByShareToken mocks base method.
+func (m *MockTripService) GetTripByShareToken(arg0 context.Context, arg1 string) (*models.Trip, string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTripByShareToken", arg0, arg1)
+	ret0, _ := ret[0].(*models.Trip)
+	ret1, _ := ret[1].(string)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetTripByShareToken indicates an expected call of GetTripByShareToken.
+func (mr *MockTripServiceMockRecorder) GetTripByShareToken(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTripByShareToken", reflect.TypeOf((*MockTripService)(nil).GetTripByShareToken), arg0, arg1)
 }
 
 // GetTripDetails mocks base method.
@@ -290,6 +352,38 @@ func (m *MockTripService) GetTripDetails(arg0 context.Context, arg1 uint64) (*mo
 func (mr *MockTripServiceMockRecorder) GetTripDetails(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTripDetails", reflect.TypeOf((*MockTripService)(nil).GetTripDetails), arg0, arg1)
+}
+
+// GetTripDetailsWithRole mocks base method.
+func (m *MockTripService) GetTripDetailsWithRole(arg0 context.Context, arg1, arg2 uint64) (*models.Trip, []models.PlaceInTrip, string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTripDetailsWithRole", arg0, arg1, arg2)
+	ret0, _ := ret[0].(*models.Trip)
+	ret1, _ := ret[1].([]models.PlaceInTrip)
+	ret2, _ := ret[2].(string)
+	ret3, _ := ret[3].(error)
+	return ret0, ret1, ret2, ret3
+}
+
+// GetTripDetailsWithRole indicates an expected call of GetTripDetailsWithRole.
+func (mr *MockTripServiceMockRecorder) GetTripDetailsWithRole(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTripDetailsWithRole", reflect.TypeOf((*MockTripService)(nil).GetTripDetailsWithRole), arg0, arg1, arg2)
+}
+
+// GetTripMembers mocks base method.
+func (m *MockTripService) GetTripMembers(arg0 context.Context, arg1, arg2 uint64) ([]models.TripMember, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTripMembers", arg0, arg1, arg2)
+	ret0, _ := ret[0].([]models.TripMember)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetTripMembers indicates an expected call of GetTripMembers.
+func (mr *MockTripServiceMockRecorder) GetTripMembers(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTripMembers", reflect.TypeOf((*MockTripService)(nil).GetTripMembers), arg0, arg1, arg2)
 }
 
 // GetTripPlaceIDs mocks base method.
@@ -320,6 +414,35 @@ func (m *MockTripService) GetUserTrips(arg0 context.Context, arg1 uint64) ([]mod
 func (mr *MockTripServiceMockRecorder) GetUserTrips(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserTrips", reflect.TypeOf((*MockTripService)(nil).GetUserTrips), arg0, arg1)
+}
+
+// GetUserTripsWithRoles mocks base method.
+func (m *MockTripService) GetUserTripsWithRoles(arg0 context.Context, arg1 uint64) ([]service.UserTripInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserTripsWithRoles", arg0, arg1)
+	ret0, _ := ret[0].([]service.UserTripInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserTripsWithRoles indicates an expected call of GetUserTripsWithRoles.
+func (mr *MockTripServiceMockRecorder) GetUserTripsWithRoles(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserTripsWithRoles", reflect.TypeOf((*MockTripService)(nil).GetUserTripsWithRoles), arg0, arg1)
+}
+
+// RemoveMember mocks base method.
+func (m *MockTripService) RemoveMember(arg0 context.Context, arg1, arg2, arg3 uint64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoveMember", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemoveMember indicates an expected call of RemoveMember.
+func (mr *MockTripServiceMockRecorder) RemoveMember(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveMember", reflect.TypeOf((*MockTripService)(nil).RemoveMember), arg0, arg1, arg2, arg3)
 }
 
 // RemovePlaceFromTrip mocks base method.

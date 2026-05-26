@@ -1,3 +1,5 @@
+//go:generate easyjson -all trip.go
+
 package dto
 
 import (
@@ -13,6 +15,7 @@ type TripResponse struct {
 	Description string     `json:"description,omitempty"`
 	EndDate     *time.Time `json:"endDate,omitempty"`
 	Preview     *string    `json:"preview,omitempty"`
+	Role        string     `json:"role"`
 }
 
 type CreateTripRequest struct {
@@ -47,6 +50,23 @@ type TripDetailsResponse struct {
 	EndDate     *time.Time           `json:"endDate,omitempty"`
 	Preview     *string              `json:"preview,omitempty"`
 	Attractions []models.PlaceInTrip `json:"attractions"`
+	Role        string               `json:"role"`
 }
 
 type TripPlacesResponse []uint64
+
+type ShareLinkResponse struct {
+	ShareLink string `json:"share_link"`
+}
+
+type MemberResponse struct {
+	UserID   uint64    `json:"user_id"`
+	Role     string    `json:"role"`
+	JoinedAt time.Time `json:"joined_at"`
+}
+
+type SharedTripResponse struct {
+	Trip        *models.Trip         `json:"trip"`
+	Attractions []models.PlaceInTrip `json:"attractions"`
+	Role        string               `json:"role"`
+}
