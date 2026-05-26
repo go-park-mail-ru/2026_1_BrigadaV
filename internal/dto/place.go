@@ -1,7 +1,10 @@
+//go:generate easyjson -all
+
 package dto
 
 import "time"
 
+//easyjson:json
 type PlaceResponse struct {
 	ID          uint64          `json:"id"`
 	Name        string          `json:"name"`
@@ -20,6 +23,7 @@ type PlaceResponse struct {
 	UpdatedAt   time.Time       `json:"updated_at"`
 }
 
+//easyjson:json
 type LocalityDTO struct {
 	ID        uint64   `json:"id"`
 	Name      string   `json:"name"`
@@ -28,12 +32,14 @@ type LocalityDTO struct {
 	Longitude *float64 `json:"longitude,omitempty"`
 }
 
+//easyjson:json
 type CategoryDTO struct {
 	ID          uint64 `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }
 
+//easyjson:json
 type PlacePhotoDTO struct {
 	ID       uint64 `json:"id"`
 	PlaceID  uint64 `json:"place_id"`

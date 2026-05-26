@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+//easyjson:json
 type TripResponse struct {
 	ID          uint64     `json:"id"`
 	Title       string     `json:"title"`
@@ -18,6 +19,7 @@ type TripResponse struct {
 	Role        string     `json:"role"`
 }
 
+//easyjson:json
 type CreateTripRequest struct {
 	Title     string  `json:"title"`
 	Location  *string `json:"location,omitempty"`
@@ -27,11 +29,13 @@ type CreateTripRequest struct {
 	IsPublic  bool    `json:"is_public"`
 }
 
+//easyjson:json
 type CreateTripResponse struct {
 	ID      uint64  `json:"id"`
 	Preview *string `json:"preview,omitempty"`
 }
 
+//easyjson:json
 type UpdateTripRequest struct {
 	Title       *string `json:"title,omitempty"`
 	Description *string `json:"description,omitempty"`
@@ -42,6 +46,7 @@ type UpdateTripRequest struct {
 	IsPublic    *bool   `json:"is_public,omitempty"`
 }
 
+//easyjson:json
 type TripDetailsResponse struct {
 	ID          uint64               `json:"id"`
 	Title       string               `json:"title"`
@@ -53,18 +58,22 @@ type TripDetailsResponse struct {
 	Role        string               `json:"role"`
 }
 
+//easyjson:json
 type TripPlacesResponse []uint64
 
+//easyjson:json
 type ShareLinkResponse struct {
 	ShareLink string `json:"share_link"`
 }
 
+//easyjson:json
 type MemberResponse struct {
 	UserID   uint64    `json:"user_id"`
 	Role     string    `json:"role"`
 	JoinedAt time.Time `json:"joined_at"`
 }
 
+//easyjson:json
 type SharedTripResponse struct {
 	Trip        *models.Trip         `json:"trip"`
 	Attractions []models.PlaceInTrip `json:"attractions"`
