@@ -490,6 +490,9 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 		return nil, fmt.Errorf("failed to generate PDF: %w", err)
 	}
 	return pdfBuffer.Bytes(), nil
+
+}
+
 // GetUserTripsWithRoles возвращает все поездки пользователя с его ролью.
 func (s *tripService) GetUserTripsWithRoles(ctx context.Context, userID uint64) ([]UserTripInfo, error) {
 	tripsWithRoles, err := s.tripRepo.GetUserTripsWithRoles(ctx, userID)
