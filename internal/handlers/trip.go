@@ -24,7 +24,7 @@ func NewTripHandler(tripService service.TripService) *TripHandler {
 	return &TripHandler{tripService: tripService}
 }
 
-// List возвращает поездки, где пользователь является создателем (или участником – при расширении)
+// List возвращает все поездки, где пользователь является участником, с его ролью
 func (h *TripHandler) List(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
@@ -32,7 +32,7 @@ func (h *TripHandler) List(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
-	trips, err := h.tripService.GetUserTrips(r.Context(), userID)
+	trips, err := h.tripService.GetUserTripsWithRoles(r.Context(), userID)
 	if err != nil {
 		logger.Error(r.Context(), "Failed to fetch trips", logrus.Fields{"error": err})
 		w.WriteHeader(http.StatusInternalServerError)
@@ -42,13 +42,14 @@ func (h *TripHandler) List(w http.ResponseWriter, r *http.Request) {
 	response := make([]dto.TripResponse, len(trips))
 	for i, t := range trips {
 		response[i] = dto.TripResponse{
-			ID:          t.ID,
-			Title:       t.Title,
-			Location:    t.Location,
-			StartDate:   t.StartDate,
-			EndDate:     t.EndDate,
-			Description: t.Description,
-			Preview:     t.PreviewURL,
+			ID:          t.Trip.ID,
+			Title:       t.Trip.Title,
+			Location:    t.Trip.Location,
+			StartDate:   t.Trip.StartDate,
+			EndDate:     t.Trip.EndDate,
+			Description: t.Trip.Description,
+			Preview:     t.Trip.PreviewURL,
+			Role:        t.Role,
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -94,7 +95,7 @@ func (h *TripHandler) Create(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetDetails – детали поездки (требует права просмотра)
+// GetDetails – детали поездки с ролью текущего пользователя
 func (h *TripHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr, ok := vars["id"]
@@ -110,7 +111,13 @@ func (h *TripHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip id"})
 		return
 	}
-	trip, places, err := h.tripService.GetTripDetails(r.Context(), id)
+	userID := middleware.GetUserIDFromContext(r)
+	if userID == 0 {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		return
+	}
+	trip, places, role, err := h.tripService.GetTripDetailsWithRole(r.Context(), id, userID)
 	if err != nil {
 		logger.Error(r.Context(), "GetTripDetails failed", logrus.Fields{"error": err, "trip_id": id})
 		if err.Error() == "trip not found" {
@@ -122,7 +129,6 @@ func (h *TripHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "internal server error"})
 		return
 	}
-	// Проверка прав просмотра – в сервисе она уже сделана (через memberRepo)
 	response := dto.TripDetailsResponse{
 		ID:          trip.ID,
 		Title:       trip.Title,
@@ -131,6 +137,7 @@ func (h *TripHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
 		EndDate:     trip.EndDate,
 		Preview:     trip.PreviewURL,
 		Attractions: places,
+		Role:        role,
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
@@ -302,8 +309,6 @@ func (h *TripHandler) RemovePlace(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// ----- Методы шеринга -----
-
 // CreateViewShareLink – постоянная ссылка для просмотра
 func (h *TripHandler) CreateViewShareLink(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
@@ -407,11 +412,18 @@ func (h *TripHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	tripID, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
+		logger.Error(r.Context(), "Invalid trip id in RemoveMember", logrus.Fields{"id": vars["id"], "error": err})
 		http.Error(w, "invalid trip id", http.StatusBadRequest)
 		return
 	}
-	memberID, err := strconv.ParseUint(vars["member_id"], 10, 64)
+	memberIDStr, ok := vars["member_id"]
+	if !ok || memberIDStr == "" {
+		http.Error(w, "missing member id", http.StatusBadRequest)
+		return
+	}
+	memberID, err := strconv.ParseUint(memberIDStr, 10, 64)
 	if err != nil {
+		logger.Error(r.Context(), "Invalid member id in RemoveMember", logrus.Fields{"member_id": memberIDStr, "error": err})
 		http.Error(w, "invalid member id", http.StatusBadRequest)
 		return
 	}

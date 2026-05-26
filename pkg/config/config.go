@@ -9,19 +9,24 @@ import (
 )
 
 type Config struct {
-	Port           string
-	DatabaseURL    string
-	JWTSecret      string
-	FrontendURL    string
-	AllowedOrigins []string
-	CSRFSecret     string
-	S3Endpoint     string
-	S3AccessKey    string
-	S3SecretKey    string
-	S3Bucket       string
-	S3UseSSL       bool
-	SecureCookies  bool
-	S3Enabled      bool
+	Port               string
+	DatabaseURL        string
+	JWTSecret          string
+	FrontendURL        string
+	AllowedOrigins     []string
+	CSRFSecret         string
+	S3Endpoint         string
+	S3AccessKey        string
+	S3SecretKey        string
+	S3Bucket           string
+	S3UseSSL           bool
+	SecureCookies      bool
+	S3Enabled          bool
+	S3PublicEndpoint   string
+	YandexClientID     string
+	YandexClientSecret string
+	YandexRedirectURL  string
+	ElasticSearchURL   string
 }
 
 func Load() (*Config, error) {
@@ -51,22 +56,27 @@ func Load() (*Config, error) {
 	}
 
 	s3Enabled := getEnvBool("S3_ENABLED", true)
-	secureCookies := getEnvBool("SECURE_COOKIES", false)
+	s3PublicEndpoint := getEnv("S3_PUBLIC_ENDPOINT", "")
 
 	return &Config{
-		Port:           getEnv("PORT", "8080"),
-		DatabaseURL:    getEnv("DATABASE_URL", "postgres://postgres:1111@localhost:5432/texnopark?sslmode=disable"),
-		JWTSecret:      getEnv("JWT_SECRET", "your-secret-key"),
-		FrontendURL:    frontendURL,
-		AllowedOrigins: origins,
-		CSRFSecret:     getEnv("CSRF_SECRET", "32-byte-long-secret-key-here!!"),
-		S3Endpoint:     getEnv("S3_ENDPOINT", "localhost:9000"),
-		S3AccessKey:    getEnv("S3_ACCESS_KEY", "minioadmin"),
-		S3SecretKey:    getEnv("S3_SECRET_KEY", "minioadmin"),
-		S3Bucket:       getEnv("S3_BUCKET", "guidely"),
-		S3UseSSL:       getEnv("S3_USE_SSL", "false") == "true",
-		S3Enabled:      s3Enabled,
-		SecureCookies:  secureCookies,
+		Port:               getEnv("PORT", "8080"),
+		DatabaseURL:        getEnv("DATABASE_URL", "postgres://postgres:1111@localhost:5432/texnopark?sslmode=disable"),
+		JWTSecret:          getEnv("JWT_SECRET", "your-secret-key"),
+		FrontendURL:        frontendURL,
+		AllowedOrigins:     origins,
+		CSRFSecret:         getEnv("CSRF_SECRET", "32-byte-long-secret-key-here!!"),
+		S3Endpoint:         getEnv("S3_ENDPOINT", "localhost:9000"),
+		S3AccessKey:        getEnv("S3_ACCESS_KEY", "minioadmin"),
+		S3SecretKey:        getEnv("S3_SECRET_KEY", "minioadmin"),
+		S3Bucket:           getEnv("S3_BUCKET", "guidely"),
+		S3UseSSL:           getEnv("S3_USE_SSL", "false") == "true",
+		S3Enabled:          s3Enabled,
+		S3PublicEndpoint:   s3PublicEndpoint,
+		SecureCookies:      getEnvBool("SECURE_COOKIES", true),
+		YandexClientID:     getEnv("YANDEX_CLIENT_ID", ""),
+		YandexClientSecret: getEnv("YANDEX_CLIENT_SECRET", ""),
+		YandexRedirectURL:  getEnv("YANDEX_REDIRECT_URL", "http://localhost:8080/api/auth/yandex/callback"),
+		ElasticSearchURL:   getEnv("ELASTICSEARCH_URL", "http://localhost:9200"),
 	}, nil
 }
 

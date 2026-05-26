@@ -6,6 +6,7 @@ package mocks
 
 import (
 	context "context"
+	repository "guidely-app/internal/repository"
 	models "guidely-app/pkg/models"
 	reflect "reflect"
 
@@ -150,6 +151,36 @@ func (m *MockTripRepository) GetPlaceIDs(arg0 context.Context, arg1 uint64) ([]u
 func (mr *MockTripRepositoryMockRecorder) GetPlaceIDs(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPlaceIDs", reflect.TypeOf((*MockTripRepository)(nil).GetPlaceIDs), arg0, arg1)
+}
+
+// GetUserRoleForTrip mocks base method.
+func (m *MockTripRepository) GetUserRoleForTrip(arg0 context.Context, arg1, arg2 uint64) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserRoleForTrip", arg0, arg1, arg2)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserRoleForTrip indicates an expected call of GetUserRoleForTrip.
+func (mr *MockTripRepositoryMockRecorder) GetUserRoleForTrip(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserRoleForTrip", reflect.TypeOf((*MockTripRepository)(nil).GetUserRoleForTrip), arg0, arg1, arg2)
+}
+
+// GetUserTripsWithRoles mocks base method.
+func (m *MockTripRepository) GetUserTripsWithRoles(arg0 context.Context, arg1 uint64) ([]repository.UserTripWithRole, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserTripsWithRoles", arg0, arg1)
+	ret0, _ := ret[0].([]repository.UserTripWithRole)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserTripsWithRoles indicates an expected call of GetUserTripsWithRoles.
+func (mr *MockTripRepositoryMockRecorder) GetUserTripsWithRoles(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserTripsWithRoles", reflect.TypeOf((*MockTripRepository)(nil).GetUserTripsWithRoles), arg0, arg1)
 }
 
 // RemoveAttraction mocks base method.
