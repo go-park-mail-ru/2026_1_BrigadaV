@@ -13,10 +13,11 @@ import (
 )
 
 type S3Client struct {
-	client   *minio.Client
-	bucket   string
-	endpoint string
-	useSSL   bool
+	client         *minio.Client
+	bucket         string
+	endpoint       string
+	publicEndpoint string
+	useSSL         bool
 }
 
 func NewS3Client(cfg *config.Config) (*S3Client, error) {
@@ -67,12 +68,20 @@ func NewS3Client(cfg *config.Config) (*S3Client, error) {
 	if cfg.S3UseSSL {
 		scheme = "https"
 	}
+	internalEndpoint := fmt.Sprintf("%s://%s", scheme, cfg.S3Endpoint)
+
+	publicEndpoint := cfg.S3PublicEndpoint
+	if publicEndpoint == "" {
+		publicEndpoint = internalEndpoint
+		log.Printf("S3_PUBLIC_ENDPOINT not set, using internal endpoint: %s", publicEndpoint)
+	}
 
 	return &S3Client{
-		client:   client,
-		bucket:   cfg.S3Bucket,
-		endpoint: fmt.Sprintf("%s://%s", scheme, cfg.S3Endpoint),
-		useSSL:   cfg.S3UseSSL,
+		client:         client,
+		bucket:         cfg.S3Bucket,
+		endpoint:       internalEndpoint,
+		publicEndpoint: publicEndpoint,
+		useSSL:         cfg.S3UseSSL,
 	}, nil
 }
 
@@ -87,7 +96,7 @@ func (s *S3Client) UploadFile(ctx context.Context, objectName string, reader io.
 		return "", fmt.Errorf("PutObject: %w", err)
 	}
 
-	publicURL := fmt.Sprintf("%s/%s/%s", s.endpoint, s.bucket, objectName)
+	publicURL := fmt.Sprintf("%s/%s/%s", s.publicEndpoint, s.bucket, objectName)
 	return publicURL, nil
 }
 

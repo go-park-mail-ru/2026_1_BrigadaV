@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"errors"
+
 	"guidely-app/internal/repository"
 	"guidely-app/pkg/models"
 )
@@ -32,9 +34,15 @@ func (s *profileServiceImpl) UpdateProfile(ctx context.Context, userID uint64, i
 		return nil, err
 	}
 	if user == nil {
-		return nil, err // репозиторий вернул nil, ошибки нет, но пользователь не найден
+		return nil, errors.New("user not found")
 	}
-	if input.Nickname != nil {
+
+	// Проверка уникальности nickname
+	if input.Nickname != nil && *input.Nickname != user.Nickname {
+		existing, _ := s.userRepo.GetByNickname(ctx, *input.Nickname)
+		if existing != nil && existing.ID != userID {
+			return nil, errors.New("nickname already taken")
+		}
 		user.Nickname = *input.Nickname
 	}
 	if input.AvatarURL != nil {
@@ -61,7 +69,7 @@ func (s *profileServiceImpl) UpdateAvatar(ctx context.Context, userID uint64, av
 		return nil, err
 	}
 	if user == nil {
-		return nil, nil
+		return nil, errors.New("user not found")
 	}
 	user.AvatarURL = avatarURL
 	if err := s.userRepo.Update(ctx, user); err != nil {
