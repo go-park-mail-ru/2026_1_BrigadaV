@@ -79,6 +79,12 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	logger.Info(r.Context(), "UpdateProfile request received", logrus.Fields{
+		"user_id":    userID,
+		"nickname":   req.Nickname,
+		"avatar_url": req.AvatarURL,
+	})
+
 	input := service.UpdateProfileInput{
 		Nickname:  req.Nickname,
 		AvatarURL: req.AvatarURL,
