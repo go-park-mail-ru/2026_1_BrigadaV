@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"golang.org/x/text/encoding/charmap"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
@@ -415,7 +416,14 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 
 	pdf.AddUTF8Font("PTSans", "", "assets/fonts/PTSans-Regular.ttf")
 
-	tr := pdf.UnicodeTranslatorFromDescriptor("cp1251")
+	tr := func(s string) string {
+		encoder := charmap.Windows1251.NewEncoder()
+		out, err := encoder.String(s)
+		if err != nil {
+			return s
+		}
+		return out
+	}
 
 	pdf.AddPage()
 
