@@ -22,6 +22,7 @@ type Config struct {
 	S3UseSSL           bool
 	SecureCookies      bool
 	S3Enabled          bool
+	S3PublicEndpoint   string
 	YandexClientID     string
 	YandexClientSecret string
 	YandexRedirectURL  string
@@ -55,6 +56,7 @@ func Load() (*Config, error) {
 	}
 
 	s3Enabled := getEnvBool("S3_ENABLED", true)
+	s3PublicEndpoint := getEnv("S3_PUBLIC_ENDPOINT", "")
 
 	return &Config{
 		Port:               getEnv("PORT", "8080"),
@@ -69,6 +71,7 @@ func Load() (*Config, error) {
 		S3Bucket:           getEnv("S3_BUCKET", "guidely"),
 		S3UseSSL:           getEnv("S3_USE_SSL", "false") == "true",
 		S3Enabled:          s3Enabled,
+		S3PublicEndpoint:   s3PublicEndpoint,
 		SecureCookies:      getEnvBool("SECURE_COOKIES", true),
 		YandexClientID:     getEnv("YANDEX_CLIENT_ID", ""),
 		YandexClientSecret: getEnv("YANDEX_CLIENT_SECRET", ""),
