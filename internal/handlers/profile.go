@@ -69,13 +69,16 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
+
 	var req dto.UpdateProfileRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		logger.Error(r.Context(), "Invalid JSON in UpdateProfile", logrus.Fields{"error": err})
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request body"})
 		return
 	}
+
 	input := service.UpdateProfileInput{
 		Nickname:  req.Nickname,
 		AvatarURL: req.AvatarURL,
@@ -83,13 +86,16 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		City:      req.City,
 		About:     req.About,
 	}
+
 	user, err := h.profileService.UpdateProfile(r.Context(), userID, input)
 	if err != nil {
 		logger.Error(r.Context(), "UpdateProfile failed", logrus.Fields{"error": err, "user_id": userID})
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
+
 	response := dto.ProfileResponse{
 		ID:         user.ID,
 		Nickname:   user.Nickname,
