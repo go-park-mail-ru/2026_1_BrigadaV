@@ -117,8 +117,6 @@ func main() {
 	public.HandleFunc("/register", authHandler.Register).Methods("POST", "OPTIONS")
 	public.HandleFunc("/login", authHandler.Login).Methods("POST", "OPTIONS")
 	public.HandleFunc("/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
-	public.HandleFunc("/share/view/{token}", tripHandler.ViewSharedTrip).Methods("GET")
-	public.HandleFunc("/share/edit/{token}", tripHandler.AcceptInviteRedirect).Methods("GET")
 
 	public.HandleFunc("/places", placeHandler.List).Methods("GET", "OPTIONS")
 	public.HandleFunc("/places/search", placeHandler.Search).Methods("GET", "OPTIONS")
@@ -151,6 +149,8 @@ func main() {
 	protected.Use(authMiddleware.Authenticate)
 	protected.Use(csrfMiddleware)
 
+	protected.HandleFunc("/share/view/{token}", tripHandler.ViewSharedTrip).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/share/edit/{token}", tripHandler.AcceptInviteRedirect).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/user/me", authHandler.Me).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/profile", profileHandler.GetProfile).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/trips", tripHandler.List).Methods("GET", "OPTIONS")
