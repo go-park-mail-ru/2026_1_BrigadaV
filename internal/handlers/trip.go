@@ -2,10 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
-	"os"
 	"strconv"
-	"strings"
 
 	"guidely-app/internal/dto"
 	"guidely-app/internal/logger"
@@ -23,30 +22,6 @@ type TripHandler struct {
 
 func NewTripHandler(tripService service.TripService) *TripHandler {
 	return &TripHandler{tripService: tripService}
-}
-
-// getFrontendURL возвращает базовый URL фронтенда для редиректов
-func getFrontendURL() string {
-	base := os.Getenv("SHARE_BASE_URL")
-	if base == "" {
-		base = os.Getenv("FRONTEND_URL")
-	}
-	if base == "" {
-		return "https://localhost:3000"
-	}
-
-	// Принудительное переключение на https
-	if os.Getenv("FORCE_HTTPS") == "true" && strings.HasPrefix(base, "http://") {
-		base = "https://" + strings.TrimPrefix(base, "http://")
-	}
-	// Если домен не localhost, тоже меняем http на https
-	if strings.HasPrefix(base, "https://") {
-		host := strings.TrimPrefix(base, "https://")
-		if !strings.Contains(host, "localhost") && !strings.Contains(host, "127.0.0.1") {
-			base = "https://" + host
-		}
-	}
-	return base
 }
 
 // List возвращает все поездки, где пользователь является участником, с его ролью
@@ -382,31 +357,24 @@ func (h *TripHandler) CreateEditShareLink(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(map[string]string{"share_link": link})
 }
 
+// AcceptInviteRedirect – GET /api/share/edit/{token} – принимает приглашение и редиректит на страницу поездки
 func (h *TripHandler) AcceptInviteRedirect(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	token := vars["token"]
 	userID := middleware.GetUserIDFromContext(r)
-
 	if userID == 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		// Сохраняем токен в сессию или параметр редиректа
+		http.Redirect(w, r, "/login?redirect=/share/edit/"+token, http.StatusFound)
 		return
 	}
-
 	tripID, role, err := h.tripService.AcceptInvite(r.Context(), token, userID)
 	if err != nil {
 		logger.Error(r.Context(), "AcceptInvite failed", logrus.Fields{"error": err})
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"trip_id": tripID,
-		"role":    role,
-		"message": "invite accepted",
-	})
+	redirectURL := fmt.Sprintf("/trips/%d?role=%s", tripID, role)
+	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
 // GetTripMembers – GET /api/trips/{id}/members – список участников (только для владельца)
@@ -468,29 +436,103 @@ func (h *TripHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// ViewSharedTrip – GET /api/share/view/{token} – публичный просмотр поездки по ссылке
 func (h *TripHandler) ViewSharedTrip(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	token := vars["token"]
-	userID := middleware.GetUserIDFromContext(r)
+	trip, role, err := h.tripService.GetTripByShareToken(r.Context(), token)
+	if err != nil {
+		logger.Error(r.Context(), "ViewSharedTrip failed", logrus.Fields{"error": err})
+		http.Error(w, "invalid share link", http.StatusNotFound)
+		return
+	}
+	_, places, err := h.tripService.GetTripDetails(r.Context(), trip.ID)
+	if err != nil {
+		logger.Error(r.Context(), "Failed to get attractions for shared trip", logrus.Fields{"error": err})
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	response := map[string]interface{}{
+		"trip":        trip,
+		"attractions": places,
+		"role":        role,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
 
+// ExportTripToPDF – GET /api/trips/{id}/export/pdf – экспорт поездки в PDF
+func (h *TripHandler) ExportTripToPDF(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
-
-	tripID, role, err := h.tripService.AcceptInvite(r.Context(), token, userID)
+	vars := mux.Vars(r)
+	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
-		logger.Error(r.Context(), "ViewSharedTrip AcceptInvite failed", logrus.Fields{"error": err})
-		w.WriteHeader(http.StatusNotFound)
+		http.Error(w, "invalid trip id", http.StatusBadRequest)
+		return
+	}
+	pdfData, err := h.tripService.ExportTripToPDF(r.Context(), id, userID)
+	if err != nil {
+		logger.Error(r.Context(), "ExportTripToPDF failed", logrus.Fields{"error": err, "trip_id": id})
+		switch err.Error() {
+		case "access denied":
+			http.Error(w, "access denied", http.StatusForbidden)
+		case "trip not found":
+			http.Error(w, "trip not found", http.StatusNotFound)
+		default:
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+		}
+		return
+	}
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=trip_%d.pdf", id))
+	w.Write(pdfData)
+}
+
+// AcceptInviteAPI – POST /api/share/edit/{token} – JSON-ответ для фронтенда.
+// Принимает приглашение на редактирование и возвращает JSON с tripId.
+func (h *TripHandler) AcceptInviteAPI(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	token := vars["token"]
+	userID := middleware.GetUserIDFromContext(r)
+	if userID == 0 {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		return
+	}
+	tripID, _, err := h.tripService.AcceptInvite(r.Context(), token, userID)
+	if err != nil {
+		logger.Error(r.Context(), "AcceptInviteAPI failed", logrus.Fields{"error": err})
+		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid share link"})
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"trip_id": tripID,
-		"role":    role,
-		"message": "invite accepted",
-	})
+	json.NewEncoder(w).Encode(map[string]uint64{"trip_id": tripID})
+}
+
+// JoinViewShareAPI – POST /api/share/view/{token} – JSON-ответ для фронтенда.
+// Проверяет токен просмотра и возвращает JSON с tripId.
+func (h *TripHandler) JoinViewShareAPI(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	token := vars["token"]
+	userID := middleware.GetUserIDFromContext(r)
+	if userID == 0 {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		return
+	}
+	tripID, _, err := h.tripService.AcceptInvite(r.Context(), token, userID)
+	if err != nil {
+		logger.Error(r.Context(), "JoinViewShareAPI failed", logrus.Fields{"error": err})
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid share link"})
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]uint64{"trip_id": tripID})
 }

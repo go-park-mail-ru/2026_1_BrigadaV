@@ -155,6 +155,9 @@ func main() {
 	public := r.PathPrefix("/api").Subrouter()
 	public.HandleFunc("/register", authHandler.Register).Methods("POST", "OPTIONS")
 	public.HandleFunc("/login", authHandler.Login).Methods("POST", "OPTIONS")
+	public.HandleFunc("/csrf-token", csrfHandler.GetToken).Methods("GET", "OPTIONS")
+	public.HandleFunc("/share/view/{token}", tripHandler.ViewSharedTrip).Methods("GET")
+	public.HandleFunc("/share/edit/{token}", tripHandler.AcceptInviteRedirect).Methods("GET")
 
 	public.HandleFunc("/places", placeHandler.List).Methods("GET", "OPTIONS")
 	public.HandleFunc("/places/search", placeHandler.Search).Methods("GET", "OPTIONS")
@@ -170,6 +173,7 @@ func main() {
 	// Защищённые без CSRF
 	authOnly := r.PathPrefix("/api").Subrouter()
 	authOnly.Use(authMiddleware.Authenticate)
+
 
 	authOnly.HandleFunc("/profile/avatar", profileHandler.GetAvatar).Methods("GET", "OPTIONS")
 	authOnly.HandleFunc("/profile/avatar", profileHandler.UploadAvatar).Methods("POST", "OPTIONS")
@@ -187,15 +191,14 @@ func main() {
 	authOnly.HandleFunc("/trips/{id:[0-9]+}/members", tripHandler.GetTripMembers).Methods("GET", "OPTIONS")
 	authOnly.HandleFunc("/trips/{id:[0-9]+}/members/{member_id:[0-9]+}", tripHandler.RemoveMember).Methods("DELETE", "OPTIONS")
 	authOnly.HandleFunc("/trips", tripHandler.Create).Methods("POST", "OPTIONS")
-	authOnly.HandleFunc("/profile", profileHandler.UpdateProfile).Methods("PUT", "OPTIONS")
+	authOnly.HandleFunc("/share/edit/{token}", tripHandler.AcceptInviteAPI).Methods("POST", "OPTIONS")
+	authOnly.HandleFunc("/share/view/{token}", tripHandler.JoinViewShareAPI).Methods("POST", "OPTIONS")
 
 	// Защищённые с CSRF
 	protected := r.PathPrefix("/api").Subrouter()
 	protected.Use(authMiddleware.Authenticate)
 	protected.Use(csrfMiddleware)
 
-	protected.HandleFunc("/share/view/{token}", tripHandler.ViewSharedTrip).Methods("POST", "OPTIONS")
-	protected.HandleFunc("/share/edit/{token}", tripHandler.AcceptInviteRedirect).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/user/me", authHandler.Me).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/profile", profileHandler.GetProfile).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/trips", tripHandler.List).Methods("GET", "OPTIONS")
@@ -208,7 +211,7 @@ func main() {
 	protected.HandleFunc("/categories", categoryHandler.Create).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Update).Methods("PUT", "OPTIONS")
 	protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Delete).Methods("DELETE", "OPTIONS")
-
+  protected.HandleFunc("/trips/{id:[0-9]+}/export/pdf", tripHandler.ExportTripToPDF).Methods("GET", "OPTIONS")
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 

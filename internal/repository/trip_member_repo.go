@@ -76,7 +76,7 @@ func (r *tripMemberRepo) HasEditPermission(ctx context.Context, tripID, userID u
 	if err != nil {
 		return false, err
 	}
-	return role == "owner" || role == "companion" || role == "editor", nil
+	return role == "owner" || role == "companion", nil
 }
 
 func (r *tripMemberRepo) HasViewPermission(ctx context.Context, tripID, userID uint64) (bool, error) {

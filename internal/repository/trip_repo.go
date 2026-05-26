@@ -255,8 +255,8 @@ func (r *TripRepo) GetUserTripsWithRoles(ctx context.Context, userID uint64) ([]
 			logger.Error(ctx, "failed to scan trip row", logrus.Fields{"error": err})
 			return nil, err
 		}
-		if role == "companion" {
-			role = "editor"
+		if role == "editor" {
+			role = "companion"
 		}
 		result = append(result, UserTripWithRole{Trip: t, Role: role})
 	}
@@ -281,8 +281,8 @@ func (r *TripRepo) GetUserRoleForTrip(ctx context.Context, tripID, userID uint64
 		}
 		return "", err
 	}
-	if role == "companion" {
-		role = "editor"
+	if role == "editor" {
+		role = "companion"
 	}
 	return role, nil
 }

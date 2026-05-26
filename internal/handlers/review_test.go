@@ -15,6 +15,8 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestReviewHandler_Create_Success(t *testing.T) {
@@ -84,6 +86,52 @@ func TestReviewHandler_Create_GRPCError(t *testing.T) {
 	handler.Create(w, req)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+// TestReviewHandler_Create_AlreadyExists проверяет что при попытке создать второй отзыв
+// к одной достопримечательности возвращается 409 Conflict с понятным сообщением.
+func TestReviewHandler_Create_AlreadyExists(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockClient := pb.NewMockReviewServiceClient(ctrl)
+	handler := NewReviewHandler(mockClient)
+
+	reqBody := dto.CreateReviewRequest{PlaceID: 1, Rating: 4, Content: "Second review"}
+	body, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest("POST", "/api/reviews", bytes.NewReader(body))
+	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	req = req.WithContext(ctx)
+	w := httptest.NewRecorder()
+
+	mockClient.EXPECT().CreateReview(gomock.Any(), gomock.Any()).Return(
+		nil,
+		status.Error(codes.AlreadyExists, "you have already reviewed this place"),
+	)
+
+	handler.Create(w, req)
+
+	assert.Equal(t, http.StatusConflict, w.Code) // 409
+	var resp map[string]string
+	json.NewDecoder(w.Body).Decode(&resp)
+	assert.Contains(t, resp["error"], "already reviewed")
+}
+
+func TestReviewHandler_Create_InvalidJSON(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockClient := pb.NewMockReviewServiceClient(ctrl)
+	handler := NewReviewHandler(mockClient)
+
+	req := httptest.NewRequest("POST", "/api/reviews", bytes.NewReader([]byte("not json")))
+	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	req = req.WithContext(ctx)
+	w := httptest.NewRecorder()
+
+	handler.Create(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
 func TestReviewHandler_Delete_Success(t *testing.T) {

@@ -1,7 +1,10 @@
+//go:generate easyjson -all profile.go
+
 package dto
 
 import "time"
 
+//easyjson:json
 type ProfileResponse struct {
 	ID         uint64    `json:"id"`
 	Nickname   string    `json:"nickname"`
@@ -13,6 +16,7 @@ type ProfileResponse struct {
 	CreatedAt  time.Time `json:"createdAt"`
 }
 
+//easyjson:json
 type UpdateProfileRequest struct {
 	Nickname  *string `json:"nickname,omitempty"`
 	AvatarURL *string `json:"avatar_url,omitempty"`

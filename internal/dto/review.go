@@ -1,5 +1,8 @@
+//go:generate easyjson -all review.go
+
 package dto
 
+//easyjson:json
 type CreateReviewRequest struct {
 	PlaceID   uint64  `json:"place_id"`
 	Title     *string `json:"title,omitempty"`

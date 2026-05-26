@@ -1,18 +1,20 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"guidely-app/internal/logger"
 	"guidely-app/internal/repository"
 	"guidely-app/pkg/models"
 
+	"github.com/jung-kurt/gofpdf/v2"
 	"github.com/sirupsen/logrus"
 )
 
@@ -68,34 +70,21 @@ func generateToken() (string, error) {
 	return base64.URLEncoding.EncodeToString(b), nil
 }
 
-// getShareBaseURL возвращает базовый URL для ссылок приглашений.
-// Автоматически заменяет http на https, если включена принудительная настройка
-// или если домен не является localhost.
 func getShareBaseURL() string {
-	base := os.Getenv("SHARE_BASE_URL")
-	if base == "" {
-		base = os.Getenv("FRONTEND_URL")
+	// Приоритет: SHARE_BASE_URL → FRONTEND_URL → fallback
+	if base := os.Getenv("SHARE_BASE_URL"); base != "" {
+		return base
 	}
-	if base == "" {
-		return "https://localhost:3000" // безопасное значение по умолчанию
+	if front := os.Getenv("FRONTEND_URL"); front != "" {
+		return front
 	}
-
-	// Если переменная FORCE_HTTPS=true, заменяем http:// на https://
-	if os.Getenv("FORCE_HTTPS") == "true" && strings.HasPrefix(base, "http://") {
-		base = "https://" + strings.TrimPrefix(base, "http://")
-	}
-
-	// Если домен не localhost и не 127.0.0.1, то тоже заменяем http на https
-	if strings.HasPrefix(base, "http://") {
-		host := strings.TrimPrefix(base, "http://")
-		if !strings.Contains(host, "localhost") && !strings.Contains(host, "127.0.0.1") {
-			base = "https://" + host
-		}
-	}
-	return base
+	return "http://localhost:8080"
 }
 
 // isOwner проверяет что пользователь является владельцем поездки.
+// Сначала смотрим в trip_member, если там нет записи — проверяем created_by.
+// Это нужно для обратной совместимости с поездками, созданными до добавления
+// автоматической записи owner в trip_member.
 func (s *tripService) isOwner(ctx context.Context, tripID, userID uint64) (bool, error) {
 	role, err := s.memberRepo.GetMemberRole(ctx, tripID, userID)
 	if err != nil {
@@ -104,6 +93,7 @@ func (s *tripService) isOwner(ctx context.Context, tripID, userID uint64) (bool,
 	if role == "owner" {
 		return true, nil
 	}
+	// Fallback: проверяем created_by напрямую
 	trip, err := s.tripRepo.GetByID(ctx, tripID)
 	if err != nil {
 		return false, err
@@ -166,6 +156,7 @@ func (s *tripService) Update(ctx context.Context, id, userID uint64, input Updat
 		return nil, err
 	}
 	if !ok {
+		// Fallback: проверяем created_by
 		trip, err2 := s.tripRepo.GetByID(ctx, id)
 		if err2 != nil || trip == nil || trip.CreatedBy != userID {
 			return nil, errors.New("not authorized to edit this trip")
@@ -232,6 +223,7 @@ func (s *tripService) AddPlaceToTrip(ctx context.Context, tripID, placeID, userI
 		return err
 	}
 	if !ok {
+		// Fallback: проверяем created_by
 		trip, err2 := s.tripRepo.GetByID(ctx, tripID)
 		if err2 != nil || trip == nil || trip.CreatedBy != userID {
 			return errors.New("not authorized to edit this trip")
@@ -268,6 +260,7 @@ func (s *tripService) RemovePlaceFromTrip(ctx context.Context, tripID, placeID, 
 // ----- Методы шеринга и совместного планирования -----
 
 // CreateViewShareLink создаёт постоянную ссылку для просмотра поездки.
+// Доступно только владельцу.
 func (s *tripService) CreateViewShareLink(ctx context.Context, tripID, userID uint64) (string, error) {
 	owner, err := s.isOwner(ctx, tripID, userID)
 	if err != nil {
@@ -276,6 +269,7 @@ func (s *tripService) CreateViewShareLink(ctx context.Context, tripID, userID ui
 	if !owner {
 		return "", errors.New("only owner can create share links")
 	}
+
 	token, err := generateToken()
 	if err != nil {
 		return "", err
@@ -295,6 +289,7 @@ func (s *tripService) CreateViewShareLink(ctx context.Context, tripID, userID ui
 }
 
 // CreateEditShareLink создаёт одноразовую ссылку для добавления редактора.
+// Доступно только владельцу.
 func (s *tripService) CreateEditShareLink(ctx context.Context, tripID, userID uint64) (string, error) {
 	owner, err := s.isOwner(ctx, tripID, userID)
 	if err != nil {
@@ -303,6 +298,7 @@ func (s *tripService) CreateEditShareLink(ctx context.Context, tripID, userID ui
 	if !owner {
 		return "", errors.New("only owner can create share links")
 	}
+
 	token, err := generateToken()
 	if err != nil {
 		return "", err
@@ -336,31 +332,13 @@ func (s *tripService) AcceptInvite(ctx context.Context, token string, userID uin
 	if invite.IsOneTime && invite.UsedAt != nil {
 		return 0, "", errors.New("invite already used")
 	}
-	memberRole := invite.Role
-	if memberRole == "companion" {
-		memberRole = "editor"
-	}
-
-	// Не перезаписывать роль, если пользователь уже является владельцем
-	existingRole, err := s.memberRepo.GetMemberRole(ctx, invite.TripID, userID)
-	if err != nil {
-		return 0, "", err
-	}
-	if existingRole == "owner" {
-		if invite.IsOneTime {
-			_ = s.inviteRepo.MarkUsed(ctx, invite.ID)
-		}
-		return invite.TripID, existingRole, nil
-	}
-
-	if err := s.memberRepo.AddMember(ctx, invite.TripID, userID, memberRole); err != nil {
-		// ON CONFLICT DO UPDATE уже обрабатывает дублирование — если всё же ошибка, пробрасываем
+	if err := s.memberRepo.AddMember(ctx, invite.TripID, userID, invite.Role); err != nil {
 		return 0, "", err
 	}
 	if invite.IsOneTime {
 		_ = s.inviteRepo.MarkUsed(ctx, invite.ID)
 	}
-	return invite.TripID, memberRole, nil
+	return invite.TripID, invite.Role, nil
 }
 
 // GetTripMembers возвращает список участников (только владелец).
@@ -372,16 +350,7 @@ func (s *tripService) GetTripMembers(ctx context.Context, tripID, userID uint64)
 	if !owner {
 		return nil, errors.New("only owner can view members")
 	}
-	members, err := s.memberRepo.GetTripMembers(ctx, tripID)
-	if err != nil {
-		return nil, err
-	}
-	for i := range members {
-		if members[i].Role == "companion" {
-			members[i].Role = "editor"
-		}
-	}
-	return members, nil
+	return s.memberRepo.GetTripMembers(ctx, tripID)
 }
 
 // RemoveMember удаляет участника из поездки (только владелец).
@@ -419,6 +388,107 @@ func (s *tripService) GetTripByShareToken(ctx context.Context, token string) (*m
 		return nil, "", errors.New("trip not found")
 	}
 	return trip, invite.Role, nil
+}
+
+func formatDatePtr(t *time.Time) string {
+	if t == nil {
+		return "не указана"
+	}
+	return t.Format("02.01.2006")
+}
+
+func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64) ([]byte, error) {
+	ok, err := s.memberRepo.HasViewPermission(ctx, tripID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, errors.New("access denied")
+	}
+
+	trip, places, err := s.GetTripDetails(ctx, tripID)
+	if err != nil {
+		return nil, err
+	}
+
+	pdf := gofpdf.New("P", "mm", "A4", "")
+
+	pdf.AddUTF8Font("PTSans", "", "assets/fonts/PTSans-Regular.ttf")
+
+	pdf.AddPage()
+
+	pdf.SetFont("PTSans", "", 16)
+
+	title := "Поездка: " + trip.Title
+	pdf.Cell(0, 10, title)
+	pdf.Ln(12)
+
+	pdf.SetFont("PTSans", "", 12)
+	pdf.Cell(40, 10, "Направление:")
+
+	location := "не указано"
+	if trip.Location != nil && *trip.Location != "" {
+		location = *trip.Location
+	}
+	pdf.Cell(0, 10, location)
+	pdf.Ln(8)
+
+	pdf.Cell(40, 10, "Даты:")
+	dateFrom := formatDatePtr(trip.StartDate)
+	dateTo := formatDatePtr(trip.EndDate)
+	dateStr := dateFrom
+	if dateFrom != "не указана" && dateTo != "не указана" && dateFrom != dateTo {
+		dateStr += " – " + dateTo
+	} else if dateTo != "не указана" {
+		dateStr = dateTo
+	}
+	pdf.Cell(0, 10, dateStr)
+	pdf.Ln(8)
+
+	if trip.Description != "" {
+		pdf.Cell(40, 10, "Описание:")
+		pdf.Ln(6)
+		pdf.MultiCell(0, 6, trip.Description, "", "", false)
+		pdf.Ln(4)
+	}
+
+	pdf.SetFont("PTSans", "", 14)
+	pdf.Cell(0, 10, "Достопримечательности:")
+	pdf.Ln(10)
+
+	if len(places) == 0 {
+		pdf.SetFont("PTSans", "", 12)
+		pdf.Cell(0, 10, "Нет добавленных мест")
+	} else {
+		for i, place := range places {
+			pdf.SetFont("PTSans", "", 12)
+			pdf.Cell(0, 8, fmt.Sprintf("%d. %s", i+1, place.Name))
+			pdf.Ln(6)
+
+			if place.Rating > 0 {
+				pdf.SetFont("PTSans", "", 10)
+				pdf.Cell(0, 5, fmt.Sprintf("Рейтинг: %.1f", place.Rating))
+				pdf.Ln(5)
+			}
+
+			if place.Description != "" {
+				pdf.SetFont("PTSans", "", 10)
+				desc := place.Description
+				if len(desc) > 200 {
+					desc = desc[:200] + "..."
+				}
+				pdf.MultiCell(0, 5, desc, "", "", false)
+				pdf.Ln(2)
+			}
+			pdf.Ln(2)
+		}
+	}
+
+	var pdfBuffer bytes.Buffer
+	if err := pdf.Output(&pdfBuffer); err != nil {
+		return nil, fmt.Errorf("failed to generate PDF: %w", err)
+	}
+	return pdfBuffer.Bytes(), nil
 }
 
 // GetUserTripsWithRoles возвращает все поездки пользователя с его ролью.

@@ -11,7 +11,7 @@ migrate-down:
 migrate-status:
 	goose -dir migrations postgres "$(DATABASE_URL)" status
 
-.PHONY: mocks test test-cover cover-business cover-full cover-html clean
+.PHONY: mocks test test-cover cover-business cover-full cover-html clean generate
 
 UNAME_S := $(shell uname -s)
 ifeq ($(OS),Windows_NT)
@@ -28,6 +28,14 @@ mocks:
 	@$(MOCKS_CMD)
 	@echo "Mocks generated."
 
+
+generate:
+	@echo "Installing easyjson..."
+	@go install github.com/mailru/easyjson/easyjson@latest
+	@echo "Running go generate..."
+	@go generate ./internal/dto/...
+	@echo "easyjson generation complete."
+
 test:
 	go test ./... -v
 
@@ -36,19 +44,7 @@ test-cover:
 	go tool cover -func=coverage.out
 
 cover-business:
-    go test ./... -coverpkg=guidely-app/internal/album,guidely-app/internal/album/repository,guidely-app/internal/review,guidely-app/internal/review/repository,guidely-app/internal/auth,guidely-app/internal/auth/repository,guidely-app/internal/service,guidely-app/internal/repository,guidely-app/internal/handlers,guidely-app/internal/middleware,guidely-app/pkg/config,guidely-app/pkg/db,guidely-app/pkg/utils -coverprofile=coverage.out && go tool cover -func=coverage.out | grep total
-
-go test ./internal/... ./pkg/... -coverpkg=./internal/album,./internal/album/repository,./internal/auth,./internal/auth/repository,./internal/handlers,./internal/logger,./internal/middleware,./internal/repository,./internal/review,./internal/review/repository,./internal/service,./pkg/config,./pkg/db,./pkg/utils -coverprofile=coverage.out && go tool cover -func=coverage.out | grep total
-cover-full:
-	go test ./... -coverpkg=guidely-app/internal/config,guidely-app/internal/db,guidely-app/internal/middleware,guidely-app/internal/handlers,guidely-app/internal/service,guidely-app/internal/repository,guidely-app/internal/utils -coverprofile=coverage.out
-	go tool cover -func=coverage.out | grep total
-
-cover-html:
-	go test ./... -coverprofile=coverage.out
-	go tool cover -html=coverage.out -o coverage.html
-	@echo "Coverage report saved to coverage.html"
-
-clean:
-	rm -f coverage.out coverage.html
-	rm -rf internal/repository/mocks/*
-	rm -rf internal/service/mocks/*
+	go test ./... \
+	  -coverpkg=guidely-app/internal/album,guidely-app/internal/album/repository,guidely-app/internal/review,guidely-app/internal/review/repository,guidely-app/internal/auth,guidely-app/internal/auth/repository,guidely-app/internal/service,guidely-app/internal/repository,guidely-app/internal/handlers,guidely-app/internal/middleware,guidely-app/pkg/config,guidely-app/pkg/db,guidely-app/pkg/utils \
+	  -coverprofile=coverage.out \
+	  && go tool cover -func=coverage.out | grep total

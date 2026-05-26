@@ -1,18 +1,23 @@
+//go:generate easyjson -all
+
 package dto
 
 import "time"
 
+//easyjson:json
 type CreateAlbumRequest struct {
 	TripID      uint64 `json:"trip_id"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
 }
 
+//easyjson:json
 type UpdateAlbumRequest struct {
 	Name        string `json:"name,omitempty"`
 	Description string `json:"description,omitempty"`
 }
 
+//easyjson:json
 type AlbumResponse struct {
 	ID           uint64    `json:"id"`
 	TripID       uint64    `json:"trip_id"`

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 
 	"guidely-app/pkg/config"
 
@@ -13,11 +14,22 @@ import (
 )
 
 type S3Client struct {
-	client         *minio.Client
-	bucket         string
-	endpoint       string
-	publicEndpoint string
-	useSSL         bool
+	client   *minio.Client
+	bucket   string
+	endpoint string
+	useSSL   bool
+}
+
+func parseEndpoint(raw string, cfgSSL bool) (host string, useSSL bool) {
+	raw = strings.TrimSpace(raw)
+	if strings.HasPrefix(raw, "https://") {
+		return strings.TrimPrefix(raw, "https://"), true
+	}
+	if strings.HasPrefix(raw, "http://") {
+		return strings.TrimPrefix(raw, "http://"), false
+	}
+	// Нет схемы — доверяем флагу из конфига
+	return raw, cfgSSL
 }
 
 func NewS3Client(cfg *config.Config) (*S3Client, error) {
@@ -26,9 +38,11 @@ func NewS3Client(cfg *config.Config) (*S3Client, error) {
 		return nil, nil
 	}
 
-	client, err := minio.New(cfg.S3Endpoint, &minio.Options{
+	host, useSSL := parseEndpoint(cfg.S3Endpoint, cfg.S3UseSSL)
+
+	client, err := minio.New(host, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.S3AccessKey, cfg.S3SecretKey, ""),
-		Secure: cfg.S3UseSSL,
+		Secure: useSSL,
 	})
 	if err != nil {
 		log.Printf("WARNING: minio.New failed: %v; S3 features will be unavailable", err)
@@ -65,23 +79,15 @@ func NewS3Client(cfg *config.Config) (*S3Client, error) {
 	}
 
 	scheme := "http"
-	if cfg.S3UseSSL {
+	if useSSL {
 		scheme = "https"
-	}
-	internalEndpoint := fmt.Sprintf("%s://%s", scheme, cfg.S3Endpoint)
-
-	publicEndpoint := cfg.S3PublicEndpoint
-	if publicEndpoint == "" {
-		publicEndpoint = internalEndpoint
-		log.Printf("S3_PUBLIC_ENDPOINT not set, using internal endpoint: %s", publicEndpoint)
 	}
 
 	return &S3Client{
-		client:         client,
-		bucket:         cfg.S3Bucket,
-		endpoint:       internalEndpoint,
-		publicEndpoint: publicEndpoint,
-		useSSL:         cfg.S3UseSSL,
+		client:   client,
+		bucket:   cfg.S3Bucket,
+		endpoint: fmt.Sprintf("%s://%s", scheme, host),
+		useSSL:   useSSL,
 	}, nil
 }
 
@@ -96,7 +102,7 @@ func (s *S3Client) UploadFile(ctx context.Context, objectName string, reader io.
 		return "", fmt.Errorf("PutObject: %w", err)
 	}
 
-	publicURL := fmt.Sprintf("%s/%s/%s", s.publicEndpoint, s.bucket, objectName)
+	publicURL := fmt.Sprintf("%s/%s/%s", s.endpoint, s.bucket, objectName)
 	return publicURL, nil
 }
 
