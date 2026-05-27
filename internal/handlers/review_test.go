@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"guidely-app/internal/dto"
+	"guidely-app/internal/middleware"
 	pb "guidely-app/pkg/pb/review"
 
 	"github.com/golang/mock/gomock"
@@ -34,7 +35,7 @@ func TestReviewHandler_Create_Success(t *testing.T) {
 	body, _ := json.Marshal(reqBody)
 
 	req := httptest.NewRequest("POST", "/api/reviews", bytes.NewReader(body))
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	w := httptest.NewRecorder()
 
@@ -78,7 +79,7 @@ func TestReviewHandler_Create_GRPCError(t *testing.T) {
 	body, _ := json.Marshal(reqBody)
 
 	req := httptest.NewRequest("POST", "/api/reviews", bytes.NewReader(body))
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	w := httptest.NewRecorder()
 
@@ -102,7 +103,7 @@ func TestReviewHandler_Create_AlreadyExists(t *testing.T) {
 	body, _ := json.Marshal(reqBody)
 
 	req := httptest.NewRequest("POST", "/api/reviews", bytes.NewReader(body))
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	w := httptest.NewRecorder()
 
@@ -127,7 +128,7 @@ func TestReviewHandler_Create_InvalidJSON(t *testing.T) {
 	handler := NewReviewHandler(mockClient)
 
 	req := httptest.NewRequest("POST", "/api/reviews", bytes.NewReader([]byte("not json")))
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	w := httptest.NewRecorder()
 
@@ -143,7 +144,7 @@ func TestReviewHandler_Delete_Success(t *testing.T) {
 	handler := NewReviewHandler(mockClient)
 
 	req := httptest.NewRequest("DELETE", "/api/reviews/1", nil)
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()
@@ -178,7 +179,7 @@ func TestReviewHandler_Delete_InvalidID(t *testing.T) {
 	handler := NewReviewHandler(mockClient)
 
 	req := httptest.NewRequest("DELETE", "/api/reviews/invalid", nil)
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	req = mux.SetURLVars(req, map[string]string{"id": "invalid"})
 	w := httptest.NewRecorder()
@@ -196,7 +197,7 @@ func TestReviewHandler_Delete_GRPCError(t *testing.T) {
 	handler := NewReviewHandler(mockClient)
 
 	req := httptest.NewRequest("DELETE", "/api/reviews/1", nil)
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()

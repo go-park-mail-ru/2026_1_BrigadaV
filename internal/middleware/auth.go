@@ -10,6 +10,10 @@ import (
 	"guidely-app/pkg/utils"
 )
 
+type contextKey string
+
+const UserIDKey contextKey = "user_id"
+
 type AuthMiddleware struct {
 	sessionRepo authrepo.SessionRepository
 }
@@ -32,13 +36,13 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 			json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized", "message": "invalid or expired session"})
 			return
 		}
-		ctx := context.WithValue(r.Context(), "user_id", session.UserID)
+		ctx := context.WithValue(r.Context(), UserIDKey, session.UserID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
 func GetUserIDFromContext(r *http.Request) uint64 {
-	val := r.Context().Value("user_id")
+	val := r.Context().Value(UserIDKey)
 	if id, ok := val.(uint64); ok {
 		return id
 	}

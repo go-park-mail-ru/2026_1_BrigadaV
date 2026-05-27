@@ -10,7 +10,6 @@ import (
 	"guidely-app/internal/logger"
 	"guidely-app/internal/middleware"
 	"guidely-app/internal/service"
-	"guidely-app/pkg/models"
 	"guidely-app/pkg/utils"
 
 	"github.com/gorilla/mux"
@@ -486,18 +485,4 @@ func (h *TripHandler) JoinViewShareAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, &dto.TripIDResponse{TripID: tripID})
-}
-
-// tripMembersToDTO конвертирует []models.TripMember в dto.TripMemberList.
-func tripMembersToDTO(members []models.TripMember) dto.TripMemberList {
-	result := make(dto.TripMemberList, len(members))
-	for i, m := range members {
-		result[i] = dto.TripMemberDTO{
-			TripID:   m.TripID,
-			UserID:   m.UserID,
-			Role:     m.Role,
-			JoinedAt: m.JoinedAt,
-		}
-	}
-	return result
 }

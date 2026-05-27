@@ -13,6 +13,7 @@ import (
 	"guidely-app/internal/repository/mocks"
 	"guidely-app/internal/service"
 	"guidely-app/internal/testutil"
+	"guidely-app/internal/middleware"
 	"guidely-app/pkg/models"
 
 	"github.com/golang/mock/gomock"
@@ -37,7 +38,7 @@ func TestTripHandler_List_Success(t *testing.T) {
 	mockTripRepo.EXPECT().GetUserTripsWithRoles(gomock.Any(), uint64(1)).Return(tripsWithRoles, nil)
 
 	req := httptest.NewRequest("GET", "/api/trips", nil)
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	w := httptest.NewRecorder()
 
@@ -87,7 +88,7 @@ func TestTripHandler_Create_Success(t *testing.T) {
 	body, _ := json.Marshal(reqBody)
 
 	req := httptest.NewRequest("POST", "/api/trips", bytes.NewReader(body))
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	w := httptest.NewRecorder()
 
@@ -145,7 +146,7 @@ func TestTripHandler_GetDetails_Success(t *testing.T) {
 	mockTripRepo.EXPECT().GetUserRoleForTrip(gomock.Any(), uint64(1), uint64(1)).Return(role, nil)
 
 	req := httptest.NewRequest("GET", "/api/trips/1", nil)
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()
@@ -174,7 +175,7 @@ func TestTripHandler_GetDetails_NotFound(t *testing.T) {
 	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(999)).Return(nil, nil)
 
 	req := httptest.NewRequest("GET", "/api/trips/999", nil)
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	req = mux.SetURLVars(req, map[string]string{"id": "999"})
 	w := httptest.NewRecorder()
@@ -198,7 +199,7 @@ func TestTripHandler_Update_Success(t *testing.T) {
 	body, _ := json.Marshal(reqBody)
 
 	req := httptest.NewRequest("PUT", "/api/trips/1", bytes.NewReader(body))
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()
@@ -249,7 +250,7 @@ func TestTripHandler_Delete_Success(t *testing.T) {
 	handler := NewTripHandler(tripService)
 
 	req := httptest.NewRequest("DELETE", "/api/trips/1", nil)
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()
@@ -291,7 +292,7 @@ func TestTripHandler_CreateViewShareLink_Success(t *testing.T) {
 	handler := NewTripHandler(tripService)
 
 	req := httptest.NewRequest("POST", "/api/trips/1/share/view", nil)
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()
@@ -318,7 +319,7 @@ func TestTripHandler_CreateViewShareLink_Forbidden(t *testing.T) {
 	handler := NewTripHandler(tripService)
 
 	req := httptest.NewRequest("POST", "/api/trips/1/share/view", nil)
-	ctx := context.WithValue(req.Context(), "user_id", uint64(2))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(2))
 	req = req.WithContext(ctx)
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()
@@ -343,7 +344,7 @@ func TestTripHandler_RemoveMember_Success(t *testing.T) {
 	handler := NewTripHandler(tripService)
 
 	req := httptest.NewRequest("DELETE", "/api/trips/1/members/2", nil)
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	req = mux.SetURLVars(req, map[string]string{"id": "1", "member_id": "2"})
 	w := httptest.NewRecorder()
@@ -366,7 +367,7 @@ func TestTripHandler_GetTripMembers_Success(t *testing.T) {
 	handler := NewTripHandler(tripService)
 
 	req := httptest.NewRequest("GET", "/api/trips/1/members", nil)
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()
@@ -398,7 +399,7 @@ func TestTripHandler_ExportTripToPDF_Success(t *testing.T) {
 	mockTripRepo.EXPECT().GetAttractions(gomock.Any(), uint64(1)).Return([]models.PlaceInTrip{}, nil)
 
 	req := httptest.NewRequest("GET", "/api/trips/1/export/pdf", nil)
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()
@@ -442,7 +443,7 @@ func TestTripHandler_ExportTripToPDF_Forbidden(t *testing.T) {
 	mockMemberRepo.EXPECT().HasViewPermission(gomock.Any(), uint64(1), uint64(2)).Return(false, nil)
 
 	req := httptest.NewRequest("GET", "/api/trips/1/export/pdf", nil)
-	ctx := context.WithValue(req.Context(), "user_id", uint64(2))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(2))
 	req = req.WithContext(ctx)
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()
