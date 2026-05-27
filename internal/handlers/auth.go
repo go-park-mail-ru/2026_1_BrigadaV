@@ -6,6 +6,7 @@ import (
 
 	"guidely-app/internal/dto"
 	"guidely-app/internal/logger"
+	"guidely-app/internal/middleware"
 	"guidely-app/pkg/config"
 	pb "guidely-app/pkg/pb/auth"
 
@@ -73,6 +74,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Secure:   h.cfg.SecureCookies,
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
+		Domain:   h.cfg.CookieDomain,
 	})
 
 	response := dto.LoginResponse{
@@ -123,6 +125,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Secure:   h.cfg.SecureCookies,
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
+		Domain:   h.cfg.CookieDomain,
 	})
 
 	response := dto.LoginResponse{
@@ -160,12 +163,13 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		Secure:   h.cfg.SecureCookies,
 		SameSite: http.SameSiteLaxMode,
+		Domain:   h.cfg.CookieDomain,
 	})
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
-	userIDVal := r.Context().Value("user_id")
+	userIDVal := r.Context().Value(middleware.UserIDKey)
 	userID, ok := userIDVal.(uint64)
 	if !ok {
 		w.Header().Set("Content-Type", "application/json")

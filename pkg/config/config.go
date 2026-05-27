@@ -27,6 +27,7 @@ type Config struct {
 	YandexClientSecret string
 	YandexRedirectURL  string
 	ElasticSearchURL   string
+	CookieDomain       string
 }
 
 func Load() (*Config, error) {
@@ -57,6 +58,7 @@ func Load() (*Config, error) {
 
 	s3Enabled := getEnvBool("S3_ENABLED", true)
 	s3PublicEndpoint := getEnv("S3_PUBLIC_ENDPOINT", "")
+	cookieDomain := getEnv("COOKIE_DOMAIN", "guidely.ru")
 
 	return &Config{
 		Port:               getEnv("PORT", "8080"),
@@ -77,6 +79,7 @@ func Load() (*Config, error) {
 		YandexClientSecret: getEnv("YANDEX_CLIENT_SECRET", ""),
 		YandexRedirectURL:  getEnv("YANDEX_REDIRECT_URL", "http://localhost:8080/api/auth/yandex/callback"),
 		ElasticSearchURL:   getEnv("ELASTICSEARCH_URL", "http://localhost:9200"),
+		CookieDomain: 			cookieDomain,
 	}, nil
 }
 

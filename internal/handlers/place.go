@@ -8,6 +8,7 @@ import (
 
 	"guidely-app/internal/dto"
 	"guidely-app/internal/logger"
+	"guidely-app/internal/middleware"
 	"guidely-app/internal/service"
 	"guidely-app/pkg/models"
 
@@ -205,7 +206,7 @@ func (h *PlaceHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid place id"})
 		return
 	}
-	userIDVal := r.Context().Value("user_id")
+	userIDVal := r.Context().Value(middleware.UserIDKey)
 	var userID uint64
 	if userIDVal != nil {
 		if uid, ok := userIDVal.(uint64); ok {
@@ -277,7 +278,7 @@ func (h *PlaceHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *PlaceHandler) CheckPlaceInTrip(w http.ResponseWriter, r *http.Request) {
-	userIDVal := r.Context().Value("user_id")
+	userIDVal := r.Context().Value(middleware.UserIDKey)
 	userID, ok := userIDVal.(uint64)
 	if !ok {
 		writeJSON(w, http.StatusUnauthorized, &dto.ErrorResponse{Error: "unauthorized"})

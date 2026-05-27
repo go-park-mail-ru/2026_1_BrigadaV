@@ -33,10 +33,15 @@ func TestTripRepo_Create(t *testing.T) {
 
 	rows := mockPool.NewRows([]string{"id", "created_at", "updated_at"}).AddRow(uint64(1), time.Now(), time.Now())
 
-	// ВАЖНО: ExpectQuery, а не ExpectExec
+	// ВАЖНО: ExpectQuery, а не ExpectExec — INSERT ... RETURNING использует QueryRow
 	mockPool.ExpectQuery(`INSERT INTO trip \(title, description, location, start_date, end_date, preview_url, created_by, is_public\)`).
 		WithArgs(trip.Title, trip.Description, trip.Location, trip.StartDate, trip.EndDate, trip.PreviewURL, trip.CreatedBy, trip.IsPublic).
 		WillReturnRows(rows)
+
+	// Create также добавляет создателя в trip_member через Exec
+	mockPool.ExpectExec(`INSERT INTO trip_member`).
+		WithArgs(uint64(1), trip.CreatedBy).
+		WillReturnResult(pgxmock.NewResult("INSERT", 1))
 
 	err = repo.Create(context.Background(), trip)
 	assert.NoError(t, err)
