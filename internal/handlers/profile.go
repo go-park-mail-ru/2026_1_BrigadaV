@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,6 +14,7 @@ import (
 	"guidely-app/pkg/storage"
 
 	"github.com/google/uuid"
+	"github.com/mailru/easyjson"
 	"github.com/sirupsen/logrus"
 )
 
@@ -35,7 +35,7 @@ func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		w.Write([]byte(`{"error":"unauthorized"}`))
 		return
 	}
 	user, err := h.profileService.GetProfile(r.Context(), userID)
@@ -43,7 +43,7 @@ func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		logger.Error(r.Context(), "GetProfile failed", logrus.Fields{"error": err, "user_id": userID})
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
+		w.Write([]byte(`{"error":"user not found"}`))
 		return
 	}
 	response := dto.ProfileResponse{
@@ -57,7 +57,10 @@ func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:  user.CreatedAt,
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	data, err := easyjson.Marshal(&response)
+	if err == nil {
+		w.Write(data)
+	}
 }
 
 func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
@@ -66,16 +69,16 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		w.Write([]byte(`{"error":"unauthorized"}`))
 		return
 	}
 
 	var req dto.UpdateProfileRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := easyjson.UnmarshalFromReader(r.Body, &req); err != nil {
 		logger.Error(r.Context(), "Invalid JSON in UpdateProfile", logrus.Fields{"error": err})
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request body"})
+		w.Write([]byte(`{"error":"invalid request body"}`))
 		return
 	}
 
@@ -93,11 +96,11 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if err.Error() == "nickname already taken" {
 			w.WriteHeader(http.StatusConflict)
-			json.NewEncoder(w).Encode(map[string]string{"error": "nickname already taken"})
+			w.Write([]byte(`{"error":"nickname already taken"}`))
 			return
 		}
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		w.Write([]byte(`{"error":"` + err.Error() + `"}`))
 		return
 	}
 
@@ -112,7 +115,10 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:  user.CreatedAt,
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	data, err := easyjson.Marshal(&response)
+	if err == nil {
+		w.Write(data)
+	}
 }
 
 // UploadAvatar – загружает аватар: в S3 (если включён) или локально
@@ -122,7 +128,7 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		w.Write([]byte(`{"error":"unauthorized"}`))
 		return
 	}
 
@@ -130,7 +136,7 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(maxAvatarSize); err != nil {
 		logger.Error(r.Context(), "ParseMultipartForm failed", logrus.Fields{"error": err})
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "file too large or invalid form"})
+		w.Write([]byte(`{"error":"file too large or invalid form"}`))
 		return
 	}
 
@@ -138,21 +144,21 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error(r.Context(), "Missing avatar file", logrus.Fields{"error": err})
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "missing avatar file"})
+		w.Write([]byte(`{"error":"missing avatar file"}`))
 		return
 	}
 	defer file.Close()
 
 	if header.Size > maxAvatarSize {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "file too large (max 5 MB)"})
+		w.Write([]byte(`{"error":"file too large (max 5 MB)"}`))
 		return
 	}
 
 	contentType := header.Header.Get("Content-Type")
 	if !strings.HasPrefix(contentType, "image/") {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "file must be an image"})
+		w.Write([]byte(`{"error":"file must be an image"}`))
 		return
 	}
 
@@ -165,21 +171,19 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	var avatarURL string
 
 	if h.s3 != nil {
-		// Загрузка в S3
 		avatarURL, err = h.s3.UploadFile(r.Context(), "avatars/"+objectName, file, header.Size, contentType)
 		if err != nil {
 			logger.Error(r.Context(), "S3 upload failed", logrus.Fields{"error": err, "user_id": userID})
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": "failed to upload avatar"})
+			w.Write([]byte(`{"error":"failed to upload avatar"}`))
 			return
 		}
 		logger.Info(r.Context(), "Avatar uploaded to S3", logrus.Fields{"url": avatarURL, "user_id": userID})
 	} else {
-		// Локальное сохранение
 		if err := os.MkdirAll(avatarUploadDir, 0o755); err != nil {
 			logger.Error(r.Context(), "mkdir error", logrus.Fields{"error": err})
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": "internal error"})
+			w.Write([]byte(`{"error":"internal error"}`))
 			return
 		}
 		localPath := filepath.Join(avatarUploadDir, objectName)
@@ -187,14 +191,14 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			logger.Error(r.Context(), "file create error", logrus.Fields{"error": err, "path": localPath})
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": "internal error"})
+			w.Write([]byte(`{"error":"internal error"}`))
 			return
 		}
 		defer dst.Close()
 		if _, err := io.Copy(dst, file); err != nil {
 			logger.Error(r.Context(), "file copy error", logrus.Fields{"error": err})
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": "internal error"})
+			w.Write([]byte(`{"error":"internal error"}`))
 			return
 		}
 		avatarURL = "/uploads/avatars/" + objectName
@@ -205,7 +209,7 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error(r.Context(), "UpdateAvatar failed", logrus.Fields{"error": err, "user_id": userID})
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		w.Write([]byte(`{"error":"` + err.Error() + `"}`))
 		return
 	}
 
@@ -220,7 +224,10 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:  updatedUser.CreatedAt,
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	data, err := easyjson.Marshal(&response)
+	if err == nil {
+		w.Write(data)
+	}
 }
 
 func (h *ProfileHandler) GetAvatar(w http.ResponseWriter, r *http.Request) {
@@ -229,7 +236,7 @@ func (h *ProfileHandler) GetAvatar(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		w.Write([]byte(`{"error":"unauthorized"}`))
 		return
 	}
 
@@ -237,17 +244,17 @@ func (h *ProfileHandler) GetAvatar(w http.ResponseWriter, r *http.Request) {
 	if err != nil || user == nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
+		w.Write([]byte(`{"error":"user not found"}`))
 		return
 	}
 
 	if user.AvatarURL == "" {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "avatar not set"})
+		w.Write([]byte(`{"error":"avatar not set"}`))
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"avatar_url": user.AvatarURL})
+	w.Write([]byte(`{"avatar_url":"` + user.AvatarURL + `"}`))
 }

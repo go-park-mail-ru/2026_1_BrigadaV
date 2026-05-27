@@ -44,7 +44,7 @@ test-cover:
 	go tool cover -func=coverage.out
 
 cover-business:
-	go test ./... \
-	  -coverpkg=guidely-app/internal/album,guidely-app/internal/album/repository,guidely-app/internal/review,guidely-app/internal/review/repository,guidely-app/internal/auth,guidely-app/internal/auth/repository,guidely-app/internal/service,guidely-app/internal/repository,guidely-app/internal/handlers,guidely-app/internal/middleware,guidely-app/pkg/config,guidely-app/pkg/db,guidely-app/pkg/utils \
-	  -coverprofile=coverage.out \
-	  && go tool cover -func=coverage.out | grep total
+go test ./... \
+  -coverpkg=guidely-app/internal/album,guidely-app/internal/album/repository,guidely-app/internal/review,guidely-app/internal/review/repository,guidely-app/internal/auth,guidely-app/internal/auth/repository,guidely-app/internal/service,guidely-app/internal/repository,guidely-app/internal/handlers,guidely-app/internal/middleware,guidely-app/pkg/config,guidely-app/pkg/db,guidely-app/pkg/utils \
+  -coverprofile=coverage.out \
+  && go tool cover -func=coverage.out | grep total

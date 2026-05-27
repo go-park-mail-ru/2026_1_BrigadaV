@@ -1,4 +1,4 @@
-//go:generate easyjson -all
+//go:generate easyjson -all session.go
 
 package dto
 

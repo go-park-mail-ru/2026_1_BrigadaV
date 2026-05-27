@@ -24,7 +24,6 @@ func NewTripHandler(tripService service.TripService) *TripHandler {
 	return &TripHandler{tripService: tripService}
 }
 
-// List возвращает все поездки, где пользователь является участником, с его ролью
 func (h *TripHandler) List(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
@@ -56,7 +55,6 @@ func (h *TripHandler) List(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// Create – создание новой поездки
 func (h *TripHandler) Create(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
@@ -89,13 +87,9 @@ func (h *TripHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	logger.Info(r.Context(), "Trip created", logrus.Fields{"trip_id": trip.ID})
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(dto.CreateTripResponse{
-		ID:      trip.ID,
-		Preview: trip.PreviewURL,
-	})
+	json.NewEncoder(w).Encode(dto.CreateTripResponse{ID: trip.ID, Preview: trip.PreviewURL})
 }
 
-// GetDetails – детали поездки с ролью текущего пользователя
 func (h *TripHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr, ok := vars["id"]
@@ -143,7 +137,6 @@ func (h *TripHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// Update – обновление поездки (требует прав редактора)
 func (h *TripHandler) Update(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
@@ -186,7 +179,6 @@ func (h *TripHandler) Update(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "ok"})
 }
 
-// Delete – удаление поездки (только владелец)
 func (h *TripHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
@@ -216,7 +208,6 @@ func (h *TripHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// GetTripPlaces – список ID достопримечательностей в поездке
 func (h *TripHandler) GetTripPlaces(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
@@ -236,10 +227,10 @@ func (h *TripHandler) GetTripPlaces(w http.ResponseWriter, r *http.Request) {
 	if placeIDs == nil {
 		placeIDs = []uint64{}
 	}
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(placeIDs)
 }
 
-// AddPlace – добавление места в поездку (требует прав редактора)
 func (h *TripHandler) AddPlace(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
@@ -276,7 +267,6 @@ func (h *TripHandler) AddPlace(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "place added to trip"})
 }
 
-// RemovePlace – удаление места из поездки (требует прав редактора)
 func (h *TripHandler) RemovePlace(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
@@ -309,7 +299,6 @@ func (h *TripHandler) RemovePlace(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// CreateViewShareLink – постоянная ссылка для просмотра
 func (h *TripHandler) CreateViewShareLink(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
@@ -333,7 +322,6 @@ func (h *TripHandler) CreateViewShareLink(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(map[string]string{"share_link": link})
 }
 
-// CreateEditShareLink – одноразовая ссылка для редактирования
 func (h *TripHandler) CreateEditShareLink(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
@@ -357,13 +345,11 @@ func (h *TripHandler) CreateEditShareLink(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(map[string]string{"share_link": link})
 }
 
-// AcceptInviteRedirect – GET /api/share/edit/{token} – принимает приглашение и редиректит на страницу поездки
 func (h *TripHandler) AcceptInviteRedirect(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	token := vars["token"]
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
-		// Сохраняем токен в сессию или параметр редиректа
 		http.Redirect(w, r, "/login?redirect=/share/edit/"+token, http.StatusFound)
 		return
 	}
@@ -377,7 +363,6 @@ func (h *TripHandler) AcceptInviteRedirect(w http.ResponseWriter, r *http.Reques
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
-// GetTripMembers – GET /api/trips/{id}/members – список участников (только для владельца)
 func (h *TripHandler) GetTripMembers(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
@@ -401,7 +386,6 @@ func (h *TripHandler) GetTripMembers(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(members)
 }
 
-// RemoveMember – DELETE /api/trips/{id}/members/{member_id} – удаление участника (только владелец)
 func (h *TripHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
@@ -436,7 +420,6 @@ func (h *TripHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// ViewSharedTrip – GET /api/share/view/{token} – публичный просмотр поездки по ссылке
 func (h *TripHandler) ViewSharedTrip(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	token := vars["token"]
@@ -461,7 +444,6 @@ func (h *TripHandler) ViewSharedTrip(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// ExportTripToPDF – GET /api/trips/{id}/export/pdf – экспорт поездки в PDF
 func (h *TripHandler) ExportTripToPDF(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {

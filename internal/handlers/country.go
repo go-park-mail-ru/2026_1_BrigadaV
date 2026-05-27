@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"guidely-app/internal/dto"
 	"guidely-app/internal/service"
 
 	"github.com/gorilla/mux"
@@ -26,14 +27,18 @@ func (h *CountryHandler) List(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	response := make([]dto.CountryResponse, len(countries))
+	for i, c := range countries {
+		response[i] = dto.CountryResponse{
+			ID:        c.ID,
+			Name:      c.Name,
+			CreatedAt: c.CreatedAt,
+		}
+	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(countries)
-}
-
-type countryWithLocalitiesResponse struct {
-	ID        uint64              `json:"id"`
-	Name      string              `json:"name"`
-	Localities []localityResponse `json:"localities"`
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("json encode error: %v", err)
+	}
 }
 
 type localityResponse struct {
@@ -41,6 +46,12 @@ type localityResponse struct {
 	Name      string   `json:"name"`
 	Latitude  *float64 `json:"latitude,omitempty"`
 	Longitude *float64 `json:"longitude,omitempty"`
+}
+
+type countryWithLocalitiesResponse struct {
+	ID         uint64             `json:"id"`
+	Name       string             `json:"name"`
+	Localities []localityResponse `json:"localities"`
 }
 
 func (h *CountryHandler) GetWithLocalities(w http.ResponseWriter, r *http.Request) {
@@ -77,5 +88,7 @@ func (h *CountryHandler) GetWithLocalities(w http.ResponseWriter, r *http.Reques
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(&resp); err != nil {
+		log.Printf("json encode error: %v", err)
+	}
 }

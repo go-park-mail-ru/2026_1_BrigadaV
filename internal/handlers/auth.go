@@ -5,11 +5,13 @@ import (
 	"net/http"
 	"time"
 
+	"guidely-app/internal/dto"
 	"guidely-app/internal/logger"
 	"guidely-app/pkg/config"
 	pb "guidely-app/pkg/pb/auth"
 
 	"github.com/gorilla/csrf"
+	"github.com/mailru/easyjson"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -25,15 +27,11 @@ func NewAuthHandler(client pb.AuthServiceClient, cfg *config.Config) *AuthHandle
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Login    string `json:"login"`
-		Password string `json:"password"`
-		Nickname string `json:"nickname"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	var req dto.RegisterRequest
+	if err := easyjson.UnmarshalFromReader(r.Body, &req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request body"})
+		w.Write([]byte(`{"error":"invalid request body"}`))
 		return
 	}
 
@@ -47,11 +45,11 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if st, ok := status.FromError(err); ok && st.Code() == codes.InvalidArgument {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{"error": st.Message()})
+			w.Write([]byte(`{"error":"` + st.Message() + `"}`))
 			return
 		}
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "internal error"})
+		w.Write([]byte(`{"error":"internal error"}`))
 		return
 	}
 
@@ -63,7 +61,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		logger.Warn(r.Context(), "auto-login after register failed", logrus.Fields{"error": err, "login": req.Login})
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]string{"message": "user created"})
+		w.Write([]byte(`{"message":"user created"}`))
 		return
 	}
 
@@ -78,26 +76,25 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 	})
 
+	response := dto.LoginResponse{
+		UserID:    loginResp.UserId,
+		Nickname:  loginResp.Nickname,
+		AvatarURL: loginResp.AvatarUrl,
+	}
 	w.Header().Set("X-CSRF-Token", csrf.Token(r))
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"user_id":    loginResp.UserId,
-		"nickname":   loginResp.Nickname,
-		"avatar_url": loginResp.AvatarUrl,
-		"message":    "user created",
-	})
+	if _, err := easyjson.MarshalToWriter(&response, w); err != nil {
+		logger.Error(r.Context(), "easyjson marshal error", logrus.Fields{"error": err})
+	}
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Login    string `json:"login"`
-		Password string `json:"password"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	var req dto.LoginRequest
+	if err := easyjson.UnmarshalFromReader(r.Body, &req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request body"})
+		w.Write([]byte(`{"error":"invalid request body"}`))
 		return
 	}
 
@@ -110,11 +107,11 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if st, ok := status.FromError(err); ok && st.Code() == codes.Unauthenticated {
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{"error": "invalid credentials"})
+			w.Write([]byte(`{"error":"invalid credentials"}`))
 			return
 		}
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "internal error"})
+		w.Write([]byte(`{"error":"internal error"}`))
 		return
 	}
 
@@ -129,13 +126,16 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 	})
 
+	response := dto.LoginResponse{
+		UserID:    resp.UserId,
+		Nickname:  resp.Nickname,
+		AvatarURL: resp.AvatarUrl,
+	}
 	w.Header().Set("X-CSRF-Token", csrf.Token(r))
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"user_id":    resp.UserId,
-		"nickname":   resp.Nickname,
-		"avatar_url": resp.AvatarUrl,
-	})
+	if _, err := easyjson.MarshalToWriter(&response, w); err != nil {
+		logger.Error(r.Context(), "easyjson marshal error", logrus.Fields{"error": err})
+	}
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
@@ -143,14 +143,14 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		w.Write([]byte(`{"error":"unauthorized"}`))
 		return
 	}
 	if _, err := h.client.Logout(r.Context(), &pb.LogoutRequest{Token: cookie.Value}); err != nil {
 		logger.Error(r.Context(), "logout gRPC error", logrus.Fields{"error": err})
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "internal error"})
+		w.Write([]byte(`{"error":"internal error"}`))
 		return
 	}
 	http.SetCookie(w, &http.Cookie{
@@ -171,7 +171,7 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		w.Write([]byte(`{"error":"unauthorized"}`))
 		return
 	}
 	resp, err := h.client.GetUser(r.Context(), &pb.GetUserRequest{UserId: userID})
@@ -179,9 +179,11 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		logger.Error(r.Context(), "get user gRPC error", logrus.Fields{"error": err, "user_id": userID})
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
+		w.Write([]byte(`{"error":"user not found"}`))
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		logger.Error(r.Context(), "json encode error", logrus.Fields{"error": err})
+	}
 }

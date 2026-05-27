@@ -53,7 +53,7 @@ func parseFilter(r *http.Request) service.PlaceFilter {
 		for _, part := range strings.Split(raw, ",") {
 			part = strings.TrimSpace(part)
 			if id, err := strconv.Atoi(part); err == nil {
-				if threshold, ok := ratingThresholds[id]; ok && threshold < minRating || minRating == 0 {
+				if threshold, ok := ratingThresholds[id]; ok && (minRating == 0 || threshold < minRating) {
 					minRating = threshold
 				}
 			}
@@ -126,7 +126,6 @@ func placesToDTO(places []models.Place) []dto.PlaceResponse {
 
 func (h *PlaceHandler) List(w http.ResponseWriter, r *http.Request) {
 	filter := parseFilter(r)
-
 	places, err := h.placeService.GetAll(r.Context(), filter)
 	if err != nil {
 		logger.Error(r.Context(), "Failed to fetch places", logrus.Fields{"error": err})
@@ -134,26 +133,12 @@ func (h *PlaceHandler) List(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch places"})
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(placesToDTO(places))
 }
 
-// FilterByReviewsAndRating godoc
-// @Summary      Filter places by reviews and rating
-// @Description  Returns places filtered strictly by minimum rating and/or minimum review count, sorted by rating desc, review count desc
-// @Tags         places
-// @Produce      json
-// @Param        min_rating    query    number  false  "Minimum average rating (e.g. 4.0)"
-// @Param        min_reviews   query    int     false  "Minimum number of reviews (e.g. 10)"
-// @Param        rating_ids    query    string  false  "Comma-separated rating tier IDs (1=4.5+, 2=4.0+, 3=3.5+, 4=3.0+, 5=2.5+)"
-// @Success      200  {array}   dto.PlaceResponse
-// @Failure      400  {object}  map[string]string
-// @Failure      500  {object}  map[string]string
-// @Router       /places/filter [get]
 func (h *PlaceHandler) FilterByReviewsAndRating(w http.ResponseWriter, r *http.Request) {
 	filter := service.PlaceFilter{}
-
 	if raw := r.URL.Query().Get("min_rating"); raw != "" {
 		if v, err := strconv.ParseFloat(raw, 64); err == nil && v >= 0 {
 			filter.MinRating = v
@@ -163,7 +148,6 @@ func (h *PlaceHandler) FilterByReviewsAndRating(w http.ResponseWriter, r *http.R
 			return
 		}
 	}
-
 	if raw := r.URL.Query().Get("min_reviews"); raw != "" {
 		if v, err := strconv.Atoi(raw); err == nil && v >= 0 {
 			filter.MinReviews = v
@@ -173,8 +157,6 @@ func (h *PlaceHandler) FilterByReviewsAndRating(w http.ResponseWriter, r *http.R
 			return
 		}
 	}
-
-	// Also support rating_ids shorthand (same tiers as in parseFilter)
 	if raw := r.URL.Query().Get("rating_ids"); raw != "" && filter.MinRating == 0 {
 		var minRating float64
 		for _, part := range strings.Split(raw, ",") {
@@ -187,13 +169,11 @@ func (h *PlaceHandler) FilterByReviewsAndRating(w http.ResponseWriter, r *http.R
 		}
 		filter.MinRating = minRating
 	}
-
 	if filter.MinRating == 0 && filter.MinReviews == 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "at least one of min_rating, min_reviews, or rating_ids must be specified"})
 		return
 	}
-
 	places, err := h.placeService.FilterByReviewsAndRating(r.Context(), filter)
 	if err != nil {
 		logger.Error(r.Context(), "Failed to filter places", logrus.Fields{"error": err})
@@ -201,7 +181,6 @@ func (h *PlaceHandler) FilterByReviewsAndRating(w http.ResponseWriter, r *http.R
 		json.NewEncoder(w).Encode(map[string]string{"error": "failed to filter places"})
 		return
 	}
-
 	result := placesToDTO(places)
 	if result == nil {
 		result = []dto.PlaceResponse{}
@@ -266,7 +245,6 @@ func (h *PlaceHandler) CheckPlaceInTrip(w http.ResponseWriter, r *http.Request) 
 		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 		return
 	}
-
 	vars := mux.Vars(r)
 	placeID, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
@@ -275,7 +253,6 @@ func (h *PlaceHandler) CheckPlaceInTrip(w http.ResponseWriter, r *http.Request) 
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid place id"})
 		return
 	}
-
 	tripIDStr := r.URL.Query().Get("trip_id")
 	if tripIDStr == "" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -288,14 +265,12 @@ func (h *PlaceHandler) CheckPlaceInTrip(w http.ResponseWriter, r *http.Request) 
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip_id"})
 		return
 	}
-
 	trip, _, err := h.tripService.GetTripDetails(r.Context(), tripID)
 	if err != nil || trip == nil || trip.CreatedBy != userID {
 		w.WriteHeader(http.StatusForbidden)
 		json.NewEncoder(w).Encode(map[string]string{"error": "trip not found or access denied"})
 		return
 	}
-
 	inTrip, err := h.placeService.IsPlaceInTrip(r.Context(), placeID, tripID)
 	if err != nil {
 		logger.Error(r.Context(), "Failed to check place in trip", logrus.Fields{"error": err})
@@ -303,7 +278,6 @@ func (h *PlaceHandler) CheckPlaceInTrip(w http.ResponseWriter, r *http.Request) 
 		json.NewEncoder(w).Encode(map[string]string{"error": "failed to check place in trip"})
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"in_trip": inTrip})
 }
@@ -311,23 +285,19 @@ func (h *PlaceHandler) CheckPlaceInTrip(w http.ResponseWriter, r *http.Request) 
 func (h *PlaceHandler) Search(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	filter := parseFilter(r)
-
 	var places []models.Place
 	var err error
-
 	if query == "" {
 		places, err = h.placeService.GetAll(r.Context(), filter)
 	} else {
 		places, err = h.placeService.Search(r.Context(), query, filter)
 	}
-
 	if err != nil {
 		logger.Error(r.Context(), "Failed to search/filter places", logrus.Fields{"error": err})
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"error": "failed to search/filter places"})
 		return
 	}
-
 	result := placesToDTO(places)
 	if result == nil {
 		result = []dto.PlaceResponse{}
@@ -344,7 +314,6 @@ func (h *PlaceHandler) GetBotPreview(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "invalid place id"})
 		return
 	}
-
 	place, err := h.placeService.GetDetails(r.Context(), id, 0)
 	if err != nil {
 		if err.Error() == "place not found" {
@@ -356,12 +325,10 @@ func (h *PlaceHandler) GetBotPreview(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "internal error"})
 		return
 	}
-
 	photoURL := place.PhotoURL
 	if photoURL != "" && !strings.HasPrefix(photoURL, "http") {
 		photoURL = "https://guidely.ru" + photoURL
 	}
-
 	const tmplStr = `<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -375,13 +342,11 @@ func (h *PlaceHandler) GetBotPreview(w http.ResponseWriter, r *http.Request) {
 </head>
 <body></body>
 </html>`
-
 	t, err := template.New("preview").Parse(tmplStr)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
 	data := struct {
 		ID          uint64
 		Name        string
@@ -393,7 +358,6 @@ func (h *PlaceHandler) GetBotPreview(w http.ResponseWriter, r *http.Request) {
 		Description: place.Description,
 		PhotoURL:    photoURL,
 	}
-
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	t.Execute(w, data)
 }

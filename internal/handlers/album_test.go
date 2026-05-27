@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"guidely-app/internal/dto"
 	pb "guidely-app/pkg/pb/album"
 
 	"github.com/golang/mock/gomock"
@@ -21,7 +22,7 @@ func TestAlbumHandler_Create_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	mockClient := pb.NewMockAlbumServiceClient(ctrl)
-	handler := NewAlbumHandler(mockClient, nil) // s3=nil → локальное сохранение
+	handler := NewAlbumHandler(mockClient, nil)
 
 	reqBody := map[string]interface{}{
 		"trip_id":     1,
@@ -160,7 +161,7 @@ func TestAlbumHandler_GetPhotos_Success(t *testing.T) {
 	handler.GetPhotos(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var result []photoResponse
+	var result []dto.PhotoUploadResponse
 	json.NewDecoder(w.Body).Decode(&result)
 	assert.Len(t, result, 1)
 	assert.Equal(t, uint64(1), result[0].ID)
@@ -234,7 +235,6 @@ func TestAlbumHandler_GetByTrip_AutoCreate(t *testing.T) {
 	req = mux.SetURLVars(req, map[string]string{"tripID": "1"})
 	w := httptest.NewRecorder()
 
-	// GetByTrip не находит — запускается auto-create
 	mockClient.EXPECT().GetByTrip(gomock.Any(), gomock.Any()).Return(nil, errors.New("not found"))
 	mockClient.EXPECT().Create(gomock.Any(), gomock.Any()).Return(&pb.Album{Id: 10, Name: "Основной альбом"}, nil)
 	handler.GetByTrip(w, req)

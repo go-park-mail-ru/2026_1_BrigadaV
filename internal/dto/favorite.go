@@ -1,4 +1,4 @@
-//go:generate easyjson -all
+//go:generate easyjson -all favorite.go
 
 package dto
 
