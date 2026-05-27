@@ -386,7 +386,7 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 	_, statErr := os.Stat(fontFile)
 	if statErr == nil {
 		pdf.AddUTF8Font("PTSans", "", fontFile)
-		pdf.SetFont("PTSans", "", 16)
+		pdf.SetFont("PTSans", "", 18) // было 16
 	} else {
 		pdf.SetFont("Helvetica", "B", 16)
 	}
@@ -399,13 +399,13 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 
 	// Направление
 	if statErr == nil {
-		pdf.SetFont("PTSans", "B", 12)
+		pdf.SetFont("PTSans", "", 14) // было 12
 	} else {
 		pdf.SetFont("Helvetica", "B", 12)
 	}
 	pdf.Cell(40, 10, "Направление:")
 	if statErr == nil {
-		pdf.SetFont("PTSans", "", 12)
+		pdf.SetFont("PTSans", "", 14) // увеличено для лучшего соответствия, но не bold
 	} else {
 		pdf.SetFont("Helvetica", "", 12)
 	}
@@ -418,13 +418,13 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 
 	// Даты
 	if statErr == nil {
-		pdf.SetFont("PTSans", "B", 12)
+		pdf.SetFont("PTSans", "", 14) // было 12
 	} else {
 		pdf.SetFont("Helvetica", "B", 12)
 	}
 	pdf.Cell(40, 10, "Даты:")
 	if statErr == nil {
-		pdf.SetFont("PTSans", "", 12)
+		pdf.SetFont("PTSans", "", 14)
 	} else {
 		pdf.SetFont("Helvetica", "", 12)
 	}
@@ -442,14 +442,14 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 	// Описание
 	if trip.Description != "" {
 		if statErr == nil {
-			pdf.SetFont("PTSans", "B", 12)
+			pdf.SetFont("PTSans", "", 14) // было 12
 		} else {
 			pdf.SetFont("Helvetica", "B", 12)
 		}
 		pdf.Cell(40, 10, "Описание:")
 		pdf.Ln(6)
 		if statErr == nil {
-			pdf.SetFont("PTSans", "", 12)
+			pdf.SetFont("PTSans", "", 14)
 		} else {
 			pdf.SetFont("Helvetica", "", 12)
 		}
@@ -459,7 +459,7 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 
 	// Достопримечательности
 	if statErr == nil {
-		pdf.SetFont("PTSans", "B", 14)
+		pdf.SetFont("PTSans", "", 16) // было 14
 	} else {
 		pdf.SetFont("Helvetica", "B", 14)
 	}
@@ -468,7 +468,7 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 
 	if len(places) == 0 {
 		if statErr == nil {
-			pdf.SetFont("PTSans", "I", 12)
+			pdf.SetFont("PTSans", "", 12) // не bold, не увеличиваем
 		} else {
 			pdf.SetFont("Helvetica", "I", 12)
 		}
@@ -479,7 +479,7 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 			if pdf.GetY() > 250 {
 				pdf.AddPage()
 				if statErr == nil {
-					pdf.SetFont("PTSans", "B", 12)
+					pdf.SetFont("PTSans", "", 14) // было 12
 				} else {
 					pdf.SetFont("Helvetica", "B", 12)
 				}
@@ -487,7 +487,7 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 
 			// Название
 			if statErr == nil {
-				pdf.SetFont("PTSans", "B", 12)
+				pdf.SetFont("PTSans", "", 14) // было 12
 			} else {
 				pdf.SetFont("Helvetica", "B", 12)
 			}
@@ -497,7 +497,7 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 			// Рейтинг
 			if place.Rating > 0 {
 				if statErr == nil {
-					pdf.SetFont("PTSans", "", 10)
+					pdf.SetFont("PTSans", "", 10) // не bold, оставляем
 				} else {
 					pdf.SetFont("Helvetica", "", 10)
 				}
@@ -528,7 +528,7 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 			// Описание
 			if place.Description != "" {
 				if statErr == nil {
-					pdf.SetFont("PTSans", "", 10)
+					pdf.SetFont("PTSans", "", 10) // не bold
 				} else {
 					pdf.SetFont("Helvetica", "", 10)
 				}
@@ -549,6 +549,7 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 	}
 	return pdfBuffer.Bytes(), nil
 }
+
 func (s *tripService) GetUserTripsWithRoles(ctx context.Context, userID uint64) ([]UserTripInfo, error) {
 	tripsWithRoles, err := s.tripRepo.GetUserTripsWithRoles(ctx, userID)
 	if err != nil {
