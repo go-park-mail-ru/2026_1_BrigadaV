@@ -37,9 +37,9 @@ func TestTripRepo_Create(t *testing.T) {
 		WithArgs(trip.Title, trip.Description, trip.Location, trip.StartDate, trip.EndDate, trip.PreviewURL, trip.CreatedBy, trip.IsPublic).
 		WillReturnRows(rows)
 
-	// Добавляем ожидание для Exec (вставка owner в trip_member)
-	mockPool.ExpectExec(`INSERT INTO trip_member \(trip_id, user_id, role\) VALUES \(\$1, \$2, 'owner'\) ON CONFLICT .*`).
-		WithArgs(uint64(1), uint64(1)).
+	// Create также добавляет создателя в trip_member через Exec
+	mockPool.ExpectExec(`INSERT INTO trip_member`).
+		WithArgs(uint64(1), trip.CreatedBy).
 		WillReturnResult(pgxmock.NewResult("INSERT", 1))
 
 	err = repo.Create(context.Background(), trip)

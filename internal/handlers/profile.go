@@ -10,6 +10,7 @@ import (
 
 	"guidely-app/internal/dto"
 	"guidely-app/internal/logger"
+	"guidely-app/internal/middleware"
 	"guidely-app/internal/service"
 	"guidely-app/pkg/storage"
 
@@ -30,7 +31,7 @@ func NewProfileHandler(profileService service.ProfileService, s3 *storage.S3Clie
 }
 
 func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
-	userIDVal := r.Context().Value("user_id")
+	userIDVal := r.Context().Value(middleware.UserIDKey)
 	userID, ok := userIDVal.(uint64)
 	if !ok {
 		w.Header().Set("Content-Type", "application/json")
@@ -64,7 +65,7 @@ func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
-	userIDVal := r.Context().Value("user_id")
+	userIDVal := r.Context().Value(middleware.UserIDKey)
 	userID, ok := userIDVal.(uint64)
 	if !ok {
 		w.Header().Set("Content-Type", "application/json")
@@ -123,7 +124,7 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 // UploadAvatar – загружает аватар: в S3 (если включён) или локально
 func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
-	userIDVal := r.Context().Value("user_id")
+	userIDVal := r.Context().Value(middleware.UserIDKey)
 	userID, ok := userIDVal.(uint64)
 	if !ok {
 		w.Header().Set("Content-Type", "application/json")
@@ -231,7 +232,7 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProfileHandler) GetAvatar(w http.ResponseWriter, r *http.Request) {
-	userIDVal := r.Context().Value("user_id")
+	userIDVal := r.Context().Value(middleware.UserIDKey)
 	userID, ok := userIDVal.(uint64)
 	if !ok {
 		w.Header().Set("Content-Type", "application/json")
