@@ -2,12 +2,14 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"guidely-app/internal/testutil"
 	"guidely-app/pkg/models"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/pashagolub/pgxmock/v4"
 	"github.com/stretchr/testify/assert"
 )
@@ -54,10 +56,12 @@ func TestUserRepo_GetByLogin_Found(t *testing.T) {
 	city := "NYC"
 	about := "About me"
 
-	rows := mockPool.NewRows([]string{"id", "login", "nickname", "avatar_url", "password_hash", "country", "city", "about", "has_reviews", "role", "created_at", "updated_at"}).
-		AddRow(uint64(1), "test@example.com", "tester", "/avatar.jpg", "hash123", &country, &city, &about, false, "user", time.Now(), time.Now())
+	rows := mockPool.NewRows([]string{
+		"id", "login", "nickname", "avatar_url", "password_hash", "yandex_id",
+		"country", "city", "about", "has_reviews", "role", "created_at", "updated_at",
+	}).AddRow(uint64(1), "test@example.com", "tester", "/avatar.jpg", "hash123", nil, &country, &city, &about, false, "user", time.Now(), time.Now())
 
-	mockPool.ExpectQuery(`SELECT id, login, nickname, avatar_url, password_hash, country, city, about, has_reviews, role, created_at, updated_at FROM "user" WHERE login = \$1`).
+	mockPool.ExpectQuery(`SELECT id, login, nickname, avatar_url, password_hash, yandex_id, country, city, about, has_reviews, role, created_at, updated_at FROM "user" WHERE login = \$1`).
 		WithArgs("test@example.com").
 		WillReturnRows(rows)
 
@@ -76,9 +80,9 @@ func TestUserRepo_GetByLogin_NotFound(t *testing.T) {
 
 	repo := NewUserRepo(mockPool)
 
-	mockPool.ExpectQuery(`SELECT id, login, nickname, avatar_url, password_hash, country, city, about, has_reviews, role, created_at, updated_at FROM "user" WHERE login = \$1`).
+	mockPool.ExpectQuery(`SELECT id, login, nickname, avatar_url, password_hash, yandex_id, country, city, about, has_reviews, role, created_at, updated_at FROM "user" WHERE login = \$1`).
 		WithArgs("notfound@example.com").
-		WillReturnRows(mockPool.NewRows([]string{"id", "login", "nickname", "avatar_url", "password_hash", "country", "city", "about", "has_reviews", "role", "created_at", "updated_at"}))
+		WillReturnError(pgx.ErrNoRows)
 
 	user, err := repo.GetByLogin(context.Background(), "notfound@example.com")
 	assert.NoError(t, err)
@@ -98,10 +102,12 @@ func TestUserRepo_GetByNickname_Found(t *testing.T) {
 	city := "NYC"
 	about := "About me"
 
-	rows := mockPool.NewRows([]string{"id", "login", "nickname", "avatar_url", "password_hash", "country", "city", "about", "has_reviews", "role", "created_at", "updated_at"}).
-		AddRow(uint64(1), "test@example.com", "tester", "/avatar.jpg", "hash123", &country, &city, &about, false, "user", time.Now(), time.Now())
+	rows := mockPool.NewRows([]string{
+		"id", "login", "nickname", "avatar_url", "password_hash", "yandex_id",
+		"country", "city", "about", "has_reviews", "role", "created_at", "updated_at",
+	}).AddRow(uint64(1), "test@example.com", "tester", "/avatar.jpg", "hash123", nil, &country, &city, &about, false, "user", time.Now(), time.Now())
 
-	mockPool.ExpectQuery(`SELECT id, login, nickname, avatar_url, password_hash, country, city, about, has_reviews, role, created_at, updated_at FROM "user" WHERE nickname = \$1`).
+	mockPool.ExpectQuery(`SELECT id, login, nickname, avatar_url, password_hash, yandex_id, country, city, about, has_reviews, role, created_at, updated_at FROM "user" WHERE nickname = \$1`).
 		WithArgs("tester").
 		WillReturnRows(rows)
 
@@ -124,10 +130,12 @@ func TestUserRepo_GetByID_Found(t *testing.T) {
 	city := "NYC"
 	about := "About me"
 
-	rows := mockPool.NewRows([]string{"id", "login", "nickname", "avatar_url", "password_hash", "country", "city", "about", "has_reviews", "role", "created_at", "updated_at"}).
-		AddRow(uint64(1), "test@example.com", "tester", "/avatar.jpg", "hash123", &country, &city, &about, false, "user", time.Now(), time.Now())
+	rows := mockPool.NewRows([]string{
+		"id", "login", "nickname", "avatar_url", "password_hash", "yandex_id",
+		"country", "city", "about", "has_reviews", "role", "created_at", "updated_at",
+	}).AddRow(uint64(1), "test@example.com", "tester", "/avatar.jpg", "hash123", nil, &country, &city, &about, false, "user", time.Now(), time.Now())
 
-	mockPool.ExpectQuery(`SELECT id, login, nickname, avatar_url, password_hash, country, city, about, has_reviews, role, created_at, updated_at FROM "user" WHERE id = \$1`).
+	mockPool.ExpectQuery(`SELECT id, login, nickname, avatar_url, password_hash, yandex_id, country, city, about, has_reviews, role, created_at, updated_at FROM "user" WHERE id = \$1`).
 		WithArgs(uint64(1)).
 		WillReturnRows(rows)
 
@@ -138,7 +146,6 @@ func TestUserRepo_GetByID_Found(t *testing.T) {
 
 	assert.NoError(t, mockPool.ExpectationsWereMet())
 }
-
 func TestUserRepo_Update(t *testing.T) {
 	mockPool, err := pgxmock.NewPool()
 	assert.NoError(t, err)
@@ -168,4 +175,70 @@ func TestUserRepo_Update(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.NoError(t, mockPool.ExpectationsWereMet())
+}
+
+func TestUserRepo_Create_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewUserRepo(mockPool)
+
+	user := &models.User{Login: "test@example.com", Nickname: "tester", PasswordHash: "hash"}
+	mockPool.ExpectQuery(`INSERT INTO "user"`).WillReturnError(errors.New("db error"))
+	err := repo.Create(context.Background(), user)
+	assert.Error(t, err)
+}
+
+func TestUserRepo_GetByLogin_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewUserRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT .+ FROM "user" WHERE login = \$1`).WithArgs("test@example.com").WillReturnError(errors.New("db error"))
+	_, err := repo.GetByLogin(context.Background(), "test@example.com")
+	assert.Error(t, err)
+}
+
+func TestUserRepo_Update_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewUserRepo(mockPool)
+
+	user := &models.User{ID: 1, Login: "updated", Nickname: "up", PasswordHash: "hash"}
+	mockPool.ExpectQuery(`UPDATE "user"`).WillReturnError(errors.New("db error"))
+	err := repo.Update(context.Background(), user)
+	assert.Error(t, err)
+}
+
+func TestUserRepo_GetByYandexID_Found(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewUserRepo(mockPool)
+
+	yandexID := "12345"
+	rows := mockPool.NewRows([]string{
+		"id", "login", "nickname", "avatar_url", "password_hash", "yandex_id",
+		"country", "city", "about", "has_reviews", "role", "created_at", "updated_at",
+	}).AddRow(uint64(1), "test@example.com", "tester", "/avatar.jpg", "hash", &yandexID, nil, nil, nil, false, "user", time.Now(), time.Now())
+
+	mockPool.ExpectQuery(`SELECT id, login, nickname, avatar_url, password_hash, yandex_id, country, city, about, has_reviews, role, created_at, updated_at FROM "user" WHERE yandex_id = \$1`).
+		WithArgs(yandexID).
+		WillReturnRows(rows)
+
+	user, err := repo.GetByYandexID(context.Background(), yandexID)
+	assert.NoError(t, err)
+	assert.NotNil(t, user)
+	assert.Equal(t, yandexID, *user.YandexID)
+}
+
+func TestUserRepo_Update_DBError_Already(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewUserRepo(mockPool)
+
+	user := &models.User{ID: 1, Login: "updated", Nickname: "up", PasswordHash: "hash"}
+	mockPool.ExpectQuery(`UPDATE "user"`).WillReturnError(errors.New("db error"))
+	err = repo.Update(context.Background(), user)
+	assert.Error(t, err)
 }

@@ -2,6 +2,7 @@ package review
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"guidely-app/internal/review/repository/mocks"
@@ -76,4 +77,51 @@ func TestService_GetByPlaceIDWithAuthor(t *testing.T) {
 	result, err := svc.GetByPlaceIDWithAuthor(context.Background(), 1)
 	assert.NoError(t, err)
 	assert.Len(t, result, 1)
+}
+
+// TestService_Create_RepoError проверяет ошибку репозитория при создании
+func TestService_Create_RepoError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	repo := mocks.NewMockReviewRepository(ctrl)
+	svc := NewService(repo)
+	input := CreateReviewInput{UserID: 1, PlaceID: 1, Rating: 5, Comment: "Great"}
+	repo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(errors.New("db error"))
+	_, err := svc.Create(context.Background(), input)
+	assert.Error(t, err)
+}
+
+// TestService_Delete_RepoGetByIDError проверяет ошибку GetByID при удалении
+func TestService_Delete_RepoGetByIDError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	repo := mocks.NewMockReviewRepository(ctrl)
+	svc := NewService(repo)
+	repo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(nil, errors.New("db error"))
+	err := svc.Delete(context.Background(), 1, 1)
+	assert.Error(t, err)
+}
+
+// TestService_Delete_ReviewNotFound проверяет случай, когда отзыв не найден
+func TestService_Delete_ReviewNotFound(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	repo := mocks.NewMockReviewRepository(ctrl)
+	svc := NewService(repo)
+	repo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(nil, nil)
+	err := svc.Delete(context.Background(), 1, 1)
+	assert.EqualError(t, err, "review not found")
+}
+
+// TestService_Delete_RepoDeleteError проверяет ошибку при удалении после успешного GetByID
+func TestService_Delete_RepoDeleteError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	repo := mocks.NewMockReviewRepository(ctrl)
+	svc := NewService(repo)
+	review := &models.Review{ID: 1, UserID: 1}
+	repo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(review, nil)
+	repo.EXPECT().Delete(gomock.Any(), uint64(1)).Return(errors.New("db delete error"))
+	err := svc.Delete(context.Background(), 1, 1)
+	assert.Error(t, err)
 }

@@ -69,3 +69,28 @@ func TestCategoryService_Delete(t *testing.T) {
 	err := svc.Delete(context.Background(), 1)
 	assert.NoError(t, err)
 }
+
+func TestCategoryService_GetByID(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockRepo := mocks.NewMockCategoryRepository(ctrl)
+	svc := NewCategoryService(mockRepo)
+
+	cat := &models.Category{ID: 1, Name: "Hotel"}
+	mockRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(cat, nil)
+	result, err := svc.GetByID(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Equal(t, cat, result)
+}
+
+func TestCategoryService_Update(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockRepo := mocks.NewMockCategoryRepository(ctrl)
+	svc := NewCategoryService(mockRepo)
+
+	cat := &models.Category{ID: 1, Name: "Updated"}
+	mockRepo.EXPECT().Update(gomock.Any(), cat).Return(nil)
+	err := svc.Update(context.Background(), cat)
+	assert.NoError(t, err)
+}

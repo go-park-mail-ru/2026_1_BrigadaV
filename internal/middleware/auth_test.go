@@ -24,7 +24,7 @@ func TestAuthMiddleware_Authenticate(t *testing.T) {
 	authMiddleware := NewAuthMiddleware(mockSessionRepo)
 
 	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userID := r.Context().Value("user_id")
+		userID := r.Context().Value(UserIDKey)
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("authenticated"))
 		_ = userID
@@ -142,7 +142,7 @@ func TestGetUserIDFromContext(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest("GET", "/", nil)
 			if tt.ctxVal != nil {
-				ctx := context.WithValue(req.Context(), "user_id", tt.ctxVal)
+				ctx := context.WithValue(req.Context(), UserIDKey, tt.ctxVal)
 				req = req.WithContext(ctx)
 			}
 			assert.Equal(t, tt.expected, GetUserIDFromContext(req))

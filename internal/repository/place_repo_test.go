@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -26,15 +27,19 @@ func TestPlaceRepo_GetAll(t *testing.T) {
 	placePhotoID := uint64(1)
 	isMain := true
 
+	// Количество колонок в реальном SELECT должно соответствовать 22 (как в placeSelectCols)
+	// Убедимся, что добавили все колонки: p.latitude, p.longitude, и т.д.
 	rows := mockPool.NewRows([]string{
 		"id", "name", "description", "photo_url", "price", "created_at", "updated_at",
 		"place_lat", "place_lng", // p.latitude, p.longitude
+		"rating", "review_count", // добавили
 		"locality_id", "locality_name", "country_name", "loc_lat", "loc_lng",
 		"category_id", "category_name", "category_description",
 		"place_photo_id", "file_path", "is_main",
 	}).AddRow(
 		uint64(1), "Eiffel Tower", "Famous tower", nil, 1500, time.Now(), time.Now(),
-		&latitude, &longitude, // указатели, т.к. Scan ожидает *float64
+		&latitude, &longitude,
+		4.8, 100,
 		nil, &localityName, &countryName, &latitude, &longitude,
 		nil, &categoryName, &categoryDesc,
 		&placePhotoID, &photoFilePath, &isMain,
@@ -43,7 +48,7 @@ func TestPlaceRepo_GetAll(t *testing.T) {
 	mockPool.ExpectQuery(`SELECT p\.id, p\.name, p\.description, p\.photo_url, p\.price, p\.created_at, p\.updated_at,`).
 		WillReturnRows(rows)
 
-	places, err := repo.GetAll(context.Background())
+	places, err := repo.GetAll(context.Background(), PlaceFilter{})
 	assert.NoError(t, err)
 	assert.Len(t, places, 1)
 	assert.Equal(t, "Eiffel Tower", places[0].Name)
@@ -72,7 +77,7 @@ func TestPlaceRepo_GetByID(t *testing.T) {
 		"locality_id", "locality_name", "country_name", "loc_lat", "loc_lng",
 		"category_id", "category_name", "category_description",
 	}).AddRow(uint64(1), "Eiffel Tower", "Famous tower", nil, 1500, time.Now(), time.Now(),
-		&latitude, &longitude, // указатели
+		&latitude, &longitude,
 		nil, &localityName, &countryName, &latitude, &longitude,
 		nil, &categoryName, &categoryDesc)
 
@@ -103,7 +108,7 @@ func TestPlaceRepo_GetWithRatingAndLike(t *testing.T) {
 		"id", "name", "description", "photo_url", "price", "rating", "review_count",
 		"latitude", "longitude",
 	}).AddRow(uint64(1), "Eiffel Tower", "Famous tower", nil, 1500, 4.5, int64(10),
-		&lat, &lng) // указатели
+		&lat, &lng)
 
 	mockPool.ExpectQuery(`SELECT id, name, description, photo_url, price, rating, review_count, latitude, longitude FROM place WHERE id = \$1`).
 		WithArgs(uint64(1)).
@@ -123,4 +128,159 @@ func TestPlaceRepo_GetWithRatingAndLike(t *testing.T) {
 	assert.True(t, result.IsLiked)
 
 	assert.NoError(t, mockPool.ExpectationsWereMet())
+}
+
+func TestPlaceRepo_GetAll_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewPlaceRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT p\.id, p\.name`).WillReturnError(errors.New("db error"))
+	_, err := repo.GetAll(context.Background(), PlaceFilter{})
+	assert.Error(t, err)
+}
+
+func TestPlaceRepo_GetByID_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewPlaceRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT p\.id, p\.name`).WithArgs(uint64(1)).WillReturnError(errors.New("db error"))
+	_, err := repo.GetByID(context.Background(), 1)
+	assert.Error(t, err)
+}
+
+func TestPlaceRepo_GetWithRatingAndLike_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewPlaceRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT id, name, description`).WithArgs(uint64(1)).WillReturnError(errors.New("db error"))
+	_, err := repo.GetWithRatingAndLike(context.Background(), 1, 0)
+	assert.Error(t, err)
+}
+
+func TestPlaceRepo_IsPlaceInTrip_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewPlaceRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT EXISTS`).WithArgs(uint64(1), uint64(2)).WillReturnError(errors.New("db error"))
+	_, err := repo.IsPlaceInTrip(context.Background(), 1, 2)
+	assert.Error(t, err)
+}
+
+func TestPlaceRepo_GetByCategory_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewPlaceRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT p\.id`).WithArgs(uint64(1)).WillReturnError(errors.New("db error"))
+	_, err := repo.GetByCategory(context.Background(), 1)
+	assert.Error(t, err)
+}
+
+func TestPlaceRepo_Search_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewPlaceRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT p\.id`).WithArgs("%query%").WillReturnError(errors.New("db error"))
+	_, err := repo.Search(context.Background(), "query", PlaceFilter{})
+	assert.Error(t, err)
+}
+
+func TestPlaceRepo_GetByCategory_Success(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewPlaceRepo(mockPool)
+
+	localityName := "Paris"
+	countryName := "France"
+	latitude := 48.8566
+	longitude := 2.3522
+	categoryName := "HotelCategory"
+	categoryDesc := "Hotel Category"
+	photoFilePath := "/photos/hotel.jpg"
+	placePhotoID := uint64(1)
+	isMain := true
+
+	rows := mockPool.NewRows([]string{
+		"id", "name", "description", "photo_url", "price", "created_at", "updated_at",
+		"place_lat", "place_lng",
+		"rating", "review_count",
+		"locality_id", "locality_name", "country_name", "loc_lat", "loc_lng",
+		"category_id", "category_name", "category_description",
+		"place_photo_id", "file_path", "is_main",
+	}).AddRow(
+		uint64(1), "Hotel", "desc", nil, 100, time.Now(), time.Now(),
+		nil, nil,
+		0.0, 0,
+		nil, &localityName, &countryName, &latitude, &longitude,
+		nil, &categoryName, &categoryDesc,
+		&placePhotoID, &photoFilePath, &isMain,
+	)
+
+	mockPool.ExpectQuery(`SELECT p\.id, p\.name, p\.description, p\.photo_url, p\.price, p\.created_at, p\.updated_at,`).
+		WithArgs(uint64(1)).
+		WillReturnRows(rows)
+
+	places, err := repo.GetByCategory(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Len(t, places, 1)
+	assert.Equal(t, "Hotel", places[0].Name)
+}
+
+func TestPlaceRepo_Search_Success(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewPlaceRepo(mockPool)
+
+	catName := "Museum"
+	catDesc := "Art museum"
+	pattern := "%eiffel%"
+
+	rows := mockPool.NewRows([]string{
+		"id", "name", "description", "photo_url", "price", "created_at", "updated_at",
+		"place_lat", "place_lng",
+		"rating", "review_count",
+		"locality_id", "locality_name", "country_name", "loc_lat", "loc_lng",
+		"category_id", "category_name", "category_description",
+		"place_photo_id", "file_path", "is_main",
+	}).AddRow(
+		uint64(1), "Eiffel Tower", "Famous", nil, 1500, time.Now(), time.Now(),
+		nil, nil,
+		4.5, 10,
+		nil, nil, nil, nil, nil,
+		nil, &catName, &catDesc,
+		nil, nil, nil,
+	)
+
+	mockPool.ExpectQuery(`SELECT p\.id, p\.name, p\.description, p\.photo_url, p\.price, p\.created_at, p\.updated_at,`).
+		WithArgs(pattern).
+		WillReturnRows(rows)
+
+	places, err := repo.Search(context.Background(), "eiffel", PlaceFilter{})
+	assert.NoError(t, err)
+	assert.Len(t, places, 1)
+}
+
+func TestPlaceRepo_FilterByReviewsAndRating_Success(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewPlaceRepo(mockPool)
+
+	filter := PlaceFilter{MinRating: 4.0, MinReviews: 10}
+	rows := mockPool.NewRows([]string{"id", "name", "description", "photo_url", "price", "created_at", "updated_at", "place_lat", "place_lng", "rating", "review_count", "locality_id", "locality_name", "country_name", "loc_lat", "loc_lng", "category_id", "category_name", "category_description", "place_photo_id", "file_path", "is_main"}).
+		AddRow(uint64(1), "Good", "", nil, 0, time.Now(), time.Now(), nil, nil, 4.5, 20, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+
+	mockPool.ExpectQuery(`SELECT .+ WHERE 1=1 AND COALESCE\(p\.rating, 0\) >= \$1 AND COALESCE\(p\.review_count, 0\) >= \$2 ORDER BY p.rating DESC, p.review_count DESC`).
+		WithArgs(4.0, 10).
+		WillReturnRows(rows)
+	places, err := repo.FilterByReviewsAndRating(context.Background(), filter)
+	assert.NoError(t, err)
+	assert.Len(t, places, 1)
 }

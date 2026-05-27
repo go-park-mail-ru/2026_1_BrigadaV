@@ -9,10 +9,12 @@ import (
 	"testing"
 
 	"guidely-app/internal/dto"
-	"guidely-app/pkg/models"
+	"guidely-app/internal/repository"
 	"guidely-app/internal/repository/mocks"
 	"guidely-app/internal/service"
 	"guidely-app/internal/testutil"
+	"guidely-app/internal/middleware"
+	"guidely-app/pkg/models"
 
 	"github.com/golang/mock/gomock"
 	"github.com/gorilla/mux"
@@ -24,20 +26,21 @@ func TestTripHandler_List_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockTripRepo := mocks.NewMockTripRepository(ctrl)
-	tripService := service.NewTripService(mockTripRepo)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
 	handler := NewTripHandler(tripService)
 
-	trips := []models.Trip{
-		{ID: 1, Title: "Trip 1", Location: testutil.PtrString("Paris")},
-		{ID: 2, Title: "Trip 2", Location: testutil.PtrString("London")},
+	tripsWithRoles := []repository.UserTripWithRole{
+		{Trip: models.Trip{ID: 1, Title: "Trip 1", Location: testutil.PtrString("Paris")}, Role: "owner"},
+		{Trip: models.Trip{ID: 2, Title: "Trip 2", Location: testutil.PtrString("London")}, Role: "viewer"},
 	}
+	mockTripRepo.EXPECT().GetUserTripsWithRoles(gomock.Any(), uint64(1)).Return(tripsWithRoles, nil)
 
 	req := httptest.NewRequest("GET", "/api/trips", nil)
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	w := httptest.NewRecorder()
-
-	mockTripRepo.EXPECT().GetByUser(gomock.Any(), uint64(1)).Return(trips, nil)
 
 	handler.List(w, req)
 
@@ -54,7 +57,9 @@ func TestTripHandler_List_Unauthorized(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockTripRepo := mocks.NewMockTripRepository(ctrl)
-	tripService := service.NewTripService(mockTripRepo)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
 	handler := NewTripHandler(tripService)
 
 	req := httptest.NewRequest("GET", "/api/trips", nil)
@@ -70,7 +75,9 @@ func TestTripHandler_Create_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockTripRepo := mocks.NewMockTripRepository(ctrl)
-	tripService := service.NewTripService(mockTripRepo)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
 	handler := NewTripHandler(tripService)
 
 	reqBody := dto.CreateTripRequest{
@@ -81,7 +88,7 @@ func TestTripHandler_Create_Success(t *testing.T) {
 	body, _ := json.Marshal(reqBody)
 
 	req := httptest.NewRequest("POST", "/api/trips", bytes.NewReader(body))
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	w := httptest.NewRecorder()
 
@@ -104,7 +111,9 @@ func TestTripHandler_Create_Unauthorized(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockTripRepo := mocks.NewMockTripRepository(ctrl)
-	tripService := service.NewTripService(mockTripRepo)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
 	handler := NewTripHandler(tripService)
 
 	reqBody := dto.CreateTripRequest{Title: "My Trip"}
@@ -123,18 +132,24 @@ func TestTripHandler_GetDetails_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockTripRepo := mocks.NewMockTripRepository(ctrl)
-	tripService := service.NewTripService(mockTripRepo)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
 	handler := NewTripHandler(tripService)
 
 	trip := &models.Trip{ID: 1, Title: "My Trip", Location: testutil.PtrString("Paris")}
 	places := []models.PlaceInTrip{{ID: 1, Name: "Eiffel Tower", Rating: 4.5}}
-
-	req := httptest.NewRequest("GET", "/api/trips/1", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "1"})
-	w := httptest.NewRecorder()
+	role := "owner"
 
 	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(trip, nil)
 	mockTripRepo.EXPECT().GetAttractions(gomock.Any(), uint64(1)).Return(places, nil)
+	mockTripRepo.EXPECT().GetUserRoleForTrip(gomock.Any(), uint64(1), uint64(1)).Return(role, nil)
+
+	req := httptest.NewRequest("GET", "/api/trips/1", nil)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
+	req = req.WithContext(ctx)
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	w := httptest.NewRecorder()
 
 	handler.GetDetails(w, req)
 
@@ -152,14 +167,18 @@ func TestTripHandler_GetDetails_NotFound(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockTripRepo := mocks.NewMockTripRepository(ctrl)
-	tripService := service.NewTripService(mockTripRepo)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
 	handler := NewTripHandler(tripService)
 
+	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(999)).Return(nil, nil)
+
 	req := httptest.NewRequest("GET", "/api/trips/999", nil)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
+	req = req.WithContext(ctx)
 	req = mux.SetURLVars(req, map[string]string{"id": "999"})
 	w := httptest.NewRecorder()
-
-	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(999)).Return(nil, nil)
 
 	handler.GetDetails(w, req)
 
@@ -171,19 +190,22 @@ func TestTripHandler_Update_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockTripRepo := mocks.NewMockTripRepository(ctrl)
-	tripService := service.NewTripService(mockTripRepo)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
 	handler := NewTripHandler(tripService)
 
 	reqBody := dto.UpdateTripRequest{Title: testutil.PtrString("Updated Title")}
 	body, _ := json.Marshal(reqBody)
 
 	req := httptest.NewRequest("PUT", "/api/trips/1", bytes.NewReader(body))
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()
 
 	trip := &models.Trip{ID: 1, Title: "Old Title", CreatedBy: 1}
+	mockMemberRepo.EXPECT().HasEditPermission(gomock.Any(), uint64(1), uint64(1)).Return(true, nil)
 	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(trip, nil)
 	mockTripRepo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
 
@@ -201,7 +223,9 @@ func TestTripHandler_Update_Unauthorized(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockTripRepo := mocks.NewMockTripRepository(ctrl)
-	tripService := service.NewTripService(mockTripRepo)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
 	handler := NewTripHandler(tripService)
 
 	reqBody := dto.UpdateTripRequest{Title: testutil.PtrString("Updated")}
@@ -220,17 +244,18 @@ func TestTripHandler_Delete_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockTripRepo := mocks.NewMockTripRepository(ctrl)
-	tripService := service.NewTripService(mockTripRepo)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
 	handler := NewTripHandler(tripService)
 
 	req := httptest.NewRequest("DELETE", "/api/trips/1", nil)
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()
 
-	trip := &models.Trip{ID: 1, CreatedBy: 1}
-	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(trip, nil)
+	mockMemberRepo.EXPECT().GetMemberRole(gomock.Any(), uint64(1), uint64(1)).Return("owner", nil)
 	mockTripRepo.EXPECT().Delete(gomock.Any(), uint64(1)).Return(nil)
 
 	handler.Delete(w, req)
@@ -243,7 +268,9 @@ func TestTripHandler_Delete_Unauthorized(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockTripRepo := mocks.NewMockTripRepository(ctrl)
-	tripService := service.NewTripService(mockTripRepo)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
 	handler := NewTripHandler(tripService)
 
 	req := httptest.NewRequest("DELETE", "/api/trips/1", nil)
@@ -252,4 +279,176 @@ func TestTripHandler_Delete_Unauthorized(t *testing.T) {
 	handler.Delete(w, req)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestTripHandler_CreateViewShareLink_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+	handler := NewTripHandler(tripService)
+
+	req := httptest.NewRequest("POST", "/api/trips/1/share/view", nil)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
+	req = req.WithContext(ctx)
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	w := httptest.NewRecorder()
+
+	mockMemberRepo.EXPECT().GetMemberRole(gomock.Any(), uint64(1), uint64(1)).Return("owner", nil)
+	mockInviteRepo.EXPECT().CreateInvite(gomock.Any(), gomock.Any()).Return(nil)
+
+	handler.CreateViewShareLink(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]string
+	json.NewDecoder(w.Body).Decode(&resp)
+	assert.Contains(t, resp["share_link"], "/share/view/")
+}
+
+func TestTripHandler_CreateViewShareLink_Forbidden(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+	handler := NewTripHandler(tripService)
+
+	req := httptest.NewRequest("POST", "/api/trips/1/share/view", nil)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(2))
+	req = req.WithContext(ctx)
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	w := httptest.NewRecorder()
+
+	// Ожидаем, что GetMemberRole вернёт "" (нет роли)
+	mockMemberRepo.EXPECT().GetMemberRole(gomock.Any(), uint64(1), uint64(2)).Return("", nil)
+	// Fallback: isOwner вызовет GetByID
+	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(&models.Trip{ID: 1, CreatedBy: 3}, nil)
+
+	handler.CreateViewShareLink(w, req)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestTripHandler_RemoveMember_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+	handler := NewTripHandler(tripService)
+
+	req := httptest.NewRequest("DELETE", "/api/trips/1/members/2", nil)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
+	req = req.WithContext(ctx)
+	req = mux.SetURLVars(req, map[string]string{"id": "1", "member_id": "2"})
+	w := httptest.NewRecorder()
+
+	mockMemberRepo.EXPECT().GetMemberRole(gomock.Any(), uint64(1), uint64(1)).Return("owner", nil)
+	mockMemberRepo.EXPECT().RemoveMember(gomock.Any(), uint64(1), uint64(2)).Return(nil)
+
+	handler.RemoveMember(w, req)
+	assert.Equal(t, http.StatusNoContent, w.Code)
+}
+
+func TestTripHandler_GetTripMembers_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+	handler := NewTripHandler(tripService)
+
+	req := httptest.NewRequest("GET", "/api/trips/1/members", nil)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
+	req = req.WithContext(ctx)
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	w := httptest.NewRecorder()
+
+	members := []models.TripMember{{TripID: 1, UserID: 1, Role: "owner"}, {TripID: 1, UserID: 2, Role: "editor"}}
+	mockMemberRepo.EXPECT().GetMemberRole(gomock.Any(), uint64(1), uint64(1)).Return("owner", nil)
+	mockMemberRepo.EXPECT().GetTripMembers(gomock.Any(), uint64(1)).Return(members, nil)
+
+	handler.GetTripMembers(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp []models.TripMember
+	json.NewDecoder(w.Body).Decode(&resp)
+	assert.Len(t, resp, 2)
+}
+
+func TestTripHandler_ExportTripToPDF_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+	handler := NewTripHandler(tripService)
+
+	mockMemberRepo.EXPECT().HasViewPermission(gomock.Any(), uint64(1), uint64(1)).Return(true, nil)
+	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(&models.Trip{ID: 1, Title: "Test"}, nil)
+	mockTripRepo.EXPECT().GetAttractions(gomock.Any(), uint64(1)).Return([]models.PlaceInTrip{}, nil)
+
+	req := httptest.NewRequest("GET", "/api/trips/1/export/pdf", nil)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
+	req = req.WithContext(ctx)
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	w := httptest.NewRecorder()
+
+	handler.ExportTripToPDF(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "application/pdf", w.Header().Get("Content-Type"))
+	assert.Contains(t, w.Header().Get("Content-Disposition"), "filename=trip_1.pdf")
+	assert.NotEmpty(t, w.Body.Bytes())
+}
+
+func TestTripHandler_ExportTripToPDF_Unauthorized(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+	handler := NewTripHandler(tripService)
+
+	req := httptest.NewRequest("GET", "/api/trips/1/export/pdf", nil)
+	w := httptest.NewRecorder()
+
+	handler.ExportTripToPDF(w, req)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestTripHandler_ExportTripToPDF_Forbidden(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTripRepo := mocks.NewMockTripRepository(ctrl)
+	mockMemberRepo := mocks.NewMockTripMemberRepository(ctrl)
+	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
+	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
+	handler := NewTripHandler(tripService)
+
+	mockMemberRepo.EXPECT().HasViewPermission(gomock.Any(), uint64(1), uint64(2)).Return(false, nil)
+
+	req := httptest.NewRequest("GET", "/api/trips/1/export/pdf", nil)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(2))
+	req = req.WithContext(ctx)
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	w := httptest.NewRecorder()
+
+	handler.ExportTripToPDF(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
 }

@@ -2,9 +2,10 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 
-	"guidely-app/internal/auth/repository/mocks" // моки для UserRepository теперь здесь
+	"guidely-app/internal/auth/repository/mocks"
 	"guidely-app/internal/testutil"
 	"guidely-app/pkg/models"
 
@@ -36,6 +37,8 @@ func TestProfileService_UpdateProfile(t *testing.T) {
 
 	existingUser := &models.User{ID: 1, Nickname: "old", AvatarURL: "/old.jpg"}
 	mockUserRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(existingUser, nil)
+	// Добавляем ожидание проверки уникальности nickname
+	mockUserRepo.EXPECT().GetByNickname(gomock.Any(), "new").Return(nil, nil)
 	mockUserRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, u *models.User) error {
 		assert.Equal(t, "new", u.Nickname)
 		assert.Equal(t, "/new.jpg", u.AvatarURL)
@@ -67,4 +70,14 @@ func TestProfileService_UpdateAvatar(t *testing.T) {
 	result, err := svc.UpdateAvatar(context.Background(), 1, "/new.jpg")
 	assert.NoError(t, err)
 	assert.Equal(t, "/new.jpg", result.AvatarURL)
+}
+func TestProfileService_UpdateAvatar_Error(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockUserRepo := mocks.NewMockUserRepository(ctrl)
+	svc := NewProfileService(mockUserRepo)
+
+	mockUserRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(nil, errors.New("db error"))
+	_, err := svc.UpdateAvatar(context.Background(), 1, "/new.jpg")
+	assert.Error(t, err)
 }

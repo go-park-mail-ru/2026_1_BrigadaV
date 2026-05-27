@@ -2,6 +2,7 @@ package review
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"guidely-app/pkg/models"
@@ -63,6 +64,16 @@ func toReviewWithAuthorMessages(reviews []models.ReviewWithAuthor) []*pb.ReviewW
 	return result
 }
 
+// isDuplicateError определяет, является ли ошибка нарушением уникальности.
+// Таблица review имеет UNIQUE(user_id, place_id).
+func isDuplicateError(err error) bool {
+	msg := err.Error()
+	return strings.Contains(msg, "23505") ||
+		strings.Contains(msg, "unique constraint") ||
+		strings.Contains(msg, "unique_violation") ||
+		strings.Contains(msg, "duplicate key")
+}
+
 func (s *Server) CreateReview(ctx context.Context, req *pb.CreateReviewRequest) (*pb.ReviewResponse, error) {
 	var visitDate *time.Time
 	if req.VisitDate != nil {
@@ -81,6 +92,10 @@ func (s *Server) CreateReview(ctx context.Context, req *pb.CreateReviewRequest) 
 	}
 	review, err := s.svc.Create(ctx, input)
 	if err != nil {
+		// Проверяем на дублирующийся отзыв
+		if isDuplicateError(err) {
+			return nil, status.Error(codes.AlreadyExists, "you have already reviewed this place")
+		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return toReviewResponse(review), nil

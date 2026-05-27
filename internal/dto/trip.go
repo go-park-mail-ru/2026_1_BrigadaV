@@ -1,3 +1,5 @@
+//go:generate easyjson -all trip.go
+
 package dto
 
 import (
@@ -5,6 +7,7 @@ import (
 	"time"
 )
 
+//easyjson:json
 type TripResponse struct {
 	ID          uint64     `json:"id"`
 	Title       string     `json:"title"`
@@ -13,8 +16,10 @@ type TripResponse struct {
 	Description string     `json:"description,omitempty"`
 	EndDate     *time.Time `json:"endDate,omitempty"`
 	Preview     *string    `json:"preview,omitempty"`
+	Role        string     `json:"role"`
 }
 
+//easyjson:json
 type CreateTripRequest struct {
 	Title     string  `json:"title"`
 	Location  *string `json:"location,omitempty"`
@@ -24,11 +29,13 @@ type CreateTripRequest struct {
 	IsPublic  bool    `json:"is_public"`
 }
 
+//easyjson:json
 type CreateTripResponse struct {
 	ID      uint64  `json:"id"`
 	Preview *string `json:"preview,omitempty"`
 }
 
+//easyjson:json
 type UpdateTripRequest struct {
 	Title       *string `json:"title,omitempty"`
 	Description *string `json:"description,omitempty"`
@@ -39,6 +46,7 @@ type UpdateTripRequest struct {
 	IsPublic    *bool   `json:"is_public,omitempty"`
 }
 
+//easyjson:json
 type TripDetailsResponse struct {
 	ID          uint64               `json:"id"`
 	Title       string               `json:"title"`
@@ -47,6 +55,76 @@ type TripDetailsResponse struct {
 	EndDate     *time.Time           `json:"endDate,omitempty"`
 	Preview     *string              `json:"preview,omitempty"`
 	Attractions []models.PlaceInTrip `json:"attractions"`
+	Role        string               `json:"role"`
 }
 
+//easyjson:json
 type TripPlacesResponse []uint64
+
+//easyjson:json
+type ShareLinkResponse struct {
+	ShareLink string `json:"share_link"`
+}
+
+//easyjson:json
+type MemberResponse struct {
+	UserID   uint64    `json:"user_id"`
+	Role     string    `json:"role"`
+	JoinedAt time.Time `json:"joined_at"`
+}
+
+//easyjson:json
+type SharedTripResponse struct {
+	Trip        *models.Trip         `json:"trip"`
+	Attractions []models.PlaceInTrip `json:"attractions"`
+	Role        string               `json:"role"`
+}
+
+//easyjson:json
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
+//easyjson:json
+type TripResponseList struct {
+	Items []TripResponse `json:"items"`
+}
+
+//easyjson:json
+type MessageResponse struct {
+	Message string `json:"message"`
+}
+
+//easyjson:json
+type TripIDResponse struct {
+	TripID uint64 `json:"trip_id"`
+}
+
+// AddPlaceRequest используется в AddPlace хендлере вместо анонимной структуры.
+//
+//easyjson:json
+type AddPlaceRequest struct {
+	PlaceID    uint64 `json:"place_id"`
+	OrderIndex int16  `json:"order_index"`
+}
+
+// TripMemberList — обёртка для []models.TripMember, чтобы сериализовывать через easyjson.
+//
+//easyjson:json
+type TripMemberList []TripMemberDTO
+
+//easyjson:json
+type TripMemberDTO struct {
+	TripID   uint64    `json:"trip_id"`
+	UserID   uint64    `json:"user_id"`
+	Role     string    `json:"role"`
+	JoinedAt time.Time `json:"joined_at"`
+}
+
+// ReviewCreatedResponse — ответ при создании отзыва.
+//
+//easyjson:json
+type ReviewCreatedResponse struct {
+	ID      uint64 `json:"id"`
+	Message string `json:"message"`
+}

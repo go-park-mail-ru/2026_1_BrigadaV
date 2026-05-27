@@ -2,12 +2,14 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"guidely-app/internal/testutil"
 	"guidely-app/pkg/models"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/pashagolub/pgxmock/v4"
 	"github.com/stretchr/testify/assert"
 )
@@ -20,13 +22,14 @@ func TestTripRepo_Create(t *testing.T) {
 	repo := NewTripRepo(mockPool)
 
 	trip := &models.Trip{
-		Title:      "My Trip",
-		Location:   testutil.PtrString("Paris"),
-		StartDate:  nil,
-		EndDate:    nil,
-		PreviewURL: testutil.PtrString("/preview.jpg"),
-		CreatedBy:  1,
-		IsPublic:   true,
+		Title:       "My Trip",
+		Description: "",
+		Location:    testutil.PtrString("Paris"),
+		StartDate:   nil,
+		EndDate:     nil,
+		PreviewURL:  testutil.PtrString("/preview.jpg"),
+		CreatedBy:   1,
+		IsPublic:    true,
 	}
 
 	rows := mockPool.NewRows([]string{"id", "created_at", "updated_at"}).AddRow(uint64(1), time.Now(), time.Now())
@@ -34,6 +37,11 @@ func TestTripRepo_Create(t *testing.T) {
 	mockPool.ExpectQuery(`INSERT INTO trip \(title, description, location, start_date, end_date, preview_url, created_by, is_public\)`).
 		WithArgs(trip.Title, trip.Description, trip.Location, trip.StartDate, trip.EndDate, trip.PreviewURL, trip.CreatedBy, trip.IsPublic).
 		WillReturnRows(rows)
+
+	// Create также добавляет создателя в trip_member через Exec
+	mockPool.ExpectExec(`INSERT INTO trip_member`).
+		WithArgs(uint64(1), trip.CreatedBy).
+		WillReturnResult(pgxmock.NewResult("INSERT", 1))
 
 	err = repo.Create(context.Background(), trip)
 	assert.NoError(t, err)
@@ -166,7 +174,7 @@ func TestTripRepo_GetAttractions(t *testing.T) {
 	rows := mockPool.NewRows([]string{"id", "name", "description", "rating", "photo_url"}).
 		AddRow(uint64(1), "Eiffel Tower", "Famous tower", 4.5, photoURL)
 
-	mockPool.ExpectQuery(`SELECT p\.id, p\.name, p\.description, COALESCE\(AVG\(r\.rating\), 0\) as rating,`).
+	mockPool.ExpectQuery(`SELECT p\.id, p\.name, p\.description, COALESCE\(AVG\(r\.rating\), 0\) as rating, p\.photo_url`).
 		WithArgs(uint64(1)).
 		WillReturnRows(rows)
 
@@ -177,4 +185,159 @@ func TestTripRepo_GetAttractions(t *testing.T) {
 	assert.Equal(t, 4.5, places[0].Rating)
 
 	assert.NoError(t, mockPool.ExpectationsWereMet())
+}
+
+func TestTripRepo_GetPlaceIDs(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+
+	repo := NewTripRepo(mockPool)
+
+	rows := mockPool.NewRows([]string{"place_id"}).AddRow(uint64(10)).AddRow(uint64(20))
+	mockPool.ExpectQuery(`SELECT place_id FROM trip_attractions WHERE trip_id = \$1 ORDER BY order_index`).
+		WithArgs(uint64(1)).
+		WillReturnRows(rows)
+
+	ids, err := repo.GetPlaceIDs(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Equal(t, []uint64{10, 20}, ids)
+
+	assert.NoError(t, mockPool.ExpectationsWereMet())
+}
+
+func TestTripRepo_Create_DBError(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewTripRepo(mockPool)
+
+	trip := &models.Trip{Title: "Test", CreatedBy: 1, IsPublic: true}
+	mockPool.ExpectQuery(`INSERT INTO trip`).WillReturnError(errors.New("db error"))
+	err = repo.Create(context.Background(), trip)
+	assert.Error(t, err)
+}
+
+func TestTripRepo_GetByID_DBError(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewTripRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT .+ FROM trip WHERE id = \$1`).WithArgs(uint64(1)).WillReturnError(errors.New("db error"))
+	_, err = repo.GetByID(context.Background(), 1)
+	assert.Error(t, err)
+}
+
+func TestTripRepo_Update_DBError(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewTripRepo(mockPool)
+
+	trip := &models.Trip{ID: 1, Title: "Updated", IsPublic: false}
+	mockPool.ExpectQuery(`UPDATE trip SET`).WillReturnError(errors.New("db error"))
+	err = repo.Update(context.Background(), trip)
+	assert.Error(t, err)
+}
+
+func TestTripRepo_Delete_DBError(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewTripRepo(mockPool)
+
+	mockPool.ExpectExec(`DELETE FROM trip WHERE id = \$1`).WithArgs(uint64(1)).WillReturnError(errors.New("db error"))
+	err = repo.Delete(context.Background(), 1)
+	assert.Error(t, err)
+}
+
+func TestTripRepo_GetPlaceIDs_DBError(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewTripRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT place_id FROM trip_attractions WHERE trip_id = \$1`).WithArgs(uint64(1)).WillReturnError(errors.New("db error"))
+	_, err = repo.GetPlaceIDs(context.Background(), 1)
+	assert.Error(t, err)
+}
+
+func TestTripRepo_GetPlaceIDs_Empty(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewTripRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT place_id FROM trip_attractions WHERE trip_id = \$1`).WithArgs(uint64(1)).WillReturnRows(mockPool.NewRows([]string{"place_id"}))
+	ids, err := repo.GetPlaceIDs(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Empty(t, ids)
+}
+
+func TestTripRepo_RemoveAttraction(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewTripRepo(mockPool)
+
+	mockPool.ExpectExec(`DELETE FROM trip_attractions WHERE trip_id = \$1 AND place_id = \$2`).
+		WithArgs(uint64(1), uint64(5)).
+		WillReturnResult(pgxmock.NewResult("DELETE", 1))
+	err = repo.RemoveAttraction(context.Background(), 1, 5)
+	assert.NoError(t, err)
+}
+
+func TestTripRepo_CheckPlaceInTrip(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewTripRepo(mockPool)
+
+	rows := mockPool.NewRows([]string{"exists"}).AddRow(true)
+	mockPool.ExpectQuery(`SELECT EXISTS\(SELECT 1 FROM trip_attractions WHERE trip_id = \$1 AND place_id = \$2\)`).
+		WithArgs(uint64(1), uint64(5)).
+		WillReturnRows(rows)
+	exists, err := repo.CheckPlaceInTrip(context.Background(), 1, 5)
+	assert.NoError(t, err)
+	assert.True(t, exists)
+}
+
+func TestTripRepo_GetUserTripsWithRoles_Success(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewTripRepo(mockPool)
+
+	rows := mockPool.NewRows([]string{
+		"id", "title", "description", "location", "start_date", "end_date", "preview_url",
+		"created_by", "is_public", "created_at", "updated_at", "role",
+	}).AddRow(uint64(1), "Trip1", nil, nil, nil, nil, nil, uint64(1), true, time.Now(), time.Now(), "owner")
+
+	mockPool.ExpectQuery(`SELECT t\.id, t\.title, t\.description, t\.location, t\.start_date, t\.end_date, t\.preview_url, t\.created_by, t\.is_public, t\.created_at, t\.updated_at, tm\.role as role FROM trip t INNER JOIN trip_member tm ON t\.id = tm\.trip_id AND tm\.user_id = \$1 ORDER BY t\.created_at DESC`).
+		WithArgs(uint64(1)).
+		WillReturnRows(rows)
+
+	result, err := repo.GetUserTripsWithRoles(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Len(t, result, 1)
+	assert.Equal(t, "owner", result[0].Role)
+}
+
+func TestTripRepo_GetUserRoleForTrip_OwnerViaCreatedBy(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewTripRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT role FROM trip_member WHERE trip_id = \$1 AND user_id = \$2`).
+		WithArgs(uint64(1), uint64(2)).
+		WillReturnError(pgx.ErrNoRows)
+	mockPool.ExpectQuery(`SELECT created_by FROM trip WHERE id = \$1`).
+		WithArgs(uint64(1)).
+		WillReturnRows(pgxmock.NewRows([]string{"created_by"}).AddRow(uint64(2)))
+
+	role, err := repo.GetUserRoleForTrip(context.Background(), 1, 2)
+	assert.NoError(t, err)
+	assert.Equal(t, "owner", role)
 }

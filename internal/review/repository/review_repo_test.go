@@ -126,4 +126,43 @@ func TestReviewRepo_GetByPlaceIDWithAuthor_Empty(t *testing.T) {
 	assert.Empty(t, reviews)
 }
 
+func TestReviewRepo_Delete_DBError(t *testing.T) {
+	mockPool, _ := pgxmock.NewPool()
+	defer mockPool.Close()
+	repo := NewReviewRepo(mockPool)
+
+	mockPool.ExpectExec(`DELETE FROM review WHERE id = \$1`).WithArgs(uint64(1)).WillReturnError(errors.New("db error"))
+	err := repo.Delete(context.Background(), 1)
+	assert.Error(t, err)
+}
+
+// TestReviewRepo_GetByID_DBError
+func TestReviewRepo_GetByID_DBError(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewReviewRepo(mockPool)
+	mockPool.ExpectQuery(`SELECT id, user_id, place_id, title, rating, comment, visit_date, created_at, updated_at FROM review WHERE id = \$1`).
+		WithArgs(uint64(1)).
+		WillReturnError(errors.New("db error"))
+	_, err = repo.GetByID(context.Background(), 1)
+	assert.Error(t, err)
+}
+
+// TestReviewRepo_GetByPlaceIDWithAuthor_ScanError
+func TestReviewRepo_GetByPlaceIDWithAuthor_ScanError(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewReviewRepo(mockPool)
+	// Возвращаем строку с неправильным количеством колонок, чтобы вызвать ошибку сканирования
+	rows := mockPool.NewRows([]string{"id", "title", "rating", "comment", "created_at"}).
+		AddRow(uint64(1), "Ok", 5, "Good", time.Now())
+	mockPool.ExpectQuery(`SELECT r\.id, r\.title, r\.rating, r\.comment, r\.created_at, u\.id, u\.nickname, u\.avatar_url`).
+		WithArgs(uint64(1)).
+		WillReturnRows(rows)
+	_, err = repo.GetByPlaceIDWithAuthor(context.Background(), 1)
+	assert.Error(t, err)
+}
+
 func ptrString(s string) *string { return &s }

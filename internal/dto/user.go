@@ -1,7 +1,10 @@
+//go:generate easyjson -all user.go
+
 package dto
 
 import "time"
 
+//easyjson:json
 type UserResponse struct {
 	ID        uint64    `json:"id"`
 	Login     string    `json:"login"`

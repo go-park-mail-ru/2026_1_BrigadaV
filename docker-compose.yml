@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   postgres:
@@ -89,6 +89,47 @@ services:
       - guidely-network
     restart: unless-stopped
 
+  elasticsearch:
+    image: elasticsearch:8.13.4
+    container_name: guidely-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - guidely-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: guidely-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - guidely-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
   backend:
     build:
       context: .
@@ -100,6 +141,7 @@ services:
       - AUTH_GRPC_ADDR=auth:8085
       - ALBUM_GRPC_ADDR=album:8086
       - REVIEW_GRPC_ADDR=review:8087
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
     depends_on:
       postgres:
         condition: service_healthy
@@ -109,6 +151,10 @@ services:
         condition: service_started
       review:
         condition: service_started
+      elasticsearch:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
     ports:
       - "8080:8080"
       - "9100:9100"
@@ -121,13 +167,17 @@ services:
       context: ../frontend
       dockerfile: Dockerfile
     container_name: guidely-frontend
-    depends_on:
-      - backend
     ports:
       - "80:80"
+      - "443:443/tcp"
+      - "443:443/udp"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     networks:
       - guidely-network
     restart: unless-stopped
+    depends_on:
+      - backend
 
   node-exporter:
     image: prom/node-exporter:latest
@@ -138,10 +188,10 @@ services:
       - /sys:/host/sys:ro
       - /:/rootfs:ro
     command:
-      - '--path.procfs=/host/proc'
-      - '--path.rootfs=/rootfs'
-      - '--path.sysfs=/host/sys'
-      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      - "--path.procfs=/host/proc"
+      - "--path.rootfs=/rootfs"
+      - "--path.sysfs=/host/sys"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
     ports:
       - "9109:9100"
     networks:
@@ -155,10 +205,10 @@ services:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
     ports:
       - "8092:9090"
     depends_on:
@@ -198,4 +248,6 @@ volumes:
   postgres_data:
   prometheus_data:
   grafana_data:
+  elasticsearch_data:
+  minio_data:
   uploads_data:

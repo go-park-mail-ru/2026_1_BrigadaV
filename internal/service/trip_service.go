@@ -1,22 +1,28 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"time"
+
 	"guidely-app/internal/logger"
 	"guidely-app/internal/repository"
 	"guidely-app/pkg/models"
-	"time"
 
+	"github.com/jung-kurt/gofpdf/v2"
 	"github.com/sirupsen/logrus"
 )
 
-type tripService struct {
-	tripRepo repository.TripRepository
-}
-
-func NewTripService(tripRepo repository.TripRepository) TripService {
-	return &tripService{tripRepo: tripRepo}
+type UserTripInfo struct {
+	Trip models.Trip
+	Role string
 }
 
 type CreateTripInput struct {
@@ -37,6 +43,61 @@ type UpdateTripInput struct {
 	EndDate     *time.Time
 	PreviewURL  *string
 	IsPublic    *bool
+}
+
+type tripService struct {
+	tripRepo   repository.TripRepository
+	memberRepo repository.TripMemberRepository
+	inviteRepo repository.TripInviteRepository
+}
+
+func NewTripService(
+	tripRepo repository.TripRepository,
+	memberRepo repository.TripMemberRepository,
+	inviteRepo repository.TripInviteRepository,
+) TripService {
+	return &tripService{
+		tripRepo:   tripRepo,
+		memberRepo: memberRepo,
+		inviteRepo: inviteRepo,
+	}
+}
+
+func generateToken() (string, error) {
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(b), nil
+}
+
+func getShareBaseURL() string {
+	if base := os.Getenv("SHARE_BASE_URL"); base != "" {
+		return base
+	}
+	if front := os.Getenv("FRONTEND_URL"); front != "" {
+		return front
+	}
+	return "http://localhost:8080"
+}
+
+func (s *tripService) isOwner(ctx context.Context, tripID, userID uint64) (bool, error) {
+	role, err := s.memberRepo.GetMemberRole(ctx, tripID, userID)
+	if err != nil {
+		return false, err
+	}
+	if role == "owner" {
+		return true, nil
+	}
+	trip, err := s.tripRepo.GetByID(ctx, tripID)
+	if err != nil {
+		return false, err
+	}
+	if trip == nil {
+		return false, errors.New("trip not found")
+	}
+	return trip.CreatedBy == userID, nil
 }
 
 func (s *tripService) Create(ctx context.Context, input CreateTripInput) (*models.Trip, error) {
@@ -81,12 +142,19 @@ func (s *tripService) GetTripDetails(ctx context.Context, tripID uint64) (*model
 
 func (s *tripService) Update(ctx context.Context, id, userID uint64, input UpdateTripInput) (*models.Trip, error) {
 	logger.Info(ctx, "UpdateTrip called", logrus.Fields{"trip_id": id, "user_id": userID})
+	ok, err := s.memberRepo.HasEditPermission(ctx, id, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		trip, err2 := s.tripRepo.GetByID(ctx, id)
+		if err2 != nil || trip == nil || trip.CreatedBy != userID {
+			return nil, errors.New("not authorized to edit this trip")
+		}
+	}
 	trip, err := s.tripRepo.GetByID(ctx, id)
 	if err != nil || trip == nil {
 		return nil, errors.New("trip not found")
-	}
-	if trip.CreatedBy != userID {
-		return nil, errors.New("not authorized")
 	}
 	if input.Title != nil {
 		trip.Title = *input.Title
@@ -118,12 +186,12 @@ func (s *tripService) Update(ctx context.Context, id, userID uint64, input Updat
 
 func (s *tripService) Delete(ctx context.Context, id, userID uint64) error {
 	logger.Info(ctx, "DeleteTrip called", logrus.Fields{"trip_id": id, "user_id": userID})
-	trip, err := s.tripRepo.GetByID(ctx, id)
-	if err != nil || trip == nil {
-		return errors.New("trip not found")
+	owner, err := s.isOwner(ctx, id, userID)
+	if err != nil {
+		return err
 	}
-	if trip.CreatedBy != userID {
-		return errors.New("not authorized")
+	if !owner {
+		return errors.New("only owner can delete trip")
 	}
 	return s.tripRepo.Delete(ctx, id)
 }
@@ -134,14 +202,16 @@ func (s *tripService) GetTripPlaceIDs(ctx context.Context, tripID uint64) ([]uin
 
 func (s *tripService) AddPlaceToTrip(ctx context.Context, tripID, placeID, userID uint64, orderIndex int16) error {
 	logger.Info(ctx, "AddPlaceToTrip called", logrus.Fields{"trip_id": tripID, "place_id": placeID})
-	trip, err := s.tripRepo.GetByID(ctx, tripID)
-	if err != nil || trip == nil {
-		return errors.New("trip not found")
+	ok, err := s.memberRepo.HasEditPermission(ctx, tripID, userID)
+	if err != nil {
+		return err
 	}
-	if trip.CreatedBy != userID {
-		return errors.New("not your trip")
+	if !ok {
+		trip, err2 := s.tripRepo.GetByID(ctx, tripID)
+		if err2 != nil || trip == nil || trip.CreatedBy != userID {
+			return errors.New("not authorized to edit this trip")
+		}
 	}
-
 	exists, err := s.tripRepo.CheckPlaceInTrip(ctx, tripID, placeID)
 	if err != nil {
 		return err
@@ -149,18 +219,356 @@ func (s *tripService) AddPlaceToTrip(ctx context.Context, tripID, placeID, userI
 	if exists {
 		return errors.New("place already in trip")
 	}
-
 	return s.tripRepo.AddAttraction(ctx, tripID, placeID, orderIndex)
 }
 
 func (s *tripService) RemovePlaceFromTrip(ctx context.Context, tripID, placeID, userID uint64) error {
 	logger.Info(ctx, "RemovePlaceFromTrip called", logrus.Fields{"trip_id": tripID, "place_id": placeID})
-	trip, err := s.tripRepo.GetByID(ctx, tripID)
-	if err != nil || trip == nil {
-		return errors.New("trip not found")
+	ok, err := s.memberRepo.HasEditPermission(ctx, tripID, userID)
+	if err != nil {
+		return err
 	}
-	if trip.CreatedBy != userID {
-		return errors.New("not your trip")
+	if !ok {
+		trip, err2 := s.tripRepo.GetByID(ctx, tripID)
+		if err2 != nil || trip == nil || trip.CreatedBy != userID {
+			return errors.New("not authorized to edit this trip")
+		}
 	}
 	return s.tripRepo.RemoveAttraction(ctx, tripID, placeID)
+}
+
+// ----- Методы шеринга и совместного планирования -----
+
+func (s *tripService) CreateViewShareLink(ctx context.Context, tripID, userID uint64) (string, error) {
+	owner, err := s.isOwner(ctx, tripID, userID)
+	if err != nil {
+		return "", err
+	}
+	if !owner {
+		return "", errors.New("only owner can create share links")
+	}
+	token, err := generateToken()
+	if err != nil {
+		return "", err
+	}
+	invite := &models.TripInvite{
+		TripID:    tripID,
+		Token:     token,
+		Role:      "viewer",
+		IsOneTime: false,
+		CreatedBy: userID,
+	}
+	if err := s.inviteRepo.CreateInvite(ctx, invite); err != nil {
+		return "", err
+	}
+	baseURL := getShareBaseURL()
+	return baseURL + "/share/view/" + token, nil
+}
+
+func (s *tripService) CreateEditShareLink(ctx context.Context, tripID, userID uint64) (string, error) {
+	owner, err := s.isOwner(ctx, tripID, userID)
+	if err != nil {
+		return "", err
+	}
+	if !owner {
+		return "", errors.New("only owner can create share links")
+	}
+	token, err := generateToken()
+	if err != nil {
+		return "", err
+	}
+	invite := &models.TripInvite{
+		TripID:    tripID,
+		Token:     token,
+		Role:      "companion",
+		IsOneTime: true,
+		CreatedBy: userID,
+	}
+	if err := s.inviteRepo.CreateInvite(ctx, invite); err != nil {
+		return "", err
+	}
+	baseURL := getShareBaseURL()
+	return baseURL + "/share/edit/" + token, nil
+}
+
+func (s *tripService) AcceptInvite(ctx context.Context, token string, userID uint64) (tripID uint64, role string, err error) {
+	invite, err := s.inviteRepo.GetInviteByToken(ctx, token)
+	if err != nil {
+		return 0, "", err
+	}
+	if invite == nil {
+		return 0, "", errors.New("invalid or expired invite")
+	}
+	if invite.ExpiresAt != nil && invite.ExpiresAt.Before(time.Now()) {
+		return 0, "", errors.New("invite has expired")
+	}
+	if invite.IsOneTime && invite.UsedAt != nil {
+		return 0, "", errors.New("invite already used")
+	}
+	if err := s.memberRepo.AddMember(ctx, invite.TripID, userID, invite.Role); err != nil {
+		return 0, "", err
+	}
+	if invite.IsOneTime {
+		_ = s.inviteRepo.MarkUsed(ctx, invite.ID)
+	}
+	return invite.TripID, invite.Role, nil
+}
+
+func (s *tripService) GetTripMembers(ctx context.Context, tripID, userID uint64) ([]models.TripMember, error) {
+	owner, err := s.isOwner(ctx, tripID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !owner {
+		return nil, errors.New("only owner can view members")
+	}
+	return s.memberRepo.GetTripMembers(ctx, tripID)
+}
+
+func (s *tripService) RemoveMember(ctx context.Context, tripID, ownerID, memberID uint64) error {
+	owner, err := s.isOwner(ctx, tripID, ownerID)
+	if err != nil {
+		return err
+	}
+	if !owner {
+		return errors.New("only owner can remove members")
+	}
+	if ownerID == memberID {
+		return errors.New("cannot remove owner")
+	}
+	return s.memberRepo.RemoveMember(ctx, tripID, memberID)
+}
+
+func (s *tripService) GetTripByShareToken(ctx context.Context, token string) (*models.Trip, string, error) {
+	invite, err := s.inviteRepo.GetInviteByToken(ctx, token)
+	if err != nil {
+		return nil, "", err
+	}
+	if invite == nil {
+		return nil, "", errors.New("invalid share token")
+	}
+	if invite.IsOneTime && invite.UsedAt != nil {
+		return nil, "", errors.New("one-time link already used")
+	}
+	trip, err := s.tripRepo.GetByID(ctx, invite.TripID)
+	if err != nil {
+		return nil, "", err
+	}
+	if trip == nil {
+		return nil, "", errors.New("trip not found")
+	}
+	return trip, invite.Role, nil
+}
+
+func formatDatePtr(t *time.Time) string {
+	if t == nil {
+		return "не указана"
+	}
+	return t.Format("02.01.2006")
+}
+
+func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64) ([]byte, error) {
+	ok, err := s.memberRepo.HasViewPermission(ctx, tripID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, errors.New("access denied")
+	}
+
+	trip, places, err := s.GetTripDetails(ctx, tripID)
+	if err != nil {
+		return nil, err
+	}
+
+	pdf := gofpdf.New("P", "mm", "A4", "")
+	fontFile := "assets/fonts/PTSans-Regular.ttf"
+	_, statErr := os.Stat(fontFile)
+	if statErr == nil {
+		pdf.AddUTF8Font("PTSans", "", fontFile)
+		pdf.SetFont("PTSans", "", 16)
+	} else {
+		pdf.SetFont("Helvetica", "B", 16)
+	}
+	pdf.AddPage()
+
+	// Заголовок
+	title := "Поездка: " + trip.Title
+	pdf.Cell(0, 10, title)
+	pdf.Ln(12)
+
+	// Направление
+	if statErr == nil {
+		pdf.SetFont("PTSans", "B", 12)
+	} else {
+		pdf.SetFont("Helvetica", "B", 12)
+	}
+	pdf.Cell(40, 10, "Направление:")
+	if statErr == nil {
+		pdf.SetFont("PTSans", "", 12)
+	} else {
+		pdf.SetFont("Helvetica", "", 12)
+	}
+	location := "не указано"
+	if trip.Location != nil && *trip.Location != "" {
+		location = *trip.Location
+	}
+	pdf.Cell(0, 10, location)
+	pdf.Ln(8)
+
+	// Даты
+	if statErr == nil {
+		pdf.SetFont("PTSans", "B", 12)
+	} else {
+		pdf.SetFont("Helvetica", "B", 12)
+	}
+	pdf.Cell(40, 10, "Даты:")
+	if statErr == nil {
+		pdf.SetFont("PTSans", "", 12)
+	} else {
+		pdf.SetFont("Helvetica", "", 12)
+	}
+	dateFrom := formatDatePtr(trip.StartDate)
+	dateTo := formatDatePtr(trip.EndDate)
+	dateStr := dateFrom
+	if dateFrom != "не указана" && dateTo != "не указана" && dateFrom != dateTo {
+		dateStr += " – " + dateTo
+	} else if dateTo != "не указана" {
+		dateStr = dateTo
+	}
+	pdf.Cell(0, 10, dateStr)
+	pdf.Ln(8)
+
+	// Описание
+	if trip.Description != "" {
+		if statErr == nil {
+			pdf.SetFont("PTSans", "B", 12)
+		} else {
+			pdf.SetFont("Helvetica", "B", 12)
+		}
+		pdf.Cell(40, 10, "Описание:")
+		pdf.Ln(6)
+		if statErr == nil {
+			pdf.SetFont("PTSans", "", 12)
+		} else {
+			pdf.SetFont("Helvetica", "", 12)
+		}
+		pdf.MultiCell(0, 6, trip.Description, "", "", false)
+		pdf.Ln(4)
+	}
+
+	// Достопримечательности
+	if statErr == nil {
+		pdf.SetFont("PTSans", "B", 14)
+	} else {
+		pdf.SetFont("Helvetica", "B", 14)
+	}
+	pdf.Cell(0, 10, "Достопримечательности:")
+	pdf.Ln(10)
+
+	if len(places) == 0 {
+		if statErr == nil {
+			pdf.SetFont("PTSans", "I", 12)
+		} else {
+			pdf.SetFont("Helvetica", "I", 12)
+		}
+		pdf.Cell(0, 10, "Нет добавленных мест")
+	} else {
+		httpClient := &http.Client{Timeout: 10 * time.Second}
+		for i, place := range places {
+			if pdf.GetY() > 250 {
+				pdf.AddPage()
+				if statErr == nil {
+					pdf.SetFont("PTSans", "B", 12)
+				} else {
+					pdf.SetFont("Helvetica", "B", 12)
+				}
+			}
+
+			// Название
+			if statErr == nil {
+				pdf.SetFont("PTSans", "B", 12)
+			} else {
+				pdf.SetFont("Helvetica", "B", 12)
+			}
+			pdf.Cell(0, 8, fmt.Sprintf("%d. %s", i+1, place.Name))
+			pdf.Ln(6)
+
+			// Рейтинг
+			if place.Rating > 0 {
+				if statErr == nil {
+					pdf.SetFont("PTSans", "", 10)
+				} else {
+					pdf.SetFont("Helvetica", "", 10)
+				}
+				pdf.Cell(0, 5, fmt.Sprintf("Рейтинг: %.1f", place.Rating))
+				pdf.Ln(5)
+			}
+
+			// Изображение
+			if place.PhotoURL != "" {
+				resp, err := httpClient.Get(place.PhotoURL)
+				if err == nil && resp.StatusCode == http.StatusOK {
+					imgData, err := io.ReadAll(resp.Body)
+					resp.Body.Close()
+					if err == nil && len(imgData) > 0 {
+						reader := bytes.NewReader(imgData)
+						imgName := fmt.Sprintf("img_%d_%d", i, time.Now().UnixNano())
+						info := pdf.RegisterImageReader(imgName, "", reader)
+						if info != nil {
+							width := 50.0
+							height := info.Height() * (width / info.Width())
+							pdf.Image(imgName, pdf.GetX(), pdf.GetY(), width, height, false, "", 0, "")
+							pdf.Ln(height + 2)
+						}
+					}
+				}
+			}
+
+			// Описание
+			if place.Description != "" {
+				if statErr == nil {
+					pdf.SetFont("PTSans", "", 10)
+				} else {
+					pdf.SetFont("Helvetica", "", 10)
+				}
+				desc := place.Description
+				if len(desc) > 200 {
+					desc = desc[:200] + "..."
+				}
+				pdf.MultiCell(0, 5, desc, "", "", false)
+				pdf.Ln(2)
+			}
+			pdf.Ln(2)
+		}
+	}
+
+	var pdfBuffer bytes.Buffer
+	if err := pdf.Output(&pdfBuffer); err != nil {
+		return nil, fmt.Errorf("failed to generate PDF: %w", err)
+	}
+	return pdfBuffer.Bytes(), nil
+}
+func (s *tripService) GetUserTripsWithRoles(ctx context.Context, userID uint64) ([]UserTripInfo, error) {
+	tripsWithRoles, err := s.tripRepo.GetUserTripsWithRoles(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]UserTripInfo, len(tripsWithRoles))
+	for i, tr := range tripsWithRoles {
+		result[i] = UserTripInfo{Trip: tr.Trip, Role: tr.Role}
+	}
+	return result, nil
+}
+
+func (s *tripService) GetTripDetailsWithRole(ctx context.Context, tripID, userID uint64) (*models.Trip, []models.PlaceInTrip, string, error) {
+	trip, places, err := s.GetTripDetails(ctx, tripID)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	role, err := s.tripRepo.GetUserRoleForTrip(ctx, tripID, userID)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	return trip, places, role, nil
 }

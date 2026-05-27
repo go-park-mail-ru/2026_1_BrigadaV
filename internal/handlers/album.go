@@ -1,36 +1,49 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
+	"guidely-app/internal/dto"
+	"guidely-app/internal/logger"
 	"guidely-app/internal/middleware"
 	pb "guidely-app/pkg/pb/album"
+	"guidely-app/pkg/storage"
 
 	"github.com/gorilla/mux"
+	"github.com/mailru/easyjson"
+	"github.com/sirupsen/logrus"
 )
 
-const uploadDir = "./uploads/photos"
+const (
+	uploadDir    = "./uploads/photos"
+	maxPhotoSize = 30 << 20 // 30 MB
+)
 
 type AlbumHandler struct {
 	client pb.AlbumServiceClient
+	s3     *storage.S3Client
 }
 
-func NewAlbumHandler(client pb.AlbumServiceClient) *AlbumHandler {
-	return &AlbumHandler{client: client}
+func NewAlbumHandler(client pb.AlbumServiceClient, s3 *storage.S3Client) *AlbumHandler {
+	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
+		logrus.Warnf("failed to create upload dir: %v", err)
+	}
+	return &AlbumHandler{client: client, s3: s3}
 }
 
-// photoResponse — то что ждёт фронтенд: { id, url }
-type photoResponse struct {
-	ID  uint64 `json:"id"`
-	URL string `json:"url"`
+func writeJSON(w http.ResponseWriter, status int, v easyjson.Marshaler) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if _, err := easyjson.MarshalToWriter(v, w); err != nil {
+		logrus.Errorf("easyjson marshal error: %v", err)
+	}
 }
 
 func (h *AlbumHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -40,13 +53,8 @@ func (h *AlbumHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req struct {
-		TripID      uint64 `json:"trip_id"`
-		Name        string `json:"name"`
-		Description string `json:"description"`
-		MaxPhotos   int32  `json:"max_photos"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	var req dto.CreateAlbumRequest
+	if err := easyjson.UnmarshalFromReader(r.Body, &req); err != nil {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
@@ -55,17 +63,20 @@ func (h *AlbumHandler) Create(w http.ResponseWriter, r *http.Request) {
 		TripId:      req.TripID,
 		Name:        req.Name,
 		Description: req.Description,
-		MaxPhotos:   req.MaxPhotos,
 	})
 	if err != nil {
-		log.Printf("album create error: %v", err)
+		logger.Error(r.Context(), "album create error", logrus.Fields{"error": err, "trip_id": req.TripID})
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(resp)
+	albumResp := dto.AlbumResponse{
+		ID:          resp.Id,
+		TripID:      resp.TripId,
+		Name:        resp.Name,
+		Description: resp.Description,
+	}
+	writeJSON(w, http.StatusCreated, &albumResp)
 }
 
 func (h *AlbumHandler) Get(w http.ResponseWriter, r *http.Request) {
@@ -78,18 +89,20 @@ func (h *AlbumHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.client.Get(r.Context(), &pb.GetAlbumRequest{Id: id})
 	if err != nil {
-		log.Printf("album get error: %v", err)
+		logger.Error(r.Context(), "album get error", logrus.Fields{"error": err, "album_id": id})
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	albumResp := dto.AlbumResponse{
+		ID:          resp.Id,
+		TripID:      resp.TripId,
+		Name:        resp.Name,
+		Description: resp.Description,
+	}
+	writeJSON(w, http.StatusOK, &albumResp)
 }
 
-// GetByTrip — GET /api/trips/{tripID}/album
-// Возвращает альбом. Триггер в БД создаёт альбом автоматически при создании поездки.
-// Если по каким-то причинам альбома нет — создаём на лету.
 func (h *AlbumHandler) GetByTrip(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	tripID, err := strconv.ParseUint(vars["tripID"], 10, 64)
@@ -100,25 +113,36 @@ func (h *AlbumHandler) GetByTrip(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.client.GetByTrip(r.Context(), &pb.GetAlbumByTripRequest{TripId: tripID})
 	if err != nil {
-		// Альбома нет — создаём автоматически
-		log.Printf("album not found for trip %d, auto-creating: %v", tripID, err)
+		logger.Warn(r.Context(), "album not found for trip, auto-creating", logrus.Fields{
+			"trip_id": tripID,
+			"error":   err,
+		})
 		created, cerr := h.client.Create(r.Context(), &pb.CreateAlbumRequest{
 			TripId:    tripID,
 			Name:      "Основной альбом",
 			MaxPhotos: 50,
 		})
 		if cerr != nil {
-			log.Printf("album auto-create error: %v", cerr)
+			logger.Error(r.Context(), "album auto-create error", logrus.Fields{"error": cerr, "trip_id": tripID})
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(created)
+		albumResp := dto.AlbumResponse{
+			ID:     created.Id,
+			TripID: created.TripId,
+			Name:   created.Name,
+		}
+		writeJSON(w, http.StatusOK, &albumResp)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	albumResp := dto.AlbumResponse{
+		ID:          resp.Id,
+		TripID:      resp.TripId,
+		Name:        resp.Name,
+		Description: resp.Description,
+	}
+	writeJSON(w, http.StatusOK, &albumResp)
 }
 
 func (h *AlbumHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -129,12 +153,8 @@ func (h *AlbumHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
-		MaxPhotos   int32  `json:"max_photos"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	var req dto.UpdateAlbumRequest
+	if err := easyjson.UnmarshalFromReader(r.Body, &req); err != nil {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
@@ -143,16 +163,20 @@ func (h *AlbumHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Id:          id,
 		Name:        req.Name,
 		Description: req.Description,
-		MaxPhotos:   req.MaxPhotos,
 	})
 	if err != nil {
-		log.Printf("album update error: %v", err)
+		logger.Error(r.Context(), "album update error", logrus.Fields{"error": err, "album_id": id})
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	albumResp := dto.AlbumResponse{
+		ID:          resp.Id,
+		TripID:      resp.TripId,
+		Name:        resp.Name,
+		Description: resp.Description,
+	}
+	writeJSON(w, http.StatusOK, &albumResp)
 }
 
 func (h *AlbumHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -164,7 +188,7 @@ func (h *AlbumHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := h.client.Delete(r.Context(), &pb.DeleteAlbumRequest{Id: id}); err != nil {
-		log.Printf("album delete error: %v", err)
+		logger.Error(r.Context(), "album delete error", logrus.Fields{"error": err, "album_id": id})
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -172,8 +196,6 @@ func (h *AlbumHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 // AddPhoto — POST /api/albums/{id}/photos
-// Принимает multipart/form-data с полем "photo" (файл).
-// Сохраняет файл на диск и регистрирует через gRPC UploadPhoto.
 func (h *AlbumHandler) AddPhoto(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	albumID, err := strconv.ParseUint(vars["id"], 10, 64)
@@ -182,9 +204,13 @@ func (h *AlbumHandler) AddPhoto(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ограничение — 10 МБ
-	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		http.Error(w, "failed to parse multipart form", http.StatusBadRequest)
+	r.Body = http.MaxBytesReader(w, r.Body, maxPhotoSize+1<<20)
+	if err := r.ParseMultipartForm(maxPhotoSize); err != nil {
+		if strings.Contains(err.Error(), "too large") || strings.Contains(err.Error(), "request body too large") {
+			http.Error(w, "file too large (max 30 MB)", http.StatusRequestEntityTooLarge)
+			return
+		}
+		http.Error(w, "invalid form: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -195,54 +221,83 @@ func (h *AlbumHandler) AddPhoto(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// Создаём папку если нет
-	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
-		log.Printf("mkdir error: %v", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
+	if header.Size > maxPhotoSize {
+		http.Error(w, "file too large (max 30 MB)", http.StatusRequestEntityTooLarge)
 		return
 	}
 
-	// Уникальное имя файла
+	contentType := header.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "image/jpeg"
+	}
+
 	ext := filepath.Ext(header.Filename)
 	if ext == "" {
 		ext = ".jpg"
 	}
 	filename := fmt.Sprintf("%d_%d%s", albumID, time.Now().UnixNano(), ext)
-	savePath := filepath.Join(uploadDir, filename)
-	relativePath := "/uploads/photos/" + filename
 
-	// Сохраняем файл
-	dst, err := os.Create(savePath)
-	if err != nil {
-		log.Printf("file create error: %v", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	defer dst.Close()
-	if _, err := io.Copy(dst, file); err != nil {
-		log.Printf("file copy error: %v", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
+	var fileURL string
+
+	if h.s3 != nil {
+		objectName := "photos/" + filename
+		fileURL, err = h.s3.UploadFile(r.Context(), objectName, file, header.Size, contentType)
+		if err != nil {
+			logger.Error(r.Context(), "S3 upload failed", logrus.Fields{"error": err, "album_id": albumID})
+			http.Error(w, "internal error: failed to upload photo", http.StatusInternalServerError)
+			return
+		}
+		logger.Info(r.Context(), "photo uploaded to S3", logrus.Fields{"url": fileURL, "album_id": albumID})
+	} else {
+		if err := os.MkdirAll(uploadDir, 0o755); err != nil {
+			logger.Error(r.Context(), "mkdir error", logrus.Fields{"error": err, "dir": uploadDir})
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		savePath := filepath.Join(uploadDir, filename)
+		dst, err := os.Create(savePath)
+		if err != nil {
+			logger.Error(r.Context(), "file create error", logrus.Fields{"error": err, "path": savePath})
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		defer dst.Close()
+		if _, err := io.Copy(dst, file); err != nil {
+			logger.Error(r.Context(), "file copy error", logrus.Fields{"error": err})
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		fileURL = "/uploads/photos/" + filename
+		logger.Info(r.Context(), "photo saved locally", logrus.Fields{"path": fileURL, "album_id": albumID})
 	}
 
-	// Регистрируем фото и связываем с альбомом через gRPC
 	addResp, err := h.client.UploadPhoto(r.Context(), &pb.UploadPhotoRequest{
 		AlbumId:  albumID,
-		FilePath: relativePath,
+		FilePath: fileURL,
 	})
 	if err != nil {
-		log.Printf("album upload photo gRPC error: %v", err)
-		os.Remove(savePath)
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		logger.Error(r.Context(), "album upload photo gRPC error", logrus.Fields{
+			"error":    err,
+			"album_id": albumID,
+		})
+		if h.s3 == nil {
+			os.Remove(filepath.Join(uploadDir, filename))
+		}
+		http.Error(w, "internal error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(photoResponse{
-		ID:  addResp.PhotoId,
-		URL: relativePath,
+	logger.Info(r.Context(), "photo added to album", logrus.Fields{
+		"album_id": albumID,
+		"photo_id": addResp.PhotoId,
+		"url":      fileURL,
 	})
+
+	resp := dto.PhotoUploadResponse{
+		ID:  addResp.PhotoId,
+		URL: fileURL,
+	}
+	writeJSON(w, http.StatusCreated, &resp)
 }
 
 func (h *AlbumHandler) RemovePhoto(w http.ResponseWriter, r *http.Request) {
@@ -262,7 +317,11 @@ func (h *AlbumHandler) RemovePhoto(w http.ResponseWriter, r *http.Request) {
 		AlbumId: albumID,
 		PhotoId: photoID,
 	}); err != nil {
-		log.Printf("album remove photo error: %v", err)
+		logger.Error(r.Context(), "album remove photo error", logrus.Fields{
+			"error":    err,
+			"album_id": albumID,
+			"photo_id": photoID,
+		})
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -270,7 +329,6 @@ func (h *AlbumHandler) RemovePhoto(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetPhotos — GET /api/albums/{id}/photos
-// Возвращает массив { id, url } — именно это ожидает фронтенд.
 func (h *AlbumHandler) GetPhotos(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	albumID, err := strconv.ParseUint(vars["id"], 10, 64)
@@ -281,19 +339,24 @@ func (h *AlbumHandler) GetPhotos(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.client.GetPhotos(r.Context(), &pb.GetAlbumPhotosRequest{AlbumId: albumID})
 	if err != nil {
-		log.Printf("album get photos error: %v", err)
+		logger.Error(r.Context(), "album get photos error", logrus.Fields{"error": err, "album_id": albumID})
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	result := make([]photoResponse, 0, len(resp.Photos))
+	result := make(dto.PhotoUploadResponseList, 0, len(resp.Photos))
 	for _, p := range resp.Photos {
-		result = append(result, photoResponse{
+		result = append(result, dto.PhotoUploadResponse{
 			ID:  p.PhotoId,
 			URL: p.FileUrl,
 		})
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	data, err := easyjson.Marshal(result)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	w.Write(data)
 }

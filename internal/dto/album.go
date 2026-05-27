@@ -1,18 +1,23 @@
+//go:generate easyjson -all album.go
+
 package dto
 
 import "time"
 
+//easyjson:json
 type CreateAlbumRequest struct {
 	TripID      uint64 `json:"trip_id"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
 }
 
+//easyjson:json
 type UpdateAlbumRequest struct {
 	Name        string `json:"name,omitempty"`
 	Description string `json:"description,omitempty"`
 }
 
+//easyjson:json
 type AlbumResponse struct {
 	ID           uint64    `json:"id"`
 	TripID       uint64    `json:"trip_id"`
@@ -22,3 +27,12 @@ type AlbumResponse struct {
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
+
+//easyjson:json
+type PhotoUploadResponse struct {
+	ID  uint64 `json:"id"`
+	URL string `json:"url"`
+}
+
+//easyjson:json
+type PhotoUploadResponseList []PhotoUploadResponse

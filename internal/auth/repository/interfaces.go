@@ -11,6 +11,8 @@ type UserRepository interface {
 	GetByLogin(ctx context.Context, login string) (*models.User, error)
 	GetByNickname(ctx context.Context, nickname string) (*models.User, error)
 	GetByID(ctx context.Context, id uint64) (*models.User, error)
+	GetByYandexID(ctx context.Context, yandexID string) (*models.User, error)
+	CreateOAuth(ctx context.Context, user *models.User) error
 	Update(ctx context.Context, user *models.User) error
 }
 
