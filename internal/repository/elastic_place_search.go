@@ -24,7 +24,7 @@ func NewElasticPlaceSearcher(client *elasticsearch.Client, placeRepo PlaceReposi
 	}
 }
 
-func (s *ElasticPlaceSearcher) Search(ctx context.Context, query string) ([]models.Place, error) {
+func (s *ElasticPlaceSearcher) Search(ctx context.Context, query string, filter PlaceFilter) ([]models.Place, error) {
 	logger.Debug(ctx, "searching places via elasticsearch", logrus.Fields{"query": query})
 
 	fields := []string{"name^3", "country^2", "locality^2", "description"}
@@ -84,5 +84,5 @@ func (s *ElasticPlaceSearcher) Search(ctx context.Context, query string) ([]mode
 		return []models.Place{}, nil
 	}
 
-	return s.placeRepo.GetByIDs(ctx, ids)
+	return s.placeRepo.GetByIDsFiltered(ctx, ids, filter)
 }

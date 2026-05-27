@@ -174,6 +174,8 @@ func main() {
 	authOnly := r.PathPrefix("/api").Subrouter()
 	authOnly.Use(authMiddleware.Authenticate)
 
+	authOnly.HandleFunc("/share/edit/{token}", tripHandler.AcceptInviteAPI).Methods("POST", "OPTIONS")
+	authOnly.HandleFunc("/share/view/{token}", tripHandler.JoinViewShareAPI).Methods("POST", "OPTIONS")
 
 	authOnly.HandleFunc("/profile/avatar", profileHandler.GetAvatar).Methods("GET", "OPTIONS")
 	authOnly.HandleFunc("/profile/avatar", profileHandler.UploadAvatar).Methods("POST", "OPTIONS")
