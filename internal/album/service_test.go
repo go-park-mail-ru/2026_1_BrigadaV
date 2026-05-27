@@ -112,3 +112,61 @@ func TestService_Delete_Error(t *testing.T) {
 	err := svc.Delete(context.Background(), 1)
 	assert.Error(t, err)
 }
+
+func TestService_UploadPhoto(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	repo := mocks.NewMockAlbumRepository(ctrl)
+	svc := NewService(repo)
+
+	repo.EXPECT().UploadPhoto(gomock.Any(), uint64(1), "/photos/test.jpg").Return(uint64(10), nil)
+	id, err := svc.UploadPhoto(context.Background(), 1, "/photos/test.jpg")
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(10), id)
+}
+
+func TestService_UploadPhoto_Error(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	repo := mocks.NewMockAlbumRepository(ctrl)
+	svc := NewService(repo)
+
+	repo.EXPECT().UploadPhoto(gomock.Any(), uint64(1), "/photos/test.jpg").Return(uint64(0), errors.New("db error"))
+	_, err := svc.UploadPhoto(context.Background(), 1, "/photos/test.jpg")
+	assert.Error(t, err)
+}
+
+func TestService_AddPhoto(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	repo := mocks.NewMockAlbumRepository(ctrl)
+	svc := NewService(repo)
+
+	repo.EXPECT().AddPhoto(gomock.Any(), uint64(1), uint64(5), int16(2)).Return(nil)
+	err := svc.AddPhoto(context.Background(), 1, 5, 2)
+	assert.NoError(t, err)
+}
+
+func TestService_RemovePhoto(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	repo := mocks.NewMockAlbumRepository(ctrl)
+	svc := NewService(repo)
+
+	repo.EXPECT().RemovePhoto(gomock.Any(), uint64(1), uint64(5)).Return(nil)
+	err := svc.RemovePhoto(context.Background(), 1, 5)
+	assert.NoError(t, err)
+}
+
+func TestService_GetPhotos(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	repo := mocks.NewMockAlbumRepository(ctrl)
+	svc := NewService(repo)
+
+	expected := []models.AlbumPhoto{{AlbumID: 1, PhotoID: 10, OrderIndex: 1}}
+	repo.EXPECT().GetPhotos(gomock.Any(), uint64(1)).Return(expected, nil)
+	photos, err := svc.GetPhotos(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Len(t, photos, 1)
+}

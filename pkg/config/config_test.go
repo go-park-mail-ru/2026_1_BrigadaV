@@ -141,3 +141,23 @@ func TestLoad_S3Enabled(t *testing.T) {
 	assert.NoError(t, err)
 	assert.False(t, cfg.S3Enabled)
 }
+
+func TestGetEnvBool_Invalid(t *testing.T) {
+	os.Setenv("TEST_BOOL", "invalid")
+	defer os.Unsetenv("TEST_BOOL")
+	// При значении "invalid" функция должна вернуть false, так как не равно "true", "1" или "yes"
+	assert.False(t, getEnvBool("TEST_BOOL", true))
+	assert.False(t, getEnvBool("TEST_BOOL", false))
+}
+func TestLoad_CookieDomain(t *testing.T) {
+	os.Setenv("DATABASE_URL", "postgres://localhost/test")
+	os.Setenv("JWT_SECRET", "a-very-long-secret-key-that-is-at-least-32-characters")
+	os.Setenv("COOKIE_DOMAIN", ".example.com")
+	defer os.Unsetenv("DATABASE_URL")
+	defer os.Unsetenv("JWT_SECRET")
+	defer os.Unsetenv("COOKIE_DOMAIN")
+
+	cfg, err := Load()
+	assert.NoError(t, err)
+	assert.Equal(t, ".example.com", cfg.CookieDomain)
+}

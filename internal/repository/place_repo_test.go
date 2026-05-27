@@ -266,3 +266,21 @@ func TestPlaceRepo_Search_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, places, 1)
 }
+
+func TestPlaceRepo_FilterByReviewsAndRating_Success(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewPlaceRepo(mockPool)
+
+	filter := PlaceFilter{MinRating: 4.0, MinReviews: 10}
+	rows := mockPool.NewRows([]string{"id", "name", "description", "photo_url", "price", "created_at", "updated_at", "place_lat", "place_lng", "rating", "review_count", "locality_id", "locality_name", "country_name", "loc_lat", "loc_lng", "category_id", "category_name", "category_description", "place_photo_id", "file_path", "is_main"}).
+		AddRow(uint64(1), "Good", "", nil, 0, time.Now(), time.Now(), nil, nil, 4.5, 20, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+
+	mockPool.ExpectQuery(`SELECT .+ WHERE 1=1 AND COALESCE\(p\.rating, 0\) >= \$1 AND COALESCE\(p\.review_count, 0\) >= \$2 ORDER BY p.rating DESC, p.review_count DESC`).
+		WithArgs(4.0, 10).
+		WillReturnRows(rows)
+	places, err := repo.FilterByReviewsAndRating(context.Background(), filter)
+	assert.NoError(t, err)
+	assert.Len(t, places, 1)
+}

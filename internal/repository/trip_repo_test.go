@@ -9,6 +9,7 @@ import (
 	"guidely-app/internal/testutil"
 	"guidely-app/pkg/models"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/pashagolub/pgxmock/v4"
 	"github.com/stretchr/testify/assert"
 )
@@ -300,4 +301,43 @@ func TestTripRepo_CheckPlaceInTrip(t *testing.T) {
 	exists, err := repo.CheckPlaceInTrip(context.Background(), 1, 5)
 	assert.NoError(t, err)
 	assert.True(t, exists)
+}
+
+func TestTripRepo_GetUserTripsWithRoles_Success(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewTripRepo(mockPool)
+
+	rows := mockPool.NewRows([]string{
+		"id", "title", "description", "location", "start_date", "end_date", "preview_url",
+		"created_by", "is_public", "created_at", "updated_at", "role",
+	}).AddRow(uint64(1), "Trip1", nil, nil, nil, nil, nil, uint64(1), true, time.Now(), time.Now(), "owner")
+
+	mockPool.ExpectQuery(`SELECT t\.id, t\.title, t\.description, t\.location, t\.start_date, t\.end_date, t\.preview_url, t\.created_by, t\.is_public, t\.created_at, t\.updated_at, tm\.role as role FROM trip t INNER JOIN trip_member tm ON t\.id = tm\.trip_id AND tm\.user_id = \$1 ORDER BY t\.created_at DESC`).
+		WithArgs(uint64(1)).
+		WillReturnRows(rows)
+
+	result, err := repo.GetUserTripsWithRoles(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Len(t, result, 1)
+	assert.Equal(t, "owner", result[0].Role)
+}
+
+func TestTripRepo_GetUserRoleForTrip_OwnerViaCreatedBy(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewTripRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT role FROM trip_member WHERE trip_id = \$1 AND user_id = \$2`).
+		WithArgs(uint64(1), uint64(2)).
+		WillReturnError(pgx.ErrNoRows)
+	mockPool.ExpectQuery(`SELECT created_by FROM trip WHERE id = \$1`).
+		WithArgs(uint64(1)).
+		WillReturnRows(pgxmock.NewRows([]string{"created_by"}).AddRow(uint64(2)))
+
+	role, err := repo.GetUserRoleForTrip(context.Background(), 1, 2)
+	assert.NoError(t, err)
+	assert.Equal(t, "owner", role)
 }

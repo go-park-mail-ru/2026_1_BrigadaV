@@ -8,6 +8,7 @@ import (
 
 	"guidely-app/pkg/models"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/pashagolub/pgxmock/v4"
 	"github.com/stretchr/testify/assert"
 )
@@ -252,6 +253,93 @@ func TestAlbumRepo_UploadPhoto_BeginError(t *testing.T) {
 	mockPool.ExpectBegin().WillReturnError(errors.New("db error"))
 	_, err := repo.UploadPhoto(context.Background(), 1, "/photos/test.jpg")
 	assert.Error(t, err)
+}
+
+// TestAlbumRepo_UploadPhoto_AlbumNotFound
+func TestAlbumRepo_UploadPhoto_AlbumNotFound(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewAlbumRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT max_photos FROM album WHERE id = \$1`).
+		WithArgs(uint64(999)).
+		WillReturnError(pgx.ErrNoRows)
+
+	_, err = repo.UploadPhoto(context.Background(), 999, "/photos/test.jpg")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get album")
+}
+
+// TestAlbumRepo_UploadPhoto_LimitReached
+func TestAlbumRepo_UploadPhoto_LimitReached(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewAlbumRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT max_photos FROM album WHERE id = \$1`).
+		WithArgs(uint64(1)).
+		WillReturnRows(pgxmock.NewRows([]string{"max_photos"}).AddRow(5))
+
+	mockPool.ExpectQuery(`SELECT COUNT\(\*\) FROM album_photo WHERE album_id = \$1`).
+		WithArgs(uint64(1)).
+		WillReturnRows(pgxmock.NewRows([]string{"count"}).AddRow(5))
+
+	_, err = repo.UploadPhoto(context.Background(), 1, "/photos/test.jpg")
+	assert.Error(t, err)
+	assert.EqualError(t, err, "album photo limit reached")
+}
+
+// TestAlbumRepo_UploadPhoto_TxBeginError
+func TestAlbumRepo_UploadPhoto_TxBeginError(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewAlbumRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT max_photos FROM album WHERE id = \$1`).
+		WithArgs(uint64(1)).
+		WillReturnRows(pgxmock.NewRows([]string{"max_photos"}).AddRow(50))
+	mockPool.ExpectQuery(`SELECT COUNT\(\*\) FROM album_photo WHERE album_id = \$1`).
+		WithArgs(uint64(1)).
+		WillReturnRows(pgxmock.NewRows([]string{"count"}).AddRow(0))
+	mockPool.ExpectBegin().WillReturnError(errors.New("begin failed"))
+
+	_, err = repo.UploadPhoto(context.Background(), 1, "/photos/test.jpg")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "begin tx")
+}
+
+// TestAlbumRepo_Update_NoRows
+func TestAlbumRepo_Update_NoRows(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewAlbumRepo(mockPool)
+
+	album := &models.Album{ID: 999, Name: "Nonexistent"}
+	mockPool.ExpectExec(`UPDATE album SET`).
+		WithArgs(album.Name, album.Description, album.CoverPhotoID, album.MaxPhotos, album.ID).
+		WillReturnResult(pgxmock.NewResult("UPDATE", 0))
+
+	err = repo.Update(context.Background(), album)
+	assert.NoError(t, err) // update на несуществующую запись не ошибка в PostgreSQL
+}
+
+// TestAlbumRepo_Delete_NoRows
+func TestAlbumRepo_Delete_NoRows(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewAlbumRepo(mockPool)
+
+	mockPool.ExpectExec(`DELETE FROM album WHERE id=\$1`).
+		WithArgs(uint64(999)).
+		WillReturnResult(pgxmock.NewResult("DELETE", 0))
+
+	err = repo.Delete(context.Background(), 999)
+	assert.NoError(t, err)
 }
 
 func ptrUint64(v uint64) *uint64 { return &v }

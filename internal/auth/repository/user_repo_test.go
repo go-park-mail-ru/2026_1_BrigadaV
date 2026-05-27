@@ -208,3 +208,25 @@ func TestUserRepo_Update_DBError(t *testing.T) {
 	err := repo.Update(context.Background(), user)
 	assert.Error(t, err)
 }
+
+func TestUserRepo_GetByYandexID_Found(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewUserRepo(mockPool)
+
+	yandexID := "12345"
+	rows := mockPool.NewRows([]string{
+		"id", "login", "nickname", "avatar_url", "password_hash", "yandex_id",
+		"country", "city", "about", "has_reviews", "role", "created_at", "updated_at",
+	}).AddRow(uint64(1), "test@example.com", "tester", "/avatar.jpg", "hash", &yandexID, nil, nil, nil, false, "user", time.Now(), time.Now())
+
+	mockPool.ExpectQuery(`SELECT id, login, nickname, avatar_url, password_hash, yandex_id, country, city, about, has_reviews, role, created_at, updated_at FROM "user" WHERE yandex_id = \$1`).
+		WithArgs(yandexID).
+		WillReturnRows(rows)
+
+	user, err := repo.GetByYandexID(context.Background(), yandexID)
+	assert.NoError(t, err)
+	assert.NotNil(t, user)
+	assert.Equal(t, yandexID, *user.YandexID)
+}
