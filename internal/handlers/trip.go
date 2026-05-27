@@ -10,9 +10,11 @@ import (
 	"guidely-app/internal/logger"
 	"guidely-app/internal/middleware"
 	"guidely-app/internal/service"
+	"guidely-app/pkg/models"
 	"guidely-app/pkg/utils"
 
 	"github.com/gorilla/mux"
+	"github.com/mailru/easyjson"
 	"github.com/sirupsen/logrus"
 )
 
@@ -27,20 +29,18 @@ func NewTripHandler(tripService service.TripService) *TripHandler {
 func (h *TripHandler) List(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		writeJSON(w, http.StatusUnauthorized, &dto.ErrorResponse{Error: "unauthorized"})
 		return
 	}
 	trips, err := h.tripService.GetUserTripsWithRoles(r.Context(), userID)
 	if err != nil {
 		logger.Error(r.Context(), "Failed to fetch trips", logrus.Fields{"error": err})
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch trips"})
+		writeJSON(w, http.StatusInternalServerError, &dto.ErrorResponse{Error: "failed to fetch trips"})
 		return
 	}
-	response := make([]dto.TripResponse, len(trips))
+	items := make([]dto.TripResponse, len(trips))
 	for i, t := range trips {
-		response[i] = dto.TripResponse{
+		items[i] = dto.TripResponse{
 			ID:          t.Trip.ID,
 			Title:       t.Trip.Title,
 			Location:    t.Trip.Location,
@@ -51,22 +51,25 @@ func (h *TripHandler) List(w http.ResponseWriter, r *http.Request) {
 			Role:        t.Role,
 		}
 	}
+	// TripResponseList оборачивает в {"items":[...]}.
+	// Тесты ожидают плоский массив — сериализуем items напрямую через json,
+	// т.к. []dto.TripResponse не является easyjson.Marshaler.
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(items); err != nil {
+		logger.Error(r.Context(), "json encode trips error", logrus.Fields{"error": err})
+	}
 }
 
 func (h *TripHandler) Create(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		writeJSON(w, http.StatusUnauthorized, &dto.ErrorResponse{Error: "unauthorized"})
 		return
 	}
 	var req dto.CreateTripRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := easyjson.UnmarshalFromReader(r.Body, &req); err != nil {
 		logger.Error(r.Context(), "Invalid JSON in CreateTrip", logrus.Fields{"error": err})
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid request"})
 		return
 	}
 	input := service.CreateTripInput{
@@ -81,46 +84,39 @@ func (h *TripHandler) Create(w http.ResponseWriter, r *http.Request) {
 	trip, err := h.tripService.Create(r.Context(), input)
 	if err != nil {
 		logger.Error(r.Context(), "CreateTrip failed", logrus.Fields{"error": err})
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: err.Error()})
 		return
 	}
 	logger.Info(r.Context(), "Trip created", logrus.Fields{"trip_id": trip.ID})
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(dto.CreateTripResponse{ID: trip.ID, Preview: trip.PreviewURL})
+	writeJSON(w, http.StatusCreated, &dto.CreateTripResponse{ID: trip.ID, Preview: trip.PreviewURL})
 }
 
 func (h *TripHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr, ok := vars["id"]
 	if !ok {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "missing trip id"})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "missing trip id"})
 		return
 	}
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
 		logger.Error(r.Context(), "Invalid trip id in GetDetails", logrus.Fields{"id": idStr, "error": err})
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip id"})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid trip id"})
 		return
 	}
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		writeJSON(w, http.StatusUnauthorized, &dto.ErrorResponse{Error: "unauthorized"})
 		return
 	}
 	trip, places, role, err := h.tripService.GetTripDetailsWithRole(r.Context(), id, userID)
 	if err != nil {
 		logger.Error(r.Context(), "GetTripDetails failed", logrus.Fields{"error": err, "trip_id": id})
 		if err.Error() == "trip not found" {
-			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]string{"error": "trip not found"})
+			writeJSON(w, http.StatusNotFound, &dto.ErrorResponse{Error: "trip not found"})
 			return
 		}
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "internal server error"})
+		writeJSON(w, http.StatusInternalServerError, &dto.ErrorResponse{Error: "internal server error"})
 		return
 	}
 	response := dto.TripDetailsResponse{
@@ -133,30 +129,26 @@ func (h *TripHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
 		Attractions: places,
 		Role:        role,
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, http.StatusOK, &response)
 }
 
 func (h *TripHandler) Update(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		writeJSON(w, http.StatusUnauthorized, &dto.ErrorResponse{Error: "unauthorized"})
 		return
 	}
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
 		logger.Error(r.Context(), "Invalid trip id in Update", logrus.Fields{"id": vars["id"], "error": err})
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip id"})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid trip id"})
 		return
 	}
 	var req dto.UpdateTripRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := easyjson.UnmarshalFromReader(r.Body, &req); err != nil {
 		logger.Error(r.Context(), "Invalid JSON in UpdateTrip", logrus.Fields{"error": err})
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid request"})
 		return
 	}
 	input := service.UpdateTripInput{
@@ -171,26 +163,22 @@ func (h *TripHandler) Update(w http.ResponseWriter, r *http.Request) {
 	_, err = h.tripService.Update(r.Context(), id, userID, input)
 	if err != nil {
 		logger.Error(r.Context(), "UpdateTrip failed", logrus.Fields{"error": err, "trip_id": id})
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: err.Error()})
 		return
 	}
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "ok"})
+	writeJSON(w, http.StatusOK, &dto.MessageResponse{Message: "ok"})
 }
 
 func (h *TripHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		writeJSON(w, http.StatusUnauthorized, &dto.ErrorResponse{Error: "unauthorized"})
 		return
 	}
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip id"})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid trip id"})
 		return
 	}
 	if err := h.tripService.Delete(r.Context(), id, userID); err != nil {
@@ -213,86 +201,80 @@ func (h *TripHandler) GetTripPlaces(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
 		logger.Error(r.Context(), "Invalid trip id in GetTripPlaces", logrus.Fields{"id": vars["id"], "error": err})
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip id"})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid trip id"})
 		return
 	}
 	placeIDs, err := h.tripService.GetTripPlaceIDs(r.Context(), id)
 	if err != nil {
 		logger.Error(r.Context(), "Failed to fetch place IDs", logrus.Fields{"error": err, "trip_id": id})
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch place IDs"})
+		writeJSON(w, http.StatusInternalServerError, &dto.ErrorResponse{Error: "failed to fetch place IDs"})
 		return
 	}
 	if placeIDs == nil {
 		placeIDs = []uint64{}
 	}
+	// TripPlacesResponse — easyjson тип-алиас для []uint64
+	resp := dto.TripPlacesResponse(placeIDs)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(placeIDs)
+	data, err := easyjson.Marshal(resp)
+	if err != nil {
+		logger.Error(r.Context(), "easyjson marshal error", logrus.Fields{"error": err})
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	w.Write(data)
 }
 
 func (h *TripHandler) AddPlace(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		writeJSON(w, http.StatusUnauthorized, &dto.ErrorResponse{Error: "unauthorized"})
 		return
 	}
 	vars := mux.Vars(r)
 	tripID, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
 		logger.Error(r.Context(), "Invalid trip id in AddPlace", logrus.Fields{"id": vars["id"], "error": err})
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip id"})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid trip id"})
 		return
 	}
-	var req struct {
-		PlaceID    uint64 `json:"place_id"`
-		OrderIndex int16  `json:"order_index"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	var req dto.AddPlaceRequest
+	if err := easyjson.UnmarshalFromReader(r.Body, &req); err != nil {
 		logger.Error(r.Context(), "Invalid JSON in AddPlace", logrus.Fields{"error": err})
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid request"})
 		return
 	}
 	if err := h.tripService.AddPlaceToTrip(r.Context(), tripID, req.PlaceID, userID, req.OrderIndex); err != nil {
 		logger.Error(r.Context(), "AddPlaceToTrip failed", logrus.Fields{"error": err, "trip_id": tripID, "place_id": req.PlaceID})
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: err.Error()})
 		return
 	}
 	logger.Info(r.Context(), "Place added to trip", logrus.Fields{"trip_id": tripID, "place_id": req.PlaceID})
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "place added to trip"})
+	writeJSON(w, http.StatusOK, &dto.MessageResponse{Message: "place added to trip"})
 }
 
 func (h *TripHandler) RemovePlace(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		writeJSON(w, http.StatusUnauthorized, &dto.ErrorResponse{Error: "unauthorized"})
 		return
 	}
 	vars := mux.Vars(r)
 	tripID, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
 		logger.Error(r.Context(), "Invalid trip id in RemovePlace", logrus.Fields{"id": vars["id"], "error": err})
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip id"})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid trip id"})
 		return
 	}
 	placeID, err := strconv.ParseUint(vars["placeId"], 10, 64)
 	if err != nil {
 		logger.Error(r.Context(), "Invalid place id in RemovePlace", logrus.Fields{"placeId": vars["placeId"], "error": err})
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid place id"})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid place id"})
 		return
 	}
 	if err := h.tripService.RemovePlaceFromTrip(r.Context(), tripID, placeID, userID); err != nil {
 		logger.Error(r.Context(), "RemovePlaceFromTrip failed", logrus.Fields{"error": err, "trip_id": tripID, "place_id": placeID})
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: err.Error()})
 		return
 	}
 	logger.Info(r.Context(), "Place removed from trip", logrus.Fields{"trip_id": tripID, "place_id": placeID})
@@ -302,47 +284,43 @@ func (h *TripHandler) RemovePlace(w http.ResponseWriter, r *http.Request) {
 func (h *TripHandler) CreateViewShareLink(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		writeJSON(w, http.StatusUnauthorized, &dto.ErrorResponse{Error: "unauthorized"})
 		return
 	}
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
-		http.Error(w, "invalid trip id", http.StatusBadRequest)
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid trip id"})
 		return
 	}
 	link, err := h.tripService.CreateViewShareLink(r.Context(), id, userID)
 	if err != nil {
 		logger.Error(r.Context(), "CreateViewShareLink failed", logrus.Fields{"error": err})
-		http.Error(w, err.Error(), http.StatusForbidden)
+		writeJSON(w, http.StatusForbidden, &dto.ErrorResponse{Error: err.Error()})
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"share_link": link})
+	writeJSON(w, http.StatusOK, &dto.ShareLinkResponse{ShareLink: link})
 }
 
 func (h *TripHandler) CreateEditShareLink(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		writeJSON(w, http.StatusUnauthorized, &dto.ErrorResponse{Error: "unauthorized"})
 		return
 	}
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
-		http.Error(w, "invalid trip id", http.StatusBadRequest)
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid trip id"})
 		return
 	}
 	link, err := h.tripService.CreateEditShareLink(r.Context(), id, userID)
 	if err != nil {
 		logger.Error(r.Context(), "CreateEditShareLink failed", logrus.Fields{"error": err})
-		http.Error(w, err.Error(), http.StatusForbidden)
+		writeJSON(w, http.StatusForbidden, &dto.ErrorResponse{Error: err.Error()})
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"share_link": link})
+	writeJSON(w, http.StatusOK, &dto.ShareLinkResponse{ShareLink: link})
 }
 
 func (h *TripHandler) AcceptInviteRedirect(w http.ResponseWriter, r *http.Request) {
@@ -366,55 +344,56 @@ func (h *TripHandler) AcceptInviteRedirect(w http.ResponseWriter, r *http.Reques
 func (h *TripHandler) GetTripMembers(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		writeJSON(w, http.StatusUnauthorized, &dto.ErrorResponse{Error: "unauthorized"})
 		return
 	}
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
-		http.Error(w, "invalid trip id", http.StatusBadRequest)
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid trip id"})
 		return
 	}
 	members, err := h.tripService.GetTripMembers(r.Context(), id, userID)
 	if err != nil {
 		logger.Error(r.Context(), "GetTripMembers failed", logrus.Fields{"error": err})
-		http.Error(w, err.Error(), http.StatusForbidden)
+		writeJSON(w, http.StatusForbidden, &dto.ErrorResponse{Error: err.Error()})
 		return
 	}
+	// Тесты декодируют в []models.TripMember — используем json чтобы сохранить совместимость.
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(members)
+	if err := json.NewEncoder(w).Encode(members); err != nil {
+		logger.Error(r.Context(), "json encode error", logrus.Fields{"error": err})
+	}
 }
 
 func (h *TripHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		writeJSON(w, http.StatusUnauthorized, &dto.ErrorResponse{Error: "unauthorized"})
 		return
 	}
 	vars := mux.Vars(r)
 	tripID, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
 		logger.Error(r.Context(), "Invalid trip id in RemoveMember", logrus.Fields{"id": vars["id"], "error": err})
-		http.Error(w, "invalid trip id", http.StatusBadRequest)
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid trip id"})
 		return
 	}
 	memberIDStr, ok := vars["member_id"]
 	if !ok || memberIDStr == "" {
-		http.Error(w, "missing member id", http.StatusBadRequest)
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "missing member id"})
 		return
 	}
 	memberID, err := strconv.ParseUint(memberIDStr, 10, 64)
 	if err != nil {
 		logger.Error(r.Context(), "Invalid member id in RemoveMember", logrus.Fields{"member_id": memberIDStr, "error": err})
-		http.Error(w, "invalid member id", http.StatusBadRequest)
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid member id"})
 		return
 	}
 	err = h.tripService.RemoveMember(r.Context(), tripID, userID, memberID)
 	if err != nil {
 		logger.Error(r.Context(), "RemoveMember failed", logrus.Fields{"error": err})
-		http.Error(w, err.Error(), http.StatusForbidden)
+		writeJSON(w, http.StatusForbidden, &dto.ErrorResponse{Error: err.Error()})
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -435,26 +414,24 @@ func (h *TripHandler) ViewSharedTrip(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	response := map[string]interface{}{
-		"trip":        trip,
-		"attractions": places,
-		"role":        role,
+	response := dto.SharedTripResponse{
+		Trip:        trip,
+		Attractions: places,
+		Role:        role,
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, http.StatusOK, &response)
 }
 
 func (h *TripHandler) ExportTripToPDF(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		writeJSON(w, http.StatusUnauthorized, &dto.ErrorResponse{Error: "unauthorized"})
 		return
 	}
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
-		http.Error(w, "invalid trip id", http.StatusBadRequest)
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid trip id"})
 		return
 	}
 	pdfData, err := h.tripService.ExportTripToPDF(r.Context(), id, userID)
@@ -476,45 +453,51 @@ func (h *TripHandler) ExportTripToPDF(w http.ResponseWriter, r *http.Request) {
 }
 
 // AcceptInviteAPI – POST /api/share/edit/{token} – JSON-ответ для фронтенда.
-// Принимает приглашение на редактирование и возвращает JSON с tripId.
 func (h *TripHandler) AcceptInviteAPI(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	token := vars["token"]
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		writeJSON(w, http.StatusUnauthorized, &dto.ErrorResponse{Error: "unauthorized"})
 		return
 	}
 	tripID, _, err := h.tripService.AcceptInvite(r.Context(), token, userID)
 	if err != nil {
 		logger.Error(r.Context(), "AcceptInviteAPI failed", logrus.Fields{"error": err})
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid share link"})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid share link"})
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]uint64{"trip_id": tripID})
+	writeJSON(w, http.StatusOK, &dto.TripIDResponse{TripID: tripID})
 }
 
 // JoinViewShareAPI – POST /api/share/view/{token} – JSON-ответ для фронтенда.
-// Проверяет токен просмотра и возвращает JSON с tripId.
 func (h *TripHandler) JoinViewShareAPI(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	token := vars["token"]
 	userID := middleware.GetUserIDFromContext(r)
 	if userID == 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		writeJSON(w, http.StatusUnauthorized, &dto.ErrorResponse{Error: "unauthorized"})
 		return
 	}
 	tripID, _, err := h.tripService.AcceptInvite(r.Context(), token, userID)
 	if err != nil {
 		logger.Error(r.Context(), "JoinViewShareAPI failed", logrus.Fields{"error": err})
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid share link"})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid share link"})
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]uint64{"trip_id": tripID})
+	writeJSON(w, http.StatusOK, &dto.TripIDResponse{TripID: tripID})
+}
+
+// tripMembersToDTO конвертирует []models.TripMember в dto.TripMemberList.
+func tripMembersToDTO(members []models.TripMember) dto.TripMemberList {
+	result := make(dto.TripMemberList, len(members))
+	for i, m := range members {
+		result[i] = dto.TripMemberDTO{
+			TripID:   m.TripID,
+			UserID:   m.UserID,
+			Role:     m.Role,
+			JoinedAt: m.JoinedAt,
+		}
+	}
+	return result
 }

@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -32,7 +31,7 @@ func (h *CategoryHandler) List(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"error":"internal error"}`))
 		return
 	}
-	response := make([]dto.CategoryResponse, len(categories))
+	response := make(dto.CategoryResponseList, len(categories))
 	for i, cat := range categories {
 		response[i] = dto.CategoryResponse{
 			ID:              cat.ID,
@@ -42,9 +41,12 @@ func (h *CategoryHandler) List(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		logger.Error(r.Context(), "json encode error", logrus.Fields{"error": err})
+	data, err := easyjson.Marshal(response)
+	if err != nil {
+		logger.Error(r.Context(), "easyjson marshal error", logrus.Fields{"error": err})
+		return
 	}
+	w.Write(data)
 }
 
 func (h *CategoryHandler) Get(w http.ResponseWriter, r *http.Request) {
@@ -71,8 +73,8 @@ func (h *CategoryHandler) Get(w http.ResponseWriter, r *http.Request) {
 		ApplicableTypes: cat.ApplicableTypes,
 	}
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		logger.Error(r.Context(), "json encode error", logrus.Fields{"error": err})
+	if _, err := easyjson.MarshalToWriter(&response, w); err != nil {
+		logger.Error(r.Context(), "easyjson marshal error", logrus.Fields{"error": err})
 	}
 }
 
@@ -100,8 +102,8 @@ func (h *CategoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		logger.Error(r.Context(), "json encode error", logrus.Fields{"error": err})
+	if _, err := easyjson.MarshalToWriter(&response, w); err != nil {
+		logger.Error(r.Context(), "easyjson marshal error", logrus.Fields{"error": err})
 	}
 }
 
@@ -135,8 +137,8 @@ func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 		ApplicableTypes: cat.ApplicableTypes,
 	}
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		logger.Error(r.Context(), "json encode error", logrus.Fields{"error": err})
+	if _, err := easyjson.MarshalToWriter(&response, w); err != nil {
+		logger.Error(r.Context(), "easyjson marshal error", logrus.Fields{"error": err})
 	}
 }
 

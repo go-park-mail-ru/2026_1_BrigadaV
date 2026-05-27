@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 	"strconv"
@@ -10,6 +9,7 @@ import (
 	"guidely-app/internal/service"
 
 	"github.com/gorilla/mux"
+	"github.com/mailru/easyjson"
 )
 
 type CountryHandler struct {
@@ -27,7 +27,7 @@ func (h *CountryHandler) List(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	response := make([]dto.CountryResponse, len(countries))
+	response := make(dto.CountryResponseList, len(countries))
 	for i, c := range countries {
 		response[i] = dto.CountryResponse{
 			ID:        c.ID,
@@ -36,22 +36,12 @@ func (h *CountryHandler) List(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		log.Printf("json encode error: %v", err)
+	data, err := easyjson.Marshal(response)
+	if err != nil {
+		log.Printf("easyjson marshal error: %v", err)
+		return
 	}
-}
-
-type localityResponse struct {
-	ID        uint64   `json:"id"`
-	Name      string   `json:"name"`
-	Latitude  *float64 `json:"latitude,omitempty"`
-	Longitude *float64 `json:"longitude,omitempty"`
-}
-
-type countryWithLocalitiesResponse struct {
-	ID         uint64             `json:"id"`
-	Name       string             `json:"name"`
-	Localities []localityResponse `json:"localities"`
+	w.Write(data)
 }
 
 func (h *CountryHandler) GetWithLocalities(w http.ResponseWriter, r *http.Request) {
@@ -73,13 +63,13 @@ func (h *CountryHandler) GetWithLocalities(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	resp := countryWithLocalitiesResponse{
+	resp := dto.CountryWithLocalitiesResponse{
 		ID:         country.ID,
 		Name:       country.Name,
-		Localities: make([]localityResponse, 0, len(localities)),
+		Localities: make([]dto.LocalityResponse, 0, len(localities)),
 	}
 	for _, l := range localities {
-		resp.Localities = append(resp.Localities, localityResponse{
+		resp.Localities = append(resp.Localities, dto.LocalityResponse{
 			ID:        l.ID,
 			Name:      l.Name,
 			Latitude:  l.Latitude,
@@ -88,7 +78,7 @@ func (h *CountryHandler) GetWithLocalities(w http.ResponseWriter, r *http.Reques
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(&resp); err != nil {
-		log.Printf("json encode error: %v", err)
+	if _, err := easyjson.MarshalToWriter(&resp, w); err != nil {
+		log.Printf("easyjson marshal error: %v", err)
 	}
 }

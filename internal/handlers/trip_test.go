@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"guidely-app/internal/dto"
+	"guidely-app/internal/repository"
 	"guidely-app/internal/repository/mocks"
 	"guidely-app/internal/service"
 	"guidely-app/internal/testutil"
@@ -29,17 +30,17 @@ func TestTripHandler_List_Success(t *testing.T) {
 	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
 	handler := NewTripHandler(tripService)
 
-	trips := []models.Trip{
-		{ID: 1, Title: "Trip 1", Location: testutil.PtrString("Paris")},
-		{ID: 2, Title: "Trip 2", Location: testutil.PtrString("London")},
+	// Исправлено: ожидаем вызов GetUserTripsWithRoles
+	tripsWithRoles := []repository.UserTripWithRole{
+		{Trip: models.Trip{ID: 1, Title: "Trip 1", Location: testutil.PtrString("Paris")}, Role: "owner"},
+		{Trip: models.Trip{ID: 2, Title: "Trip 2", Location: testutil.PtrString("London")}, Role: "viewer"},
 	}
+	mockTripRepo.EXPECT().GetUserTripsWithRoles(gomock.Any(), uint64(1)).Return(tripsWithRoles, nil)
 
 	req := httptest.NewRequest("GET", "/api/trips", nil)
 	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
 	req = req.WithContext(ctx)
 	w := httptest.NewRecorder()
-
-	mockTripRepo.EXPECT().GetByUser(gomock.Any(), uint64(1)).Return(trips, nil)
 
 	handler.List(w, req)
 
@@ -138,13 +139,17 @@ func TestTripHandler_GetDetails_Success(t *testing.T) {
 
 	trip := &models.Trip{ID: 1, Title: "My Trip", Location: testutil.PtrString("Paris")}
 	places := []models.PlaceInTrip{{ID: 1, Name: "Eiffel Tower", Rating: 4.5}}
-
-	req := httptest.NewRequest("GET", "/api/trips/1", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "1"})
-	w := httptest.NewRecorder()
+	role := "owner"
 
 	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(trip, nil)
 	mockTripRepo.EXPECT().GetAttractions(gomock.Any(), uint64(1)).Return(places, nil)
+	mockTripRepo.EXPECT().GetUserRoleForTrip(gomock.Any(), uint64(1), uint64(1)).Return(role, nil)
+
+	req := httptest.NewRequest("GET", "/api/trips/1", nil)
+	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	req = req.WithContext(ctx)
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	w := httptest.NewRecorder()
 
 	handler.GetDetails(w, req)
 
@@ -167,11 +172,13 @@ func TestTripHandler_GetDetails_NotFound(t *testing.T) {
 	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
 	handler := NewTripHandler(tripService)
 
+	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(999)).Return(nil, nil)
+
 	req := httptest.NewRequest("GET", "/api/trips/999", nil)
+	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	req = req.WithContext(ctx)
 	req = mux.SetURLVars(req, map[string]string{"id": "999"})
 	w := httptest.NewRecorder()
-
-	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(999)).Return(nil, nil)
 
 	handler.GetDetails(w, req)
 

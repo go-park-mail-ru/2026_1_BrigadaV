@@ -184,15 +184,24 @@ func TestAlbumRepo_UploadPhoto(t *testing.T) {
 
 	repo := NewAlbumRepo(mockPool)
 
+	// Ожидания для получения max_photos и currentCount
+	mockPool.ExpectQuery(`SELECT max_photos FROM album WHERE id = \$1`).
+		WithArgs(uint64(1)).
+		WillReturnRows(pgxmock.NewRows([]string{"max_photos"}).AddRow(50))
+
+	mockPool.ExpectQuery(`SELECT COUNT\(\*\) FROM album_photo WHERE album_id = \$1`).
+		WithArgs(uint64(1)).
+		WillReturnRows(pgxmock.NewRows([]string{"count"}).AddRow(10))
+
 	mockPool.ExpectBegin()
 	mockPool.ExpectQuery(`INSERT INTO photo \(file_path, created_at\)`).
 		WithArgs("/photos/test.jpg").
-		WillReturnRows(mockPool.NewRows([]string{"id"}).AddRow(uint64(100)))
+		WillReturnRows(pgxmock.NewRows([]string{"id"}).AddRow(uint64(100)))
 	mockPool.ExpectQuery(`SELECT COALESCE\(MAX\(order_index\), 0\) FROM album_photo WHERE album_id = \$1`).
 		WithArgs(uint64(1)).
-		WillReturnRows(mockPool.NewRows([]string{"max"}).AddRow(int64(2)))
+		WillReturnRows(pgxmock.NewRows([]string{"max"}).AddRow(2))
 	mockPool.ExpectExec(`INSERT INTO album_photo \(album_id, photo_id, order_index, created_at\)`).
-		WithArgs(uint64(1), uint64(100), 3). // int
+		WithArgs(uint64(1), uint64(100), 3).
 		WillReturnResult(pgxmock.NewResult("INSERT", 1))
 	mockPool.ExpectCommit()
 

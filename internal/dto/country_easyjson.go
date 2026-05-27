@@ -17,7 +17,288 @@ var (
 	_ easyjson.Marshaler
 )
 
-func easyjson548aff28DecodeGuidelyAppInternalDto(in *jlexer.Lexer, out *CountryResponse) {
+func easyjson548aff28DecodeGuidelyAppInternalDto(in *jlexer.Lexer, out *LocalityResponse) {
+	isTopLevel := in.IsStart()
+	if in.IsNull() {
+		if isTopLevel {
+			in.Consumed()
+		}
+		in.Skip()
+		return
+	}
+	in.Delim('{')
+	for !in.IsDelim('}') {
+		key := in.UnsafeFieldName(false)
+		in.WantColon()
+		if in.IsNull() {
+			in.Skip()
+			in.WantComma()
+			continue
+		}
+		switch key {
+		case "id":
+			out.ID = uint64(in.Uint64())
+		case "name":
+			out.Name = string(in.String())
+		case "latitude":
+			if in.IsNull() {
+				in.Skip()
+				out.Latitude = nil
+			} else {
+				if out.Latitude == nil {
+					out.Latitude = new(float64)
+				}
+				*out.Latitude = float64(in.Float64())
+			}
+		case "longitude":
+			if in.IsNull() {
+				in.Skip()
+				out.Longitude = nil
+			} else {
+				if out.Longitude == nil {
+					out.Longitude = new(float64)
+				}
+				*out.Longitude = float64(in.Float64())
+			}
+		default:
+			in.SkipRecursive()
+		}
+		in.WantComma()
+	}
+	in.Delim('}')
+	if isTopLevel {
+		in.Consumed()
+	}
+}
+func easyjson548aff28EncodeGuidelyAppInternalDto(out *jwriter.Writer, in LocalityResponse) {
+	out.RawByte('{')
+	first := true
+	_ = first
+	{
+		const prefix string = ",\"id\":"
+		out.RawString(prefix[1:])
+		out.Uint64(uint64(in.ID))
+	}
+	{
+		const prefix string = ",\"name\":"
+		out.RawString(prefix)
+		out.String(string(in.Name))
+	}
+	if in.Latitude != nil {
+		const prefix string = ",\"latitude\":"
+		out.RawString(prefix)
+		out.Float64(float64(*in.Latitude))
+	}
+	if in.Longitude != nil {
+		const prefix string = ",\"longitude\":"
+		out.RawString(prefix)
+		out.Float64(float64(*in.Longitude))
+	}
+	out.RawByte('}')
+}
+
+// MarshalJSON supports json.Marshaler interface
+func (v LocalityResponse) MarshalJSON() ([]byte, error) {
+	w := jwriter.Writer{}
+	easyjson548aff28EncodeGuidelyAppInternalDto(&w, v)
+	return w.Buffer.BuildBytes(), w.Error
+}
+
+// MarshalEasyJSON supports easyjson.Marshaler interface
+func (v LocalityResponse) MarshalEasyJSON(w *jwriter.Writer) {
+	easyjson548aff28EncodeGuidelyAppInternalDto(w, v)
+}
+
+// UnmarshalJSON supports json.Unmarshaler interface
+func (v *LocalityResponse) UnmarshalJSON(data []byte) error {
+	r := jlexer.Lexer{Data: data}
+	easyjson548aff28DecodeGuidelyAppInternalDto(&r, v)
+	return r.Error()
+}
+
+// UnmarshalEasyJSON supports easyjson.Unmarshaler interface
+func (v *LocalityResponse) UnmarshalEasyJSON(l *jlexer.Lexer) {
+	easyjson548aff28DecodeGuidelyAppInternalDto(l, v)
+}
+func easyjson548aff28DecodeGuidelyAppInternalDto1(in *jlexer.Lexer, out *CountryWithLocalitiesResponse) {
+	isTopLevel := in.IsStart()
+	if in.IsNull() {
+		if isTopLevel {
+			in.Consumed()
+		}
+		in.Skip()
+		return
+	}
+	in.Delim('{')
+	for !in.IsDelim('}') {
+		key := in.UnsafeFieldName(false)
+		in.WantColon()
+		if in.IsNull() {
+			in.Skip()
+			in.WantComma()
+			continue
+		}
+		switch key {
+		case "id":
+			out.ID = uint64(in.Uint64())
+		case "name":
+			out.Name = string(in.String())
+		case "localities":
+			if in.IsNull() {
+				in.Skip()
+				out.Localities = nil
+			} else {
+				in.Delim('[')
+				if out.Localities == nil {
+					if !in.IsDelim(']') {
+						out.Localities = make([]LocalityResponse, 0, 1)
+					} else {
+						out.Localities = []LocalityResponse{}
+					}
+				} else {
+					out.Localities = (out.Localities)[:0]
+				}
+				for !in.IsDelim(']') {
+					var v1 LocalityResponse
+					(v1).UnmarshalEasyJSON(in)
+					out.Localities = append(out.Localities, v1)
+					in.WantComma()
+				}
+				in.Delim(']')
+			}
+		default:
+			in.SkipRecursive()
+		}
+		in.WantComma()
+	}
+	in.Delim('}')
+	if isTopLevel {
+		in.Consumed()
+	}
+}
+func easyjson548aff28EncodeGuidelyAppInternalDto1(out *jwriter.Writer, in CountryWithLocalitiesResponse) {
+	out.RawByte('{')
+	first := true
+	_ = first
+	{
+		const prefix string = ",\"id\":"
+		out.RawString(prefix[1:])
+		out.Uint64(uint64(in.ID))
+	}
+	{
+		const prefix string = ",\"name\":"
+		out.RawString(prefix)
+		out.String(string(in.Name))
+	}
+	{
+		const prefix string = ",\"localities\":"
+		out.RawString(prefix)
+		if in.Localities == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
+			out.RawString("null")
+		} else {
+			out.RawByte('[')
+			for v2, v3 := range in.Localities {
+				if v2 > 0 {
+					out.RawByte(',')
+				}
+				(v3).MarshalEasyJSON(out)
+			}
+			out.RawByte(']')
+		}
+	}
+	out.RawByte('}')
+}
+
+// MarshalJSON supports json.Marshaler interface
+func (v CountryWithLocalitiesResponse) MarshalJSON() ([]byte, error) {
+	w := jwriter.Writer{}
+	easyjson548aff28EncodeGuidelyAppInternalDto1(&w, v)
+	return w.Buffer.BuildBytes(), w.Error
+}
+
+// MarshalEasyJSON supports easyjson.Marshaler interface
+func (v CountryWithLocalitiesResponse) MarshalEasyJSON(w *jwriter.Writer) {
+	easyjson548aff28EncodeGuidelyAppInternalDto1(w, v)
+}
+
+// UnmarshalJSON supports json.Unmarshaler interface
+func (v *CountryWithLocalitiesResponse) UnmarshalJSON(data []byte) error {
+	r := jlexer.Lexer{Data: data}
+	easyjson548aff28DecodeGuidelyAppInternalDto1(&r, v)
+	return r.Error()
+}
+
+// UnmarshalEasyJSON supports easyjson.Unmarshaler interface
+func (v *CountryWithLocalitiesResponse) UnmarshalEasyJSON(l *jlexer.Lexer) {
+	easyjson548aff28DecodeGuidelyAppInternalDto1(l, v)
+}
+func easyjson548aff28DecodeGuidelyAppInternalDto2(in *jlexer.Lexer, out *CountryResponseList) {
+	isTopLevel := in.IsStart()
+	if in.IsNull() {
+		in.Skip()
+		*out = nil
+	} else {
+		in.Delim('[')
+		if *out == nil {
+			if !in.IsDelim(']') {
+				*out = make(CountryResponseList, 0, 1)
+			} else {
+				*out = CountryResponseList{}
+			}
+		} else {
+			*out = (*out)[:0]
+		}
+		for !in.IsDelim(']') {
+			var v4 CountryResponse
+			(v4).UnmarshalEasyJSON(in)
+			*out = append(*out, v4)
+			in.WantComma()
+		}
+		in.Delim(']')
+	}
+	if isTopLevel {
+		in.Consumed()
+	}
+}
+func easyjson548aff28EncodeGuidelyAppInternalDto2(out *jwriter.Writer, in CountryResponseList) {
+	if in == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
+		out.RawString("null")
+	} else {
+		out.RawByte('[')
+		for v5, v6 := range in {
+			if v5 > 0 {
+				out.RawByte(',')
+			}
+			(v6).MarshalEasyJSON(out)
+		}
+		out.RawByte(']')
+	}
+}
+
+// MarshalJSON supports json.Marshaler interface
+func (v CountryResponseList) MarshalJSON() ([]byte, error) {
+	w := jwriter.Writer{}
+	easyjson548aff28EncodeGuidelyAppInternalDto2(&w, v)
+	return w.Buffer.BuildBytes(), w.Error
+}
+
+// MarshalEasyJSON supports easyjson.Marshaler interface
+func (v CountryResponseList) MarshalEasyJSON(w *jwriter.Writer) {
+	easyjson548aff28EncodeGuidelyAppInternalDto2(w, v)
+}
+
+// UnmarshalJSON supports json.Unmarshaler interface
+func (v *CountryResponseList) UnmarshalJSON(data []byte) error {
+	r := jlexer.Lexer{Data: data}
+	easyjson548aff28DecodeGuidelyAppInternalDto2(&r, v)
+	return r.Error()
+}
+
+// UnmarshalEasyJSON supports easyjson.Unmarshaler interface
+func (v *CountryResponseList) UnmarshalEasyJSON(l *jlexer.Lexer) {
+	easyjson548aff28DecodeGuidelyAppInternalDto2(l, v)
+}
+func easyjson548aff28DecodeGuidelyAppInternalDto3(in *jlexer.Lexer, out *CountryResponse) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -54,7 +335,7 @@ func easyjson548aff28DecodeGuidelyAppInternalDto(in *jlexer.Lexer, out *CountryR
 		in.Consumed()
 	}
 }
-func easyjson548aff28EncodeGuidelyAppInternalDto(out *jwriter.Writer, in CountryResponse) {
+func easyjson548aff28EncodeGuidelyAppInternalDto3(out *jwriter.Writer, in CountryResponse) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -79,23 +360,23 @@ func easyjson548aff28EncodeGuidelyAppInternalDto(out *jwriter.Writer, in Country
 // MarshalJSON supports json.Marshaler interface
 func (v CountryResponse) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
-	easyjson548aff28EncodeGuidelyAppInternalDto(&w, v)
+	easyjson548aff28EncodeGuidelyAppInternalDto3(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v CountryResponse) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson548aff28EncodeGuidelyAppInternalDto(w, v)
+	easyjson548aff28EncodeGuidelyAppInternalDto3(w, v)
 }
 
 // UnmarshalJSON supports json.Unmarshaler interface
 func (v *CountryResponse) UnmarshalJSON(data []byte) error {
 	r := jlexer.Lexer{Data: data}
-	easyjson548aff28DecodeGuidelyAppInternalDto(&r, v)
+	easyjson548aff28DecodeGuidelyAppInternalDto3(&r, v)
 	return r.Error()
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *CountryResponse) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson548aff28DecodeGuidelyAppInternalDto(l, v)
+	easyjson548aff28DecodeGuidelyAppInternalDto3(l, v)
 }

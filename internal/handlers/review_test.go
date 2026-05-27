@@ -43,9 +43,10 @@ func TestReviewHandler_Create_Success(t *testing.T) {
 	handler.Create(w, req)
 
 	assert.Equal(t, http.StatusCreated, w.Code)
-	var resp map[string]interface{}
+	var resp dto.ReviewCreatedResponse
 	json.NewDecoder(w.Body).Decode(&resp)
-	assert.Equal(t, "ok", resp["message"])
+	assert.Equal(t, "ok", resp.Message)
+	assert.Equal(t, uint64(1), resp.ID)
 }
 
 func TestReviewHandler_Create_Unauthorized(t *testing.T) {
@@ -113,9 +114,9 @@ func TestReviewHandler_Create_AlreadyExists(t *testing.T) {
 	handler.Create(w, req)
 
 	assert.Equal(t, http.StatusConflict, w.Code) // 409
-	var resp map[string]string
+	var resp dto.ErrorResponse
 	json.NewDecoder(w.Body).Decode(&resp)
-	assert.Contains(t, resp["error"], "already reviewed")
+	assert.Contains(t, resp.Error, "already reviewed")
 }
 
 func TestReviewHandler_Create_InvalidJSON(t *testing.T) {

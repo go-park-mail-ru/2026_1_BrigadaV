@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"html/template"
 	"net/http"
 	"strconv"
@@ -13,6 +12,7 @@ import (
 	"guidely-app/pkg/models"
 
 	"github.com/gorilla/mux"
+	"github.com/mailru/easyjson"
 	"github.com/sirupsen/logrus"
 )
 
@@ -116,8 +116,8 @@ func placeToDTO(p models.Place) dto.PlaceResponse {
 	return pr
 }
 
-func placesToDTO(places []models.Place) []dto.PlaceResponse {
-	response := make([]dto.PlaceResponse, 0, len(places))
+func placesToDTO(places []models.Place) dto.PlaceResponseList {
+	response := make(dto.PlaceResponseList, 0, len(places))
 	for _, p := range places {
 		response = append(response, placeToDTO(p))
 	}
@@ -129,12 +129,20 @@ func (h *PlaceHandler) List(w http.ResponseWriter, r *http.Request) {
 	places, err := h.placeService.GetAll(r.Context(), filter)
 	if err != nil {
 		logger.Error(r.Context(), "Failed to fetch places", logrus.Fields{"error": err})
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch places"})
+		writeJSON(w, http.StatusInternalServerError, &dto.ErrorResponse{Error: "failed to fetch places"})
 		return
 	}
+	result := placesToDTO(places)
+	if result == nil {
+		result = dto.PlaceResponseList{}
+	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(placesToDTO(places))
+	data, err := easyjson.Marshal(result)
+	if err != nil {
+		logger.Error(r.Context(), "easyjson marshal error", logrus.Fields{"error": err})
+		return
+	}
+	w.Write(data)
 }
 
 func (h *PlaceHandler) FilterByReviewsAndRating(w http.ResponseWriter, r *http.Request) {
@@ -143,8 +151,7 @@ func (h *PlaceHandler) FilterByReviewsAndRating(w http.ResponseWriter, r *http.R
 		if v, err := strconv.ParseFloat(raw, 64); err == nil && v >= 0 {
 			filter.MinRating = v
 		} else if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{"error": "invalid min_rating value"})
+			writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid min_rating value"})
 			return
 		}
 	}
@@ -152,8 +159,7 @@ func (h *PlaceHandler) FilterByReviewsAndRating(w http.ResponseWriter, r *http.R
 		if v, err := strconv.Atoi(raw); err == nil && v >= 0 {
 			filter.MinReviews = v
 		} else if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{"error": "invalid min_reviews value"})
+			writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid min_reviews value"})
 			return
 		}
 	}
@@ -170,53 +176,67 @@ func (h *PlaceHandler) FilterByReviewsAndRating(w http.ResponseWriter, r *http.R
 		filter.MinRating = minRating
 	}
 	if filter.MinRating == 0 && filter.MinReviews == 0 {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "at least one of min_rating, min_reviews, or rating_ids must be specified"})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "at least one of min_rating, min_reviews, or rating_ids must be specified"})
 		return
 	}
 	places, err := h.placeService.FilterByReviewsAndRating(r.Context(), filter)
 	if err != nil {
 		logger.Error(r.Context(), "Failed to filter places", logrus.Fields{"error": err})
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to filter places"})
+		writeJSON(w, http.StatusInternalServerError, &dto.ErrorResponse{Error: "failed to filter places"})
 		return
 	}
 	result := placesToDTO(places)
 	if result == nil {
-		result = []dto.PlaceResponse{}
+		result = dto.PlaceResponseList{}
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	data, err := easyjson.Marshal(result)
+	if err != nil {
+		logger.Error(r.Context(), "easyjson marshal error", logrus.Fields{"error": err})
+		return
+	}
+	w.Write(data)
 }
 
 func (h *PlaceHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid place id"})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid place id"})
 		return
 	}
 	userIDVal := r.Context().Value("user_id")
 	var userID uint64
 	if userIDVal != nil {
-		if id, ok := userIDVal.(uint64); ok {
-			userID = id
+		if uid, ok := userIDVal.(uint64); ok {
+			userID = uid
 		}
 	}
 	place, err := h.placeService.GetDetails(r.Context(), id, userID)
 	if err != nil {
 		if err.Error() == "place not found" {
-			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]string{"error": "place not found"})
+			writeJSON(w, http.StatusNotFound, &dto.ErrorResponse{Error: "place not found"})
 			return
 		}
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "internal error"})
+		writeJSON(w, http.StatusInternalServerError, &dto.ErrorResponse{Error: "internal error"})
 		return
 	}
+	response := dto.PlaceWithRatingResponse{
+		ID:          place.ID,
+		Name:        place.Name,
+		Description: place.Description,
+		PhotoURL:    place.PhotoURL,
+		Price:       place.Price,
+		Rating:      place.Rating,
+		ReviewCount: place.ReviewCount,
+		IsLiked:     place.IsLiked,
+		Latitude:    place.Latitude,
+		Longitude:   place.Longitude,
+	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(place)
+	if _, err := easyjson.MarshalToWriter(&response, w); err != nil {
+		logger.Error(r.Context(), "easyjson marshal error", logrus.Fields{"error": err})
+	}
 }
 
 func (h *PlaceHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
@@ -229,57 +249,73 @@ func (h *PlaceHandler) GetReviews(w http.ResponseWriter, r *http.Request) {
 	reviews, err := h.placeService.GetReviews(r.Context(), placeID)
 	if err != nil {
 		logger.Error(r.Context(), "Failed to fetch reviews", logrus.Fields{"place_id": placeID, "error": err})
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to fetch reviews"})
+		writeJSON(w, http.StatusInternalServerError, &dto.ErrorResponse{Error: "failed to fetch reviews"})
 		return
 	}
+	result := make(dto.ReviewWithAuthorList, len(reviews))
+	for i, rv := range reviews {
+		result[i] = dto.ReviewWithAuthorResponse{
+			ID:        rv.ID,
+			Title:     rv.Title,
+			Rating:    rv.Rating,
+			Comment:   rv.Comment,
+			CreatedAt: rv.CreatedAt,
+			Author: dto.ReviewAuthorDTO{
+				ID:       rv.Author.ID,
+				Nickname: rv.Author.Nickname,
+				Avatar:   rv.Author.Avatar,
+			},
+		}
+	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(reviews)
+	data, err := easyjson.Marshal(result)
+	if err != nil {
+		logger.Error(r.Context(), "easyjson marshal error", logrus.Fields{"error": err})
+		return
+	}
+	w.Write(data)
 }
 
 func (h *PlaceHandler) CheckPlaceInTrip(w http.ResponseWriter, r *http.Request) {
 	userIDVal := r.Context().Value("user_id")
 	userID, ok := userIDVal.(uint64)
 	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+		writeJSON(w, http.StatusUnauthorized, &dto.ErrorResponse{Error: "unauthorized"})
 		return
 	}
 	vars := mux.Vars(r)
 	placeID, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
 		logger.Error(r.Context(), "Invalid place id in CheckPlaceInTrip", logrus.Fields{"id": vars["id"], "error": err})
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid place id"})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid place id"})
 		return
 	}
 	tripIDStr := r.URL.Query().Get("trip_id")
 	if tripIDStr == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "missing trip_id"})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "missing trip_id"})
 		return
 	}
 	tripID, err := strconv.ParseUint(tripIDStr, 10, 64)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid trip_id"})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid trip_id"})
 		return
 	}
 	trip, _, err := h.tripService.GetTripDetails(r.Context(), tripID)
 	if err != nil || trip == nil || trip.CreatedBy != userID {
-		w.WriteHeader(http.StatusForbidden)
-		json.NewEncoder(w).Encode(map[string]string{"error": "trip not found or access denied"})
+		writeJSON(w, http.StatusForbidden, &dto.ErrorResponse{Error: "trip not found or access denied"})
 		return
 	}
 	inTrip, err := h.placeService.IsPlaceInTrip(r.Context(), placeID, tripID)
 	if err != nil {
 		logger.Error(r.Context(), "Failed to check place in trip", logrus.Fields{"error": err})
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to check place in trip"})
+		writeJSON(w, http.StatusInternalServerError, &dto.ErrorResponse{Error: "failed to check place in trip"})
 		return
 	}
+	response := dto.BoolResponse{InTrip: inTrip}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"in_trip": inTrip})
+	if _, err := easyjson.MarshalToWriter(&response, w); err != nil {
+		logger.Error(r.Context(), "easyjson marshal error", logrus.Fields{"error": err})
+	}
 }
 
 func (h *PlaceHandler) Search(w http.ResponseWriter, r *http.Request) {
@@ -294,35 +330,36 @@ func (h *PlaceHandler) Search(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		logger.Error(r.Context(), "Failed to search/filter places", logrus.Fields{"error": err})
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to search/filter places"})
+		writeJSON(w, http.StatusInternalServerError, &dto.ErrorResponse{Error: "failed to search/filter places"})
 		return
 	}
 	result := placesToDTO(places)
 	if result == nil {
-		result = []dto.PlaceResponse{}
+		result = dto.PlaceResponseList{}
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	data, err := easyjson.Marshal(result)
+	if err != nil {
+		logger.Error(r.Context(), "easyjson marshal error", logrus.Fields{"error": err})
+		return
+	}
+	w.Write(data)
 }
 
 func (h *PlaceHandler) GetBotPreview(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.ParseUint(vars["id"], 10, 64)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid place id"})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid place id"})
 		return
 	}
 	place, err := h.placeService.GetDetails(r.Context(), id, 0)
 	if err != nil {
 		if err.Error() == "place not found" {
-			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]string{"error": "place not found"})
+			writeJSON(w, http.StatusNotFound, &dto.ErrorResponse{Error: "place not found"})
 			return
 		}
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "internal error"})
+		writeJSON(w, http.StatusInternalServerError, &dto.ErrorResponse{Error: "internal error"})
 		return
 	}
 	photoURL := place.PhotoURL

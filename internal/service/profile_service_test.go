@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"guidely-app/internal/auth/repository/mocks" // моки для UserRepository теперь здесь
+	"guidely-app/internal/auth/repository/mocks"
 	"guidely-app/internal/testutil"
 	"guidely-app/pkg/models"
 
@@ -37,6 +37,8 @@ func TestProfileService_UpdateProfile(t *testing.T) {
 
 	existingUser := &models.User{ID: 1, Nickname: "old", AvatarURL: "/old.jpg"}
 	mockUserRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(existingUser, nil)
+	// Добавляем ожидание проверки уникальности nickname
+	mockUserRepo.EXPECT().GetByNickname(gomock.Any(), "new").Return(nil, nil)
 	mockUserRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, u *models.User) error {
 		assert.Equal(t, "new", u.Nickname)
 		assert.Equal(t, "/new.jpg", u.AvatarURL)

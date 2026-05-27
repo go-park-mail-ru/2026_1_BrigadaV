@@ -21,7 +21,7 @@ func TestLoad_Defaults(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "8080", cfg.Port)
 	assert.Equal(t, "http://localhost:3000", cfg.FrontendURL)
-	assert.False(t, cfg.SecureCookies)
+	assert.True(t, cfg.SecureCookies)
 }
 
 func TestLoad_CustomPort(t *testing.T) {

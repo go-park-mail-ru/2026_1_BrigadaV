@@ -144,6 +144,8 @@ func TestTripService_Update_NotAuthorized(t *testing.T) {
 
 	input := UpdateTripInput{Title: testutil.PtrString("New Title")}
 	mockMemberRepo.EXPECT().HasEditPermission(gomock.Any(), uint64(1), uint64(1)).Return(false, nil)
+	// Добавляем ожидание GetByID для fallback
+	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(&models.Trip{ID: 1, CreatedBy: 2}, nil) // не тот создатель
 
 	updatedTrip, err := svc.Update(context.Background(), 1, 1, input)
 	assert.Error(t, err)
@@ -176,7 +178,8 @@ func TestTripService_Delete_NotAuthorized(t *testing.T) {
 	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
 	svc := NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
 
-	mockMemberRepo.EXPECT().GetMemberRole(gomock.Any(), uint64(1), uint64(1)).Return("viewer", nil)
+	mockMemberRepo.EXPECT().GetMemberRole(gomock.Any(), uint64(1), uint64(1)).Return("", nil)
+	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(&models.Trip{ID: 1, CreatedBy: 2}, nil)
 
 	err := svc.Delete(context.Background(), 1, 1)
 	assert.Error(t, err)
@@ -209,6 +212,8 @@ func TestTripService_AddPlaceToTrip_NotAuthorized(t *testing.T) {
 	svc := NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
 
 	mockMemberRepo.EXPECT().HasEditPermission(gomock.Any(), uint64(1), uint64(1)).Return(false, nil)
+	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(&models.Trip{ID: 1, CreatedBy: 2}, nil)
+
 	err := svc.AddPlaceToTrip(context.Background(), 1, 5, 1, 1)
 	assert.EqualError(t, err, "not authorized to edit this trip")
 }
@@ -372,7 +377,9 @@ func TestTripService_CreateViewShareLink_NotOwner(t *testing.T) {
 	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
 	svc := NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
 
-	mockMemberRepo.EXPECT().GetMemberRole(gomock.Any(), uint64(1), uint64(2)).Return("viewer", nil)
+	mockMemberRepo.EXPECT().GetMemberRole(gomock.Any(), uint64(1), uint64(2)).Return("", nil)
+	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(&models.Trip{ID: 1, CreatedBy: 3}, nil)
+
 	_, err := svc.CreateViewShareLink(context.Background(), 1, 2)
 	assert.EqualError(t, err, "only owner can create share links")
 }
@@ -405,7 +412,9 @@ func TestTripService_RemoveMember_NotOwner(t *testing.T) {
 	mockInviteRepo := mocks.NewMockTripInviteRepository(ctrl)
 	svc := NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
 
-	mockMemberRepo.EXPECT().GetMemberRole(gomock.Any(), uint64(1), uint64(2)).Return("editor", nil)
+	mockMemberRepo.EXPECT().GetMemberRole(gomock.Any(), uint64(1), uint64(2)).Return("", nil)
+	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(&models.Trip{ID: 1, CreatedBy: 3}, nil)
+
 	err := svc.RemoveMember(context.Background(), 1, 2, 3)
 	assert.EqualError(t, err, "only owner can remove members")
 }

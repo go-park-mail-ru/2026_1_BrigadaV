@@ -16,3 +16,6 @@ type CategoryResponse struct {
 	Description     string   `json:"description"`
 	ApplicableTypes []string `json:"applicable_types"`
 }
+
+//easyjson:json
+type CategoryResponseList []CategoryResponse

@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -182,8 +181,14 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"error":"user not found"}`))
 		return
 	}
+	response := dto.MeResponse{
+		ID:        resp.Id,
+		Login:     resp.Login,
+		Nickname:  resp.Nickname,
+		AvatarURL: resp.AvatarUrl,
+	}
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		logger.Error(r.Context(), "json encode error", logrus.Fields{"error": err})
+	if _, err := easyjson.MarshalToWriter(&response, w); err != nil {
+		logger.Error(r.Context(), "easyjson marshal error", logrus.Fields{"error": err})
 	}
 }

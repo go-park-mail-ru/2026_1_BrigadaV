@@ -459,28 +459,41 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 	if len(places) == 0 {
 		pdf.SetFont("PTSans", "", 12)
 		pdf.Cell(0, 10, "Нет добавленных мест")
+		pdf.Ln(10)
 	} else {
 		for i, place := range places {
-			pdf.SetFont("PTSans", "", 12)
-			pdf.Cell(0, 8, fmt.Sprintf("%d. %s", i+1, place.Name))
-			pdf.Ln(6)
-
-			if place.Rating > 0 {
-				pdf.SetFont("PTSans", "", 10)
-				pdf.Cell(0, 5, fmt.Sprintf("Рейтинг: %.1f", place.Rating))
-				pdf.Ln(5)
+			// Проверяем, нужна ли новая страница
+			if pdf.GetY() > 250 {
+				pdf.AddPage()
 			}
 
+			// Название достопримечательности
+			pdf.SetFont("PTSans", "", 12)
+			pdf.Cell(0, 8, fmt.Sprintf("%d. %s", i+1, place.Name))
+			pdf.Ln(7)
+
+			// Рейтинг
+			if place.Rating > 0 {
+				pdf.SetFont("PTSans", "", 10)
+				pdf.Cell(10, 5, "")
+				pdf.Cell(0, 5, fmt.Sprintf("Рейтинг: %.1f / 5.0", place.Rating))
+				pdf.Ln(6)
+			}
+
+			// Описание
 			if place.Description != "" {
 				pdf.SetFont("PTSans", "", 10)
 				desc := place.Description
-				if len(desc) > 200 {
-					desc = desc[:200] + "..."
+				if len([]rune(desc)) > 300 {
+					runes := []rune(desc)
+					desc = string(runes[:300]) + "..."
 				}
+				pdf.Cell(10, 5, "")
 				pdf.MultiCell(0, 5, desc, "", "", false)
-				pdf.Ln(2)
+				pdf.Ln(1)
 			}
-			pdf.Ln(2)
+
+			pdf.Ln(3)
 		}
 	}
 

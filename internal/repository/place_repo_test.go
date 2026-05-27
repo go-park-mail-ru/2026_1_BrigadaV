@@ -27,6 +27,8 @@ func TestPlaceRepo_GetAll(t *testing.T) {
 	placePhotoID := uint64(1)
 	isMain := true
 
+	// Количество колонок в реальном SELECT должно соответствовать 22 (как в placeSelectCols)
+	// Убедимся, что добавили все колонки: p.latitude, p.longitude, и т.д.
 	rows := mockPool.NewRows([]string{
 		"id", "name", "description", "photo_url", "price", "created_at", "updated_at",
 		"place_lat", "place_lng", // p.latitude, p.longitude
@@ -35,7 +37,7 @@ func TestPlaceRepo_GetAll(t *testing.T) {
 		"place_photo_id", "file_path", "is_main",
 	}).AddRow(
 		uint64(1), "Eiffel Tower", "Famous tower", nil, 1500, time.Now(), time.Now(),
-		&latitude, &longitude, // указатели, т.к. Scan ожидает *float64
+		&latitude, &longitude,
 		nil, &localityName, &countryName, &latitude, &longitude,
 		nil, &categoryName, &categoryDesc,
 		&placePhotoID, &photoFilePath, &isMain,
@@ -51,7 +53,6 @@ func TestPlaceRepo_GetAll(t *testing.T) {
 
 	assert.NoError(t, mockPool.ExpectationsWereMet())
 }
-
 func TestPlaceRepo_GetByID(t *testing.T) {
 	mockPool, err := pgxmock.NewPool()
 	assert.NoError(t, err)
