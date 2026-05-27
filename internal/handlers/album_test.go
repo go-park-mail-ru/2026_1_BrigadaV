@@ -11,6 +11,7 @@ import (
 
 	"guidely-app/internal/dto"
 	pb "guidely-app/pkg/pb/album"
+	"guidely-app/internal/middleware"
 
 	"github.com/golang/mock/gomock"
 	"github.com/gorilla/mux"
@@ -32,7 +33,7 @@ func TestAlbumHandler_Create_Success(t *testing.T) {
 	}
 	body, _ := json.Marshal(reqBody)
 	req := httptest.NewRequest("POST", "/api/albums", bytes.NewReader(body))
-	req = req.WithContext(context.WithValue(req.Context(), "user_id", uint64(1)))
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, uint64(1)))
 	w := httptest.NewRecorder()
 
 	mockClient.EXPECT().Create(gomock.Any(), gomock.Any()).Return(&pb.Album{Id: 1, Name: "Test"}, nil)
@@ -62,7 +63,7 @@ func TestAlbumHandler_Create_Error(t *testing.T) {
 	reqBody := map[string]interface{}{"trip_id": 1, "name": "Test"}
 	body, _ := json.Marshal(reqBody)
 	req := httptest.NewRequest("POST", "/api/albums", bytes.NewReader(body))
-	req = req.WithContext(context.WithValue(req.Context(), "user_id", uint64(1)))
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, uint64(1)))
 	w := httptest.NewRecorder()
 
 	mockClient.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, errors.New("internal"))
@@ -77,7 +78,7 @@ func TestAlbumHandler_Delete_Success(t *testing.T) {
 	handler := NewAlbumHandler(mockClient, nil)
 
 	req := httptest.NewRequest("DELETE", "/api/albums/1", nil)
-	req = req.WithContext(context.WithValue(req.Context(), "user_id", uint64(1)))
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, uint64(1)))
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()
 
@@ -93,7 +94,7 @@ func TestAlbumHandler_Delete_Error(t *testing.T) {
 	handler := NewAlbumHandler(mockClient, nil)
 
 	req := httptest.NewRequest("DELETE", "/api/albums/1", nil)
-	req = req.WithContext(context.WithValue(req.Context(), "user_id", uint64(1)))
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, uint64(1)))
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()
 

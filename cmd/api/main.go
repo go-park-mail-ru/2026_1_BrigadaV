@@ -56,19 +56,19 @@ func main() {
 	}
 
 	// gRPC подключения
-	authConn, err := grpc.Dial(getEnv("AUTH_GRPC_ADDR", "localhost:8085"), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	authConn, err := grpc.NewClient(getEnv("AUTH_GRPC_ADDR", "localhost:8085"), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("failed to connect to auth service: %v", err)
 	}
 	authClient := pbauth.NewAuthServiceClient(authConn)
 
-	albumConn, err := grpc.Dial(getEnv("ALBUM_GRPC_ADDR", "localhost:8086"), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	albumConn, err := grpc.NewClient(getEnv("ALBUM_GRPC_ADDR", "localhost:8086"), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("failed to connect to album service: %v", err)
 	}
 	albumClient := pbalbum.NewAlbumServiceClient(albumConn)
 
-	reviewConn, err := grpc.Dial(getEnv("REVIEW_GRPC_ADDR", "localhost:8087"), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	reviewConn, err := grpc.NewClient(getEnv("REVIEW_GRPC_ADDR", "localhost:8087"), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("failed to connect to review service: %v", err)
 	}

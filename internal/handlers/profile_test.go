@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"guidely-app/internal/dto"
+	"guidely-app/internal/middleware"
 	"guidely-app/internal/service/mocks"
 	"guidely-app/internal/testutil"
 	"guidely-app/pkg/models"
@@ -38,7 +39,7 @@ func TestProfileHandler_GetProfile_Success(t *testing.T) {
 	}
 
 	req := httptest.NewRequest("GET", "/api/profile", nil)
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	w := httptest.NewRecorder()
 
@@ -85,7 +86,7 @@ func TestProfileHandler_UpdateProfile_Success(t *testing.T) {
 	body, _ := json.Marshal(reqBody)
 
 	req := httptest.NewRequest("PUT", "/api/profile", bytes.NewReader(body))
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	w := httptest.NewRecorder()
 
@@ -117,7 +118,7 @@ func TestProfileHandler_UpdateProfile_InvalidJSON(t *testing.T) {
 	handler := NewProfileHandler(mockProfileService, nil)
 
 	req := httptest.NewRequest("PUT", "/api/profile", bytes.NewReader([]byte(`{invalid json}`)))
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	w := httptest.NewRecorder()
 
@@ -162,7 +163,7 @@ func TestProfileHandler_UploadAvatar_NoFile(t *testing.T) {
 	handler := NewProfileHandler(mockProfileService, nil)
 
 	req := httptest.NewRequest("POST", "/api/profile/avatar", nil)
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	w := httptest.NewRecorder()
 	handler.UploadAvatar(w, req)
@@ -183,7 +184,7 @@ func TestProfileHandler_UploadAvatar_NotImage(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/api/profile/avatar", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	w := httptest.NewRecorder()
 	handler.UploadAvatar(w, req)
@@ -196,7 +197,7 @@ func TestProfileHandler_GetAvatar_NotFound(t *testing.T) {
 	mockProfileService := mocks.NewMockProfileService(ctrl)
 	handler := NewProfileHandler(mockProfileService, nil)
 
-	ctx := context.WithValue(context.Background(), "user_id", uint64(1))
+	ctx := context.WithValue(context.Background(), middleware.UserIDKey, uint64(1))
 	req := httptest.NewRequest("GET", "/api/profile/avatar", nil).WithContext(ctx)
 	w := httptest.NewRecorder()
 

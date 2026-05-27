@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"guidely-app/internal/middleware"
 	"guidely-app/internal/repository/mocks"
 	"guidely-app/internal/service"
 	"guidely-app/pkg/models"
@@ -90,7 +91,7 @@ func TestCategoryHandler_Create_Success(t *testing.T) {
 
 	body := `{"name":"New","description":"desc","applicable_types":["attraction"]}`
 	req := httptest.NewRequest("POST", "/api/categories", bytes.NewReader([]byte(body)))
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	w := httptest.NewRecorder()
 
@@ -108,7 +109,7 @@ func TestCategoryHandler_Update_Success(t *testing.T) {
 
 	body := `{"name":"Updated","description":"new","applicable_types":["hotel"]}`
 	req := httptest.NewRequest("PUT", "/api/categories/1", bytes.NewReader([]byte(body)))
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()
@@ -126,7 +127,7 @@ func TestCategoryHandler_Delete_Success(t *testing.T) {
 	handler := NewCategoryHandler(svc)
 
 	req := httptest.NewRequest("DELETE", "/api/categories/1", nil)
-	ctx := context.WithValue(req.Context(), "user_id", uint64(1))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
 	req = req.WithContext(ctx)
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()
