@@ -36,10 +36,16 @@ jobs:
           go-version: '1.24'
           cache-dependency-path: go.sum
 
+      - name: Patch go.mod for linter
+        run: sed -i 's/^go 1\.25.*/go 1.24.0/' go.mod
+  
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
           version: v2.2.0
+
+      - name: Restore go.mod
+        run: sed -i 's/^go 1\.24.*/go 1.25.0/' go.mod
 
       - name: Run tests
         env:
