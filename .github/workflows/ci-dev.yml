@@ -37,7 +37,7 @@ jobs:
           cache-dependency-path: go.sum
 
       - name: staticcheck
-        uses: dominikh/static-check-action@v1
+        uses: dominikh/staticcheck-action@v1
         with:
           version: latest
 
