@@ -33,13 +33,13 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version-file: go.mod
           cache-dependency-path: go.sum
 
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v7
+      - name: staticcheck
+        uses: dominikh/static-check-action@v1
         with:
-          version: v2.2.0
+          version: latest
 
       - name: Run tests
         env:
