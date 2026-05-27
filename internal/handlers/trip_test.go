@@ -30,7 +30,6 @@ func TestTripHandler_List_Success(t *testing.T) {
 	tripService := service.NewTripService(mockTripRepo, mockMemberRepo, mockInviteRepo)
 	handler := NewTripHandler(tripService)
 
-	// Исправлено: ожидаем вызов GetUserTripsWithRoles
 	tripsWithRoles := []repository.UserTripWithRole{
 		{Trip: models.Trip{ID: 1, Title: "Trip 1", Location: testutil.PtrString("Paris")}, Role: "owner"},
 		{Trip: models.Trip{ID: 2, Title: "Trip 2", Location: testutil.PtrString("London")}, Role: "viewer"},
@@ -281,7 +280,6 @@ func TestTripHandler_Delete_Unauthorized(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
 
-// TestTripHandler_CreateViewShareLink_Success
 func TestTripHandler_CreateViewShareLink_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -309,7 +307,6 @@ func TestTripHandler_CreateViewShareLink_Success(t *testing.T) {
 	assert.Contains(t, resp["share_link"], "/share/view/")
 }
 
-// TestTripHandler_CreateViewShareLink_Forbidden
 func TestTripHandler_CreateViewShareLink_Forbidden(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -326,13 +323,15 @@ func TestTripHandler_CreateViewShareLink_Forbidden(t *testing.T) {
 	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	w := httptest.NewRecorder()
 
-	mockMemberRepo.EXPECT().GetMemberRole(gomock.Any(), uint64(1), uint64(2)).Return("viewer", nil)
+	// Ожидаем, что GetMemberRole вернёт "" (нет роли)
+	mockMemberRepo.EXPECT().GetMemberRole(gomock.Any(), uint64(1), uint64(2)).Return("", nil)
+	// Fallback: isOwner вызовет GetByID
+	mockTripRepo.EXPECT().GetByID(gomock.Any(), uint64(1)).Return(&models.Trip{ID: 1, CreatedBy: 3}, nil)
 
 	handler.CreateViewShareLink(w, req)
 	assert.Equal(t, http.StatusForbidden, w.Code)
 }
 
-// TestTripHandler_RemoveMember_Success
 func TestTripHandler_RemoveMember_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -356,7 +355,6 @@ func TestTripHandler_RemoveMember_Success(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, w.Code)
 }
 
-// TestTripHandler_GetTripMembers_Success
 func TestTripHandler_GetTripMembers_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

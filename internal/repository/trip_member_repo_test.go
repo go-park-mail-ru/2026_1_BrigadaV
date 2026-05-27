@@ -137,7 +137,7 @@ func TestTripMemberRepo_GetTripMembers_Success(t *testing.T) {
 	now := time.Now()
 	rows := mockPool.NewRows([]string{"trip_id", "user_id", "role", "joined_at"}).
 		AddRow(uint64(1), uint64(10), "owner", now).
-		AddRow(uint64(1), uint64(20), "editor", now)
+		AddRow(uint64(1), uint64(20), "companion", now)
 
 	mockPool.ExpectQuery(`SELECT trip_id, user_id, role, joined_at FROM trip_member WHERE trip_id = \$1`).
 		WithArgs(uint64(1)).
@@ -147,7 +147,7 @@ func TestTripMemberRepo_GetTripMembers_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, members, 2)
 	assert.Equal(t, uint64(10), members[0].UserID)
-	assert.Equal(t, "editor", members[1].Role)
+	assert.Equal(t, "companion", members[1].Role)
 	assert.NoError(t, mockPool.ExpectationsWereMet())
 }
 
@@ -193,7 +193,7 @@ func TestTripMemberRepo_HasEditPermission_True(t *testing.T) {
 
 	repo := NewTripMemberRepo(mockPool)
 
-	rows := mockPool.NewRows([]string{"role"}).AddRow("editor")
+	rows := mockPool.NewRows([]string{"role"}).AddRow("companion")
 	mockPool.ExpectQuery(`SELECT role FROM trip_member WHERE trip_id = \$1 AND user_id = \$2`).
 		WithArgs(uint64(1), uint64(2)).
 		WillReturnRows(rows)

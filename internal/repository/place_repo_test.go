@@ -32,12 +32,14 @@ func TestPlaceRepo_GetAll(t *testing.T) {
 	rows := mockPool.NewRows([]string{
 		"id", "name", "description", "photo_url", "price", "created_at", "updated_at",
 		"place_lat", "place_lng", // p.latitude, p.longitude
+		"rating", "review_count", // добавили
 		"locality_id", "locality_name", "country_name", "loc_lat", "loc_lng",
 		"category_id", "category_name", "category_description",
 		"place_photo_id", "file_path", "is_main",
 	}).AddRow(
 		uint64(1), "Eiffel Tower", "Famous tower", nil, 1500, time.Now(), time.Now(),
 		&latitude, &longitude,
+		4.8, 100,
 		nil, &localityName, &countryName, &latitude, &longitude,
 		nil, &categoryName, &categoryDesc,
 		&placePhotoID, &photoFilePath, &isMain,
@@ -53,6 +55,7 @@ func TestPlaceRepo_GetAll(t *testing.T) {
 
 	assert.NoError(t, mockPool.ExpectationsWereMet())
 }
+
 func TestPlaceRepo_GetByID(t *testing.T) {
 	mockPool, err := pgxmock.NewPool()
 	assert.NoError(t, err)
@@ -74,7 +77,7 @@ func TestPlaceRepo_GetByID(t *testing.T) {
 		"locality_id", "locality_name", "country_name", "loc_lat", "loc_lng",
 		"category_id", "category_name", "category_description",
 	}).AddRow(uint64(1), "Eiffel Tower", "Famous tower", nil, 1500, time.Now(), time.Now(),
-		&latitude, &longitude, // указатели
+		&latitude, &longitude,
 		nil, &localityName, &countryName, &latitude, &longitude,
 		nil, &categoryName, &categoryDesc)
 
@@ -105,7 +108,7 @@ func TestPlaceRepo_GetWithRatingAndLike(t *testing.T) {
 		"id", "name", "description", "photo_url", "price", "rating", "review_count",
 		"latitude", "longitude",
 	}).AddRow(uint64(1), "Eiffel Tower", "Famous tower", nil, 1500, 4.5, int64(10),
-		&lat, &lng) // указатели
+		&lat, &lng)
 
 	mockPool.ExpectQuery(`SELECT id, name, description, photo_url, price, rating, review_count, latitude, longitude FROM place WHERE id = \$1`).
 		WithArgs(uint64(1)).
@@ -193,18 +196,30 @@ func TestPlaceRepo_GetByCategory_Success(t *testing.T) {
 	defer mockPool.Close()
 	repo := NewPlaceRepo(mockPool)
 
-	catName := "HotelCategory"
-	catDesc := "Hotel Category"
+	localityName := "Paris"
+	countryName := "France"
+	latitude := 48.8566
+	longitude := 2.3522
+	categoryName := "HotelCategory"
+	categoryDesc := "Hotel Category"
+	photoFilePath := "/photos/hotel.jpg"
+	placePhotoID := uint64(1)
+	isMain := true
 
 	rows := mockPool.NewRows([]string{
 		"id", "name", "description", "photo_url", "price", "created_at", "updated_at",
 		"place_lat", "place_lng",
+		"rating", "review_count",
 		"locality_id", "locality_name", "country_name", "loc_lat", "loc_lng",
 		"category_id", "category_name", "category_description",
-	}).AddRow(uint64(1), "Hotel", "desc", nil, 100, time.Now(), time.Now(),
+		"place_photo_id", "file_path", "is_main",
+	}).AddRow(
+		uint64(1), "Hotel", "desc", nil, 100, time.Now(), time.Now(),
 		nil, nil,
-		nil, nil, nil, nil, nil,
-		nil, &catName, &catDesc,
+		0.0, 0,
+		nil, &localityName, &countryName, &latitude, &longitude,
+		nil, &categoryName, &categoryDesc,
+		&placePhotoID, &photoFilePath, &isMain,
 	)
 
 	mockPool.ExpectQuery(`SELECT p\.id, p\.name, p\.description, p\.photo_url, p\.price, p\.created_at, p\.updated_at,`).
@@ -230,12 +245,17 @@ func TestPlaceRepo_Search_Success(t *testing.T) {
 	rows := mockPool.NewRows([]string{
 		"id", "name", "description", "photo_url", "price", "created_at", "updated_at",
 		"place_lat", "place_lng",
+		"rating", "review_count",
 		"locality_id", "locality_name", "country_name", "loc_lat", "loc_lng",
 		"category_id", "category_name", "category_description",
-	}).AddRow(uint64(1), "Eiffel Tower", "Famous", nil, 1500, time.Now(), time.Now(),
+		"place_photo_id", "file_path", "is_main",
+	}).AddRow(
+		uint64(1), "Eiffel Tower", "Famous", nil, 1500, time.Now(), time.Now(),
 		nil, nil,
+		4.5, 10,
 		nil, nil, nil, nil, nil,
 		nil, &catName, &catDesc,
+		nil, nil, nil,
 	)
 
 	mockPool.ExpectQuery(`SELECT p\.id, p\.name, p\.description, p\.photo_url, p\.price, p\.created_at, p\.updated_at,`).
