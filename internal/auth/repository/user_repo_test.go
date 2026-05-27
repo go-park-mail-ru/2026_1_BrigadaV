@@ -230,3 +230,15 @@ func TestUserRepo_GetByYandexID_Found(t *testing.T) {
 	assert.NotNil(t, user)
 	assert.Equal(t, yandexID, *user.YandexID)
 }
+
+func TestUserRepo_Update_DBError_Already(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewUserRepo(mockPool)
+
+	user := &models.User{ID: 1, Login: "updated", Nickname: "up", PasswordHash: "hash"}
+	mockPool.ExpectQuery(`UPDATE "user"`).WillReturnError(errors.New("db error"))
+	err = repo.Update(context.Background(), user)
+	assert.Error(t, err)
+}

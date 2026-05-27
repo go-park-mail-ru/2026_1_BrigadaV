@@ -342,4 +342,36 @@ func TestAlbumRepo_Delete_NoRows(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+// TestAlbumRepo_UploadPhoto_FirstPhoto проверяет загрузку первого фото (maxOrder IS NULL)
+func TestAlbumRepo_UploadPhoto_FirstPhoto(t *testing.T) {
+	mockPool, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mockPool.Close()
+	repo := NewAlbumRepo(mockPool)
+
+	mockPool.ExpectQuery(`SELECT max_photos FROM album WHERE id = \$1`).
+		WithArgs(uint64(1)).
+		WillReturnRows(pgxmock.NewRows([]string{"max_photos"}).AddRow(50))
+	mockPool.ExpectQuery(`SELECT COUNT\(\*\) FROM album_photo WHERE album_id = \$1`).
+		WithArgs(uint64(1)).
+		WillReturnRows(pgxmock.NewRows([]string{"count"}).AddRow(0))
+	mockPool.ExpectBegin()
+	mockPool.ExpectQuery(`INSERT INTO photo \(file_path, created_at\)`).
+		WithArgs("/photos/test.jpg").
+		WillReturnRows(pgxmock.NewRows([]string{"id"}).AddRow(uint64(100)))
+	// maxOrder = NULL -> COALESCE вернёт 0
+	mockPool.ExpectQuery(`SELECT COALESCE\(MAX\(order_index\), 0\) FROM album_photo WHERE album_id = \$1`).
+		WithArgs(uint64(1)).
+		WillReturnRows(pgxmock.NewRows([]string{"max"}).AddRow(0))
+	mockPool.ExpectExec(`INSERT INTO album_photo \(album_id, photo_id, order_index, created_at\)`).
+		WithArgs(uint64(1), uint64(100), 1).
+		WillReturnResult(pgxmock.NewResult("INSERT", 1))
+	mockPool.ExpectCommit()
+
+	photoID, err := repo.UploadPhoto(context.Background(), 1, "/photos/test.jpg")
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(100), photoID)
+	assert.NoError(t, mockPool.ExpectationsWereMet())
+}
+
 func ptrUint64(v uint64) *uint64 { return &v }

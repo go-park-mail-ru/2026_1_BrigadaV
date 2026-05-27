@@ -118,3 +118,17 @@ func TestCountryService_GetWithLocalities_GetAllError(t *testing.T) {
 	assert.Nil(t, country)
 	assert.Nil(t, locs)
 }
+
+func TestCountryService_GetWithLocalities_EmptyCountries(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockRepo := mocks.NewMockCountryRepository(ctrl)
+	svc := NewCountryService(mockRepo)
+
+	mockRepo.EXPECT().GetAll(gomock.Any()).Return([]models.Country{}, nil)
+
+	country, locs, err := svc.GetWithLocalities(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Nil(t, country)
+	assert.Nil(t, locs)
+}

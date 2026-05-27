@@ -136,3 +136,61 @@ func TestCategoryHandler_Delete_Success(t *testing.T) {
 	handler.Delete(w, req)
 	assert.Equal(t, http.StatusNoContent, w.Code)
 }
+
+func TestCategoryHandler_Create_Error(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockRepo := mocks.NewMockCategoryRepository(ctrl)
+	svc := service.NewCategoryService(mockRepo)
+	handler := NewCategoryHandler(svc)
+
+	body := `{"name":"New","description":"desc","applicable_types":["attraction"]}`
+	req := httptest.NewRequest("POST", "/api/categories", bytes.NewReader([]byte(body)))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
+	req = req.WithContext(ctx)
+	w := httptest.NewRecorder()
+
+	mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(errors.New("db error"))
+
+	handler.Create(w, req)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestCategoryHandler_Update_Error(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockRepo := mocks.NewMockCategoryRepository(ctrl)
+	svc := service.NewCategoryService(mockRepo)
+	handler := NewCategoryHandler(svc)
+
+	body := `{"name":"Updated"}`
+	req := httptest.NewRequest("PUT", "/api/categories/1", bytes.NewReader([]byte(body)))
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
+	req = req.WithContext(ctx)
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	w := httptest.NewRecorder()
+
+	mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(errors.New("db error"))
+
+	handler.Update(w, req)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestCategoryHandler_Delete_Error(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockRepo := mocks.NewMockCategoryRepository(ctrl)
+	svc := service.NewCategoryService(mockRepo)
+	handler := NewCategoryHandler(svc)
+
+	req := httptest.NewRequest("DELETE", "/api/categories/1", nil)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uint64(1))
+	req = req.WithContext(ctx)
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	w := httptest.NewRecorder()
+
+	mockRepo.EXPECT().Delete(gomock.Any(), uint64(1)).Return(errors.New("db error"))
+
+	handler.Delete(w, req)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
