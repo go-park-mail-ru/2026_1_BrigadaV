@@ -399,7 +399,7 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 
 	// Направление
 	if statErr == nil {
-		pdf.SetFont("PTSans", "B", 14) // было 12
+		pdf.SetFont("PTSans", "", 14) // было 12
 	} else {
 		pdf.SetFont("Helvetica", "B", 12)
 	}
@@ -418,7 +418,7 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 
 	// Даты
 	if statErr == nil {
-		pdf.SetFont("PTSans", "B", 14) // было 12
+		pdf.SetFont("PTSans", "", 14) // было 12
 	} else {
 		pdf.SetFont("Helvetica", "B", 12)
 	}
@@ -442,7 +442,7 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 	// Описание
 	if trip.Description != "" {
 		if statErr == nil {
-			pdf.SetFont("PTSans", "B", 14) // было 12
+			pdf.SetFont("PTSans", "", 14) // было 12
 		} else {
 			pdf.SetFont("Helvetica", "B", 12)
 		}
@@ -459,7 +459,7 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 
 	// Достопримечательности
 	if statErr == nil {
-		pdf.SetFont("PTSans", "B", 16) // было 14
+		pdf.SetFont("PTSans", "", 16) // было 14
 	} else {
 		pdf.SetFont("Helvetica", "B", 14)
 	}
@@ -468,7 +468,7 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 
 	if len(places) == 0 {
 		if statErr == nil {
-			pdf.SetFont("PTSans", "I", 12) // не bold, не увеличиваем
+			pdf.SetFont("PTSans", "", 12) // не bold, не увеличиваем
 		} else {
 			pdf.SetFont("Helvetica", "I", 12)
 		}
@@ -479,7 +479,7 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 			if pdf.GetY() > 250 {
 				pdf.AddPage()
 				if statErr == nil {
-					pdf.SetFont("PTSans", "B", 14) // было 12
+					pdf.SetFont("PTSans", "", 14) // было 12
 				} else {
 					pdf.SetFont("Helvetica", "B", 12)
 				}
@@ -487,7 +487,7 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 
 			// Название
 			if statErr == nil {
-				pdf.SetFont("PTSans", "B", 14) // было 12
+				pdf.SetFont("PTSans", "", 14) // было 12
 			} else {
 				pdf.SetFont("Helvetica", "B", 12)
 			}
