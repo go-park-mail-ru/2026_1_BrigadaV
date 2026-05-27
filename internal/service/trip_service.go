@@ -7,6 +7,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"time"
 
@@ -373,28 +375,59 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 	if !ok {
 		return nil, errors.New("access denied")
 	}
+
 	trip, places, err := s.GetTripDetails(ctx, tripID)
 	if err != nil {
 		return nil, err
 	}
+
 	pdf := gofpdf.New("P", "mm", "A4", "")
+	fontFile := "assets/fonts/PTSans-Regular.ttf"
+	_, statErr := os.Stat(fontFile)
+	if statErr == nil {
+		pdf.AddUTF8Font("PTSans", "", fontFile)
+		pdf.SetFont("PTSans", "", 16)
+	} else {
+		pdf.SetFont("Helvetica", "B", 16)
+	}
 	pdf.AddPage()
-	pdf.SetFont("Helvetica", "B", 16)
+
+	// Заголовок
 	title := "Поездка: " + trip.Title
 	pdf.Cell(0, 10, title)
 	pdf.Ln(12)
-	pdf.SetFont("Helvetica", "B", 12)
+
+	// Направление
+	if statErr == nil {
+		pdf.SetFont("PTSans", "B", 12)
+	} else {
+		pdf.SetFont("Helvetica", "B", 12)
+	}
 	pdf.Cell(40, 10, "Направление:")
-	pdf.SetFont("Helvetica", "", 12)
+	if statErr == nil {
+		pdf.SetFont("PTSans", "", 12)
+	} else {
+		pdf.SetFont("Helvetica", "", 12)
+	}
 	location := "не указано"
 	if trip.Location != nil && *trip.Location != "" {
 		location = *trip.Location
 	}
 	pdf.Cell(0, 10, location)
 	pdf.Ln(8)
-	pdf.SetFont("Helvetica", "B", 12)
+
+	// Даты
+	if statErr == nil {
+		pdf.SetFont("PTSans", "B", 12)
+	} else {
+		pdf.SetFont("Helvetica", "B", 12)
+	}
 	pdf.Cell(40, 10, "Даты:")
-	pdf.SetFont("Helvetica", "", 12)
+	if statErr == nil {
+		pdf.SetFont("PTSans", "", 12)
+	} else {
+		pdf.SetFont("Helvetica", "", 12)
+	}
 	dateFrom := formatDatePtr(trip.StartDate)
 	dateTo := formatDatePtr(trip.EndDate)
 	dateStr := dateFrom
@@ -405,32 +438,100 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 	}
 	pdf.Cell(0, 10, dateStr)
 	pdf.Ln(8)
+
+	// Описание
 	if trip.Description != "" {
-		pdf.SetFont("Helvetica", "B", 12)
+		if statErr == nil {
+			pdf.SetFont("PTSans", "B", 12)
+		} else {
+			pdf.SetFont("Helvetica", "B", 12)
+		}
 		pdf.Cell(40, 10, "Описание:")
 		pdf.Ln(6)
-		pdf.SetFont("Helvetica", "", 12)
+		if statErr == nil {
+			pdf.SetFont("PTSans", "", 12)
+		} else {
+			pdf.SetFont("Helvetica", "", 12)
+		}
 		pdf.MultiCell(0, 6, trip.Description, "", "", false)
 		pdf.Ln(4)
 	}
-	pdf.SetFont("Helvetica", "B", 14)
+
+	// Достопримечательности
+	if statErr == nil {
+		pdf.SetFont("PTSans", "B", 14)
+	} else {
+		pdf.SetFont("Helvetica", "B", 14)
+	}
 	pdf.Cell(0, 10, "Достопримечательности:")
 	pdf.Ln(10)
+
 	if len(places) == 0 {
-		pdf.SetFont("Helvetica", "I", 12)
+		if statErr == nil {
+			pdf.SetFont("PTSans", "I", 12)
+		} else {
+			pdf.SetFont("Helvetica", "I", 12)
+		}
 		pdf.Cell(0, 10, "Нет добавленных мест")
 	} else {
+		httpClient := &http.Client{Timeout: 10 * time.Second}
 		for i, place := range places {
-			pdf.SetFont("Helvetica", "B", 12)
+			if pdf.GetY() > 250 {
+				pdf.AddPage()
+				if statErr == nil {
+					pdf.SetFont("PTSans", "B", 12)
+				} else {
+					pdf.SetFont("Helvetica", "B", 12)
+				}
+			}
+
+			// Название
+			if statErr == nil {
+				pdf.SetFont("PTSans", "B", 12)
+			} else {
+				pdf.SetFont("Helvetica", "B", 12)
+			}
 			pdf.Cell(0, 8, fmt.Sprintf("%d. %s", i+1, place.Name))
 			pdf.Ln(6)
+
+			// Рейтинг
 			if place.Rating > 0 {
-				pdf.SetFont("Helvetica", "", 10)
+				if statErr == nil {
+					pdf.SetFont("PTSans", "", 10)
+				} else {
+					pdf.SetFont("Helvetica", "", 10)
+				}
 				pdf.Cell(0, 5, fmt.Sprintf("Рейтинг: %.1f", place.Rating))
 				pdf.Ln(5)
 			}
+
+			// Изображение
+			if place.PhotoURL != "" {
+				resp, err := httpClient.Get(place.PhotoURL)
+				if err == nil && resp.StatusCode == http.StatusOK {
+					imgData, err := io.ReadAll(resp.Body)
+					resp.Body.Close()
+					if err == nil && len(imgData) > 0 {
+						reader := bytes.NewReader(imgData)
+						imgName := fmt.Sprintf("img_%d_%d", i, time.Now().UnixNano())
+						info := pdf.RegisterImageReader(imgName, "", reader)
+						if info != nil {
+							width := 50.0
+							height := info.Height() * (width / info.Width())
+							pdf.Image(imgName, pdf.GetX(), pdf.GetY(), width, height, false, "", 0, "")
+							pdf.Ln(height + 2)
+						}
+					}
+				}
+			}
+
+			// Описание
 			if place.Description != "" {
-				pdf.SetFont("Helvetica", "", 10)
+				if statErr == nil {
+					pdf.SetFont("PTSans", "", 10)
+				} else {
+					pdf.SetFont("Helvetica", "", 10)
+				}
 				desc := place.Description
 				if len(desc) > 200 {
 					desc = desc[:200] + "..."
@@ -441,13 +542,13 @@ func (s *tripService) ExportTripToPDF(ctx context.Context, tripID, userID uint64
 			pdf.Ln(2)
 		}
 	}
+
 	var pdfBuffer bytes.Buffer
 	if err := pdf.Output(&pdfBuffer); err != nil {
 		return nil, fmt.Errorf("failed to generate PDF: %w", err)
 	}
 	return pdfBuffer.Bytes(), nil
 }
-
 func (s *tripService) GetUserTripsWithRoles(ctx context.Context, userID uint64) ([]UserTripInfo, error) {
 	tripsWithRoles, err := s.tripRepo.GetUserTripsWithRoles(ctx, userID)
 	if err != nil {
