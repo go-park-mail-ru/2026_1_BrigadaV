@@ -143,16 +143,11 @@ func (r *TripRepo) AddAttraction(ctx context.Context, tripID, placeID uint64, or
 }
 
 func (r *TripRepo) GetAttractions(ctx context.Context, tripID uint64) ([]models.PlaceInTrip, error) {
-	logger.Debug(ctx, "getting attractions for trip", logrus.Fields{"trip_id": tripID})
 	query := `
-        SELECT p.id, p.name, p.description,
-               COALESCE(AVG(r.rating), 0) as rating,
-               p.photo_url
+        SELECT p.id, p.name, p.description, p.rating, p.photo_url
         FROM trip_attractions ta
         JOIN place p ON ta.place_id = p.id
-        LEFT JOIN review r ON r.place_id = p.id
         WHERE ta.trip_id = $1
-        GROUP BY p.id, p.name, p.description, p.photo_url, ta.order_index
         ORDER BY ta.order_index
     `
 	rows, err := r.db.Query(ctx, query, tripID)
@@ -230,12 +225,13 @@ type UserTripWithRole struct {
 
 // GetUserTripsWithRoles возвращает все поездки, где пользователь является участником, вместе с его ролью
 func (r *TripRepo) GetUserTripsWithRoles(ctx context.Context, userID uint64) ([]UserTripWithRole, error) {
-	logger.Debug(ctx, "getting user trips with roles", logrus.Fields{"user_id": userID})
 	query := `
-        SELECT t.id, t.title, t.description, t.location, t.start_date, t.end_date, t.preview_url, t.created_by, t.is_public, t.created_at, t.updated_at,
-               tm.role as role
+        SELECT t.id, t.title, t.description, t.location, t.start_date, t.end_date, t.preview_url,
+               t.created_by, t.is_public, t.created_at, t.updated_at,
+               COALESCE(tm.role, 'owner') as role
         FROM trip t
-        INNER JOIN trip_member tm ON t.id = tm.trip_id AND tm.user_id = $1
+        LEFT JOIN trip_member tm ON t.id = tm.trip_id AND tm.user_id = $1
+        WHERE t.created_by = $1 OR tm.user_id = $1
         ORDER BY t.created_at DESC
     `
 	rows, err := r.db.Query(ctx, query, userID)
