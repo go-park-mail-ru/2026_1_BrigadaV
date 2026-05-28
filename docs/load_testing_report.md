@@ -55,4 +55,4 @@
 
 ## Ссылки на изменения
 - Миграция: `migrations/0006_add_performance_indexes.sql`
-- Код: `trip_repo.go`, `place_repo.go` (ветка `feature/performance-optimization`)
+- Код: `trip_repo.go`, `place_repo.go` (ветка `dz4_db`)
