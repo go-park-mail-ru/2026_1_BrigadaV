@@ -16,6 +16,7 @@ type PlaceService interface {
 	IsPlaceInTrip(ctx context.Context, placeID, tripID uint64) (bool, error)
 	Search(ctx context.Context, query string, filter PlaceFilter) ([]models.Place, error)
 	FilterByReviewsAndRating(ctx context.Context, filter PlaceFilter) ([]models.Place, error)
+	GetPlacesByLocation(ctx context.Context, location string) ([]models.Place, error)
 }
 
 type ProfileService interface {
@@ -34,7 +35,6 @@ type TripService interface {
 	GetTripPlaceIDs(ctx context.Context, tripID uint64) ([]uint64, error)
 	AddPlaceToTrip(ctx context.Context, tripID, placeID, userID uint64, orderIndex int16) error
 	RemovePlaceFromTrip(ctx context.Context, tripID, placeID, userID uint64) error
-	GetRecommendedPlaces(ctx context.Context, tripID, userID uint64) ([]models.PlaceInTrip, error)
 
 	// Шеринг и участники
 	CreateViewShareLink(ctx context.Context, tripID, userID uint64) (string, error)

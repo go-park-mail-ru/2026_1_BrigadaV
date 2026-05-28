@@ -12,6 +12,7 @@ type PlaceResponse struct {
 	PhotoURL    string          `json:"photo_url"`
 	Price       int64           `json:"price"`
 	IsLiked     bool            `json:"is_liked"`
+	IsAdded     bool            `json:"is_added"`
 	Rating      float64         `json:"rating"`
 	ReviewCount int             `json:"reviewCount"`
 	Latitude    *float64        `json:"latitude,omitempty"`

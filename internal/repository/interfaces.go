@@ -35,6 +35,7 @@ type PlaceRepository interface {
 	Search(ctx context.Context, query string, filter PlaceFilter) ([]models.Place, error)
 	GetByCategory(ctx context.Context, categoryID uint64) ([]models.Place, error)
 	FilterByReviewsAndRating(ctx context.Context, filter PlaceFilter) ([]models.Place, error)
+	GetPlacesByLocation(ctx context.Context, location string) ([]models.Place, error)
 }
 
 // PlaceSearchRepository — интерфейс для полнотекстового поиска (ElasticSearch).
@@ -56,7 +57,6 @@ type TripRepository interface {
 	CheckPlaceInTrip(ctx context.Context, tripID, placeID uint64) (bool, error)
 	GetUserTripsWithRoles(ctx context.Context, userID uint64) ([]UserTripWithRole, error)
 	GetUserRoleForTrip(ctx context.Context, tripID, userID uint64) (string, error)
-	GetPlacesByLocation(ctx context.Context, location string) ([]models.PlaceInTrip, error)
 }
 
 type CategoryRepository interface {
