@@ -34,6 +34,7 @@ type TripService interface {
 	GetTripPlaceIDs(ctx context.Context, tripID uint64) ([]uint64, error)
 	AddPlaceToTrip(ctx context.Context, tripID, placeID, userID uint64, orderIndex int16) error
 	RemovePlaceFromTrip(ctx context.Context, tripID, placeID, userID uint64) error
+	GetRecommendedPlaces(ctx context.Context, tripID, userID uint64) ([]models.PlaceInTrip, error)
 
 	// Шеринг и участники
 	CreateViewShareLink(ctx context.Context, tripID, userID uint64) (string, error)

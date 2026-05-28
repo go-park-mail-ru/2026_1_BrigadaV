@@ -204,6 +204,7 @@ func main() {
 	protected.HandleFunc("/trips", tripHandler.List).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/trips/{id:[0-9]+}", tripHandler.GetDetails).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/trips/{id:[0-9]+}/places", tripHandler.GetTripPlaces).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/trips/{id:[0-9]+}/recommended-places", tripHandler.GetRecommendedPlaces).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/trips/{id:[0-9]+}/places/{placeId:[0-9]+}", tripHandler.RemovePlace).Methods("DELETE", "OPTIONS")
 	protected.HandleFunc("/trips/{tripID:[0-9]+}/album", albumHandler.GetByTrip).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/albums/{id:[0-9]+}/photos", albumHandler.GetPhotos).Methods("GET", "OPTIONS")
@@ -211,7 +212,7 @@ func main() {
 	protected.HandleFunc("/categories", categoryHandler.Create).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Update).Methods("PUT", "OPTIONS")
 	protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Delete).Methods("DELETE", "OPTIONS")
-  protected.HandleFunc("/trips/{id:[0-9]+}/export/pdf", tripHandler.ExportTripToPDF).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/trips/{id:[0-9]+}/export/pdf", tripHandler.ExportTripToPDF).Methods("GET", "OPTIONS")
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 

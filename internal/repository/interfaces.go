@@ -56,6 +56,7 @@ type TripRepository interface {
 	CheckPlaceInTrip(ctx context.Context, tripID, placeID uint64) (bool, error)
 	GetUserTripsWithRoles(ctx context.Context, userID uint64) ([]UserTripWithRole, error)
 	GetUserRoleForTrip(ctx context.Context, tripID, userID uint64) (string, error)
+	GetPlacesByLocation(ctx context.Context, location string) ([]models.PlaceInTrip, error)
 }
 
 type CategoryRepository interface {

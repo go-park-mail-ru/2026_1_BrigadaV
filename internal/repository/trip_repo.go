@@ -286,3 +286,36 @@ func (r *TripRepo) GetUserRoleForTrip(ctx context.Context, tripID, userID uint64
 	}
 	return role, nil
 }
+
+
+func (r *TripRepo) GetPlacesByLocation(ctx context.Context, location string) ([]models.PlaceInTrip, error) {
+	logger.Debug(ctx, "getting places by location", logrus.Fields{"location": location})
+
+	query := `
+        SELECT p.id, p.name, COALESCE(p.description, ''), COALESCE(p.rating, 0), COALESCE(p.photo_url, '')
+        FROM place p
+        LEFT JOIN locality l ON p.locality_id = l.id
+        LEFT JOIN country c ON l.country_id = c.id
+        WHERE l.name = $1 OR c.name = $1
+        ORDER BY p.rating DESC
+    `
+	rows, err := r.db.Query(ctx, query, location)
+	if err != nil {
+		logger.Error(ctx, "failed to get places by location", logrus.Fields{"error": err})
+		return nil, err
+	}
+	defer rows.Close()
+
+	var places []models.PlaceInTrip
+	for rows.Next() {
+		var pl models.PlaceInTrip
+		if err := rows.Scan(&pl.ID, &pl.Name, &pl.Description, &pl.Rating, &pl.PhotoURL); err != nil {
+			logger.Error(ctx, "failed to scan place", logrus.Fields{"error": err})
+			return nil, err
+		}
+		places = append(places, pl)
+	}
+
+	logger.Debug(ctx, "places retrieved by location", logrus.Fields{"count": len(places)})
+	return places, nil
+}

@@ -573,3 +573,30 @@ func (s *tripService) GetTripDetailsWithRole(ctx context.Context, tripID, userID
 	}
 	return trip, places, role, nil
 }
+
+func (s *tripService) GetRecommendedPlaces(ctx context.Context, tripID, userID uint64) ([]models.PlaceInTrip, error) {
+	ok, err := s.memberRepo.HasViewPermission(ctx, tripID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		trip, err := s.tripRepo.GetByID(ctx, tripID)
+		if err != nil || trip == nil || trip.CreatedBy != userID {
+			return nil, errors.New("access denied")
+		}
+	}
+
+	trip, err := s.tripRepo.GetByID(ctx, tripID)
+	if err != nil {
+		return nil, err
+	}
+	if trip == nil {
+		return nil, errors.New("trip not found")
+	}
+
+	if trip.Location == nil || *trip.Location == "" {
+		return []models.PlaceInTrip{}, nil
+	}
+
+	return s.tripRepo.GetPlacesByLocation(ctx, *trip.Location)
+}

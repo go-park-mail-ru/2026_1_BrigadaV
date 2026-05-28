@@ -486,3 +486,40 @@ func (h *TripHandler) JoinViewShareAPI(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, &dto.TripIDResponse{TripID: tripID})
 }
+
+
+func (h *TripHandler) GetRecommendedPlaces(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserIDFromContext(r)
+	if userID == 0 {
+		writeJSON(w, http.StatusUnauthorized, &dto.ErrorResponse{Error: "unauthorized"})
+		return
+	}
+
+	vars := mux.Vars(r)
+	tripID, err := strconv.ParseUint(vars["id"], 10, 64)
+	if err != nil {
+		logger.Error(r.Context(), "Invalid trip id in GetRecommendedPlaces", logrus.Fields{"id": vars["id"], "error": err})
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid trip id"})
+		return
+	}
+
+	places, err := h.tripService.GetRecommendedPlaces(r.Context(), tripID, userID)
+	if err != nil {
+		logger.Error(r.Context(), "GetRecommendedPlaces failed", logrus.Fields{"error": err, "trip_id": tripID})
+		if err.Error() == "access denied" {
+			writeJSON(w, http.StatusForbidden, &dto.ErrorResponse{Error: "forbidden"})
+			return
+		}
+		if err.Error() == "trip not found" {
+			writeJSON(w, http.StatusNotFound, &dto.ErrorResponse{Error: "trip not found"})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, &dto.ErrorResponse{Error: "internal error"})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(places); err != nil {
+		logger.Error(r.Context(), "json encode error", logrus.Fields{"error": err})
+	}
+}
