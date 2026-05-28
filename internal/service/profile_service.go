@@ -6,6 +6,8 @@ import (
 
 	"guidely-app/internal/repository"
 	"guidely-app/pkg/models"
+
+	"github.com/jackc/pgx/v5"
 )
 
 type UpdateProfileInput struct {
@@ -63,16 +65,60 @@ func (s *profileServiceImpl) UpdateProfile(ctx context.Context, userID uint64, i
 	return user, nil
 }
 
+// UpdateAvatar – обновляет аватар пользователя с использованием транзакции и блокировки строки
 func (s *profileServiceImpl) UpdateAvatar(ctx context.Context, userID uint64, avatarURL string) (*models.User, error) {
-	user, err := s.userRepo.GetByID(ctx, userID)
+	// Получаем адаптер, который реализует интерфейс DB с Begin
+	dbAdapter, ok := s.userRepo.(interface {
+		Begin(ctx context.Context) (pgx.Tx, error)
+	})
+	if !ok {
+		// fallback на старую логику, если Begin не поддерживается (для тестов)
+		user, err := s.userRepo.GetByID(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		if user == nil {
+			return nil, errors.New("user not found")
+		}
+		user.AvatarURL = avatarURL
+		if err := s.userRepo.Update(ctx, user); err != nil {
+			return nil, err
+		}
+		return user, nil
+	}
+
+	tx, err := dbAdapter.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
+	}()
+
+	// Получаем пользователя с блокировкой строки
+	user, err := s.userRepo.(interface {
+		GetByIDForUpdate(ctx context.Context, tx pgx.Tx, id uint64) (*models.User, error)
+	}).GetByIDForUpdate(ctx, tx, userID)
 	if err != nil {
 		return nil, err
 	}
 	if user == nil {
 		return nil, errors.New("user not found")
 	}
+
+	// Обновляем аватар
 	user.AvatarURL = avatarURL
-	if err := s.userRepo.Update(ctx, user); err != nil {
+
+	// Обновляем в БД в рамках транзакции
+	if err := s.userRepo.(interface {
+		UpdateWithTx(ctx context.Context, tx pgx.Tx, user *models.User) error
+	}).UpdateWithTx(ctx, tx, user); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
 	return user, nil

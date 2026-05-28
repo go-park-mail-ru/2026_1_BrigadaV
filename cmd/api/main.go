@@ -184,6 +184,7 @@ func main() {
 	authOnly.HandleFunc("/logout", authHandler.Logout).Methods("POST", "OPTIONS")
 	authOnly.HandleFunc("/reviews", reviewHandler.Create).Methods("POST", "OPTIONS")
 	authOnly.HandleFunc("/reviews/{id:[0-9]+}", reviewHandler.Delete).Methods("DELETE", "OPTIONS")
+	authOnly.HandleFunc("/reviews/check", reviewHandler.CheckUserReview).Methods("GET", "OPTIONS")
 	authOnly.HandleFunc("/trips/{id:[0-9]+}/places", tripHandler.AddPlace).Methods("POST", "OPTIONS")
 	authOnly.HandleFunc("/trips/{id:[0-9]+}", tripHandler.Update).Methods("PUT", "OPTIONS")
 	authOnly.HandleFunc("/trips/{id:[0-9]+}", tripHandler.Delete).Methods("DELETE", "OPTIONS")
@@ -211,7 +212,7 @@ func main() {
 	protected.HandleFunc("/categories", categoryHandler.Create).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Update).Methods("PUT", "OPTIONS")
 	protected.HandleFunc("/categories/{id:[0-9]+}", categoryHandler.Delete).Methods("DELETE", "OPTIONS")
-  protected.HandleFunc("/trips/{id:[0-9]+}/export/pdf", tripHandler.ExportTripToPDF).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/trips/{id:[0-9]+}/export/pdf", tripHandler.ExportTripToPDF).Methods("GET", "OPTIONS")
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 

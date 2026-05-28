@@ -13,6 +13,7 @@ type ReviewService interface {
 	Create(ctx context.Context, input CreateReviewInput) (*models.Review, error)
 	Delete(ctx context.Context, userID, reviewID uint64) error
 	GetByPlaceIDWithAuthor(ctx context.Context, placeID uint64) ([]models.ReviewWithAuthor, error)
+	CheckUserReview(ctx context.Context, userID, placeID uint64) (bool, error)
 }
 
 type CreateReviewInput struct {
@@ -63,4 +64,8 @@ func (s *reviewServiceImpl) Delete(ctx context.Context, userID, reviewID uint64)
 
 func (s *reviewServiceImpl) GetByPlaceIDWithAuthor(ctx context.Context, placeID uint64) ([]models.ReviewWithAuthor, error) {
 	return s.repo.GetByPlaceIDWithAuthor(ctx, placeID)
+}
+
+func (s *reviewServiceImpl) CheckUserReview(ctx context.Context, userID, placeID uint64) (bool, error) {
+	return s.repo.ExistsByUserAndPlace(ctx, userID, placeID)
 }
