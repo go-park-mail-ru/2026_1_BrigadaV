@@ -591,6 +591,8 @@ func easyjson700d804fDecodeGuidelyAppInternalDto6(in *jlexer.Lexer, out *PlaceRe
 			out.Price = int64(in.Int64())
 		case "is_liked":
 			out.IsLiked = bool(in.Bool())
+		case "is_added":
+			out.IsAdded = bool(in.Bool())
 		case "rating":
 			out.Rating = float64(in.Float64())
 		case "reviewCount":
@@ -701,6 +703,11 @@ func easyjson700d804fEncodeGuidelyAppInternalDto6(out *jwriter.Writer, in PlaceR
 		const prefix string = ",\"is_liked\":"
 		out.RawString(prefix)
 		out.Bool(bool(in.IsLiked))
+	}
+	{
+		const prefix string = ",\"is_added\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.IsAdded))
 	}
 	{
 		const prefix string = ",\"rating\":"
