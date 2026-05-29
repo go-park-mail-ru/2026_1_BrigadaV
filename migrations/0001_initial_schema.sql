@@ -305,42 +305,42 @@ INSERT INTO locality (name, country_id, latitude, longitude) VALUES
 ON CONFLICT (name, country_id) DO NOTHING;
 
 INSERT INTO place (name, description, photo_url, type, locality_id, category_id, price, latitude, longitude) VALUES
-    ('Hotel Estalagem St Hubertus', 'Очаровательный отель в Грамаду', '/mock/place/rcmd1.png', 'hotel', (SELECT id FROM locality WHERE name = 'Грамаду'), (SELECT id FROM category WHERE name = 'Отель'), 2370000, -29.39576, -50.87427),
-    ('Hotel Ritta Höppner', 'Уютный отель в Грамаду', '/mock/place/rcmd2.png', 'hotel', (SELECT id FROM locality WHERE name = 'Грамаду'), (SELECT id FROM category WHERE name = 'Отель'), 1138100, -29.3846, -50.87542),
-    ('Rodin Musée', 'Музей, посвящённый Огюсту Родену', '/mock/place/rcmd3.png', 'attraction', (SELECT id FROM locality WHERE name = 'Париж'), (SELECT id FROM category WHERE name = 'Музей'), 126900, 48.855133, 2.315818),
-    ('Roman Forum', 'Древний римский форум', '/mock/place/rcmd4.png', 'attraction', (SELECT id FROM locality WHERE name = 'Рим'), (SELECT id FROM category WHERE name = 'Историческое место'), 126900, 41.89241, 12.48568),
-    ('Basílica de Santa María del Pi', 'Готическая церковь в Барселоне', '/mock/place/rcmd5.png', 'attraction', (SELECT id FROM locality WHERE name = 'Барселона'), (SELECT id FROM category WHERE name = 'Историческое место'), 199400, 41.38224, 2.17391),
-    ('De Hallen Amsterdam', 'Культурный комплекс в Амстердаме', '/mock/place/rcmd6.png', 'attraction', (SELECT id FROM locality WHERE name = 'Амстердам'), (SELECT id FROM category WHERE name = 'Музей'), 3398800, 52.36720, 4.86809),
-    ('Amnaya Resort Kuta', 'Курорт на Бали', '/mock/place/rcmd7.png', 'hotel', (SELECT id FROM locality WHERE name = 'Бали'), (SELECT id FROM category WHERE name = 'Курорт'), 584400, -8.729775, 115.170005),
-    ('Plaça Reial', 'Историческая площадь в Барселоне', '/mock/place/rcmd8.png', 'attraction', (SELECT id FROM locality WHERE name = 'Барселона'), (SELECT id FROM category WHERE name = 'Площадь'), 1236900, 41.380192, 2.175515),
-    ('Пирамиды Гизы', 'Комплекс древних памятников на плато Гиза в пригороде Каира', '/mock/place/egypt_pyramids.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Гиза'), (SELECT id FROM category WHERE name = 'Историческое место'), 150000, 29.9792458, 31.134269),
-    ('Большой сфинкс', 'Древнейшая сохранившаяся на Земле монументальная скульптура', '/mock/place/egypt_sphinx.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Гиза'), (SELECT id FROM category WHERE name = 'Историческое место'), 0, 29.97526, 31.13758),
-    ('Храм Хатшепсут', 'заупокойный храм правительницы из XVIII династии Хатшепсут', '/mock/place/egypt_hatshepsut.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Гиза'), (SELECT id FROM category WHERE name = 'Историческое место'), 70000, 25.738278, 32.606583),
-    ('Анакопийская крепость', 'Древнее оборонительное сооружение VII века', '/mock/place/abkhazia_anakopia.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Гагра'), (SELECT id FROM category WHERE name = 'Историческое место'), 20000, 43.09451, 40.80822),
-    ('Сухумский ботанический сад', 'Один из старейших ботанических садов на Кавказе', '/mock/place/abkhazia_botsad.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Сухум'), (SELECT id FROM category WHERE name = 'Музей'), 40000, 43.00611, 41.02361),
-    ('Замок принца Ольденбургского', 'Летняя резиденция принца Александра Ольденбургского', '/mock/place/abkhazia_oldenburg.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Гагра'), (SELECT id FROM category WHERE name = 'Историческое место'), 15000, 43.3257, 40.2249),
-    ('Московский Кремль', 'Крепость в центре Москвы и древнейшая её часть', '/mock/place/russia_kremlin.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Москва'), (SELECT id FROM category WHERE name = 'Историческое место'), 0, 55.75167, 37.61778),
-    ('Большой театр', 'Один из крупнейших и самых значимых в мире театров оперы и балета', '/mock/place/russia_bolshoi.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Москва'), (SELECT id FROM category WHERE name = 'Музей'), 120000, 55.76028, 37.61861),
-    ('Третьяковская галерея', 'Крупнейший в мире музей национального русского искусства', '/mock/place/russia_tretyakov.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Москва'), (SELECT id FROM category WHERE name = 'Музей'), 25000, 55.741365, 37.620162),
-    ('Московский зоопарк', 'Зоологический парк в центре Москвы', '/mock/place/russia_zoo.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Москва'), (SELECT id FROM category WHERE name = 'Музей'), 100000, 55.76194, 37.57722),
-    ('Петропавловская крепость', 'Крепость в Санкт-Петербурге, историческое ядро города', '/mock/place/russia_petropavlovka.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Санкт-Петербург'), (SELECT id FROM category WHERE name = 'Историческое место'), 50000, 59.95003, 30.31742),
-    ('Государственный Эрмитаж', 'Один из крупнейших художественных музеев мира', '/mock/place/russia_hermitage.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Санкт-Петербург'), (SELECT id FROM category WHERE name = 'Музей'), 80000, 59.94056, 30.31361),
-    ('Стоунхендж', 'Один из самых знаменитых археологических памятников в мире', '/mock/place/england_stonehenge.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Лондон'), (SELECT id FROM category WHERE name = 'Историческое место'), 256000, 51.17889, -1.82611),
-    ('Лондонский Тауэр', 'Музей с богатой коллекцией и оружейная палата', '/mock/place/england_tower.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Лондон'), (SELECT id FROM category WHERE name = 'Музей'), 344000, 51.50806, -0.07611),
-    ('Букингемский дворец', 'Официальная лондонская резиденция британских монархов', '/mock/place/england_buckingham.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Лондон'), (SELECT id FROM category WHERE name = 'Историческое место'), 256000, 51.50121, -0.141546),
-    ('Хэмптон-Корт', 'Загородный дворец английских королей в окрестностях Лондона', '/mock/place/england_hampton.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Лондон'), (SELECT id FROM category WHERE name = 'Историческое место'), 163800, 51.403473, -0.337544)
+    ('Отель «Estalagem St Hubertus»', 'Очаровательный отель в Грамаду', '/static/brazil_stalagem_st_hubertus.png', 'hotel', (SELECT id FROM locality WHERE name = 'Грамаду'), (SELECT id FROM category WHERE name = 'Отель'), 2370000, -29.39576, -50.87427),
+    ('Отель «Ritta Höppner»', 'Уютный отель в Грамаду', '/static/brazil_ritta_hoppner.png', 'hotel', (SELECT id FROM locality WHERE name = 'Грамаду'), (SELECT id FROM category WHERE name = 'Отель'), 1138100, -29.3846, -50.87542),
+    ('Музей Родена', 'Музей, посвящённый Огюсту Родену', '/static/france_rodin_museum.png', 'attraction', (SELECT id FROM locality WHERE name = 'Париж'), (SELECT id FROM category WHERE name = 'Музей'), 126900, 48.855133, 2.315818),
+    ('Римский форум', 'Древний римский форум', '/static/italy_roman_forum.png', 'attraction', (SELECT id FROM locality WHERE name = 'Рим'), (SELECT id FROM category WHERE name = 'Историческое место'), 126900, 41.89241, 12.48568),
+    ('Базилика Санта-Мария-дель-Пи', 'Готическая церковь в Барселоне', '/static/spain_santa_maria_del_pi.png', 'attraction', (SELECT id FROM locality WHERE name = 'Барселона'), (SELECT id FROM category WHERE name = 'Историческое место'), 199400, 41.38224, 2.17391),
+    ('Де Халлен Амстердам', 'Культурный комплекс в Амстердаме', '/static/netherlands_de_hallen_amsterdam.png', 'attraction', (SELECT id FROM locality WHERE name = 'Амстердам'), (SELECT id FROM category WHERE name = 'Музей'), 3398800, 52.36720, 4.86809),
+    ('Курортный отель «Amnaya Kuta»', 'Курорт на Бали', '/static/indonesia_amnaya_resort_kuta.png', 'hotel', (SELECT id FROM locality WHERE name = 'Бали'), (SELECT id FROM category WHERE name = 'Курорт'), 584400, -8.729775, 115.170005),
+    ('Королевская площадь', 'Историческая площадь в Барселоне', '/static/spain_placa_reial.png', 'attraction', (SELECT id FROM locality WHERE name = 'Барселона'), (SELECT id FROM category WHERE name = 'Площадь'), 1236900, 41.380192, 2.175515),
+    ('Пирамиды Гизы', 'Комплекс древних памятников на плато Гиза в пригороде Каира', '/static/egypt_pyramids.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Гиза'), (SELECT id FROM category WHERE name = 'Историческое место'), 150000, 29.9792458, 31.134269),
+    ('Большой сфинкс', 'Древнейшая сохранившаяся на Земле монументальная скульптура', '/static/egypt_sphinx.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Гиза'), (SELECT id FROM category WHERE name = 'Историческое место'), 0, 29.97526, 31.13758),
+    ('Храм Хатшепсут', 'заупокойный храм правительницы из XVIII династии Хатшепсут', '/static/egypt_hatshepsut.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Гиза'), (SELECT id FROM category WHERE name = 'Историческое место'), 70000, 25.738278, 32.606583),
+    ('Анакопийская крепость', 'Древнее оборонительное сооружение VII века', '/static/abkhazia_anakopia.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Гагра'), (SELECT id FROM category WHERE name = 'Историческое место'), 20000, 43.09451, 40.80822),
+    ('Сухумский ботанический сад', 'Один из старейших ботанических садов на Кавказе', '/static/abkhazia_botsad.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Сухум'), (SELECT id FROM category WHERE name = 'Музей'), 40000, 43.00611, 41.02361),
+    ('Замок принца Ольденбургского', 'Летняя резиденция принца Александра Ольденбургского', '/static/abkhazia_oldenburg.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Гагра'), (SELECT id FROM category WHERE name = 'Историческое место'), 15000, 43.3257, 40.2249),
+    ('Московский Кремль', 'Крепость в центре Москвы и древнейшая её часть', '/static/russia_kremlin.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Москва'), (SELECT id FROM category WHERE name = 'Историческое место'), 0, 55.75167, 37.61778),
+    ('Большой театр', 'Один из крупнейших и самых значимых в мире театров оперы и балета', '/static/russia_bolshoi.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Москва'), (SELECT id FROM category WHERE name = 'Музей'), 120000, 55.76028, 37.61861),
+    ('Третьяковская галерея', 'Крупнейший в мире музей национального русского искусства', '/static/russia_tretyakov.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Москва'), (SELECT id FROM category WHERE name = 'Музей'), 25000, 55.741365, 37.620162),
+    ('Московский зоопарк', 'Зоологический парк в центре Москвы', '/static/russia_zoo.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Москва'), (SELECT id FROM category WHERE name = 'Музей'), 100000, 55.76194, 37.57722),
+    ('Петропавловская крепость', 'Крепость в Санкт-Петербурге, историческое ядро города', '/static/russia_petropavlovka.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Санкт-Петербург'), (SELECT id FROM category WHERE name = 'Историческое место'), 50000, 59.95003, 30.31742),
+    ('Государственный Эрмитаж', 'Один из крупнейших художественных музеев мира', '/static/russia_hermitage.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Санкт-Петербург'), (SELECT id FROM category WHERE name = 'Музей'), 80000, 59.94056, 30.31361),
+    ('Стоунхендж', 'Один из самых знаменитых археологических памятников в мире', '/static/england_stonehenge.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Лондон'), (SELECT id FROM category WHERE name = 'Историческое место'), 256000, 51.17889, -1.82611),
+    ('Лондонский Тауэр', 'Музей с богатой коллекцией и оружейная палата', '/static/england_tower.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Лондон'), (SELECT id FROM category WHERE name = 'Музей'), 344000, 51.50806, -0.07611),
+    ('Букингемский дворец', 'Официальная лондонская резиденция британских монархов', '/static/england_buckingham.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Лондон'), (SELECT id FROM category WHERE name = 'Историческое место'), 256000, 51.50121, -0.141546),
+    ('Хэмптон-Корт', 'Загородный дворец английских королей в окрестностях Лондона', '/static/england_hampton.jpg', 'attraction', (SELECT id FROM locality WHERE name = 'Лондон'), (SELECT id FROM category WHERE name = 'Историческое место'), 163800, 51.403473, -0.337544)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO photo (file_path) VALUES
-    ('/mock/place/rcmd1.png'), ('/mock/place/rcmd2.png'), ('/mock/place/rcmd3.png'),
-    ('/mock/place/rcmd4.png'), ('/mock/place/rcmd5.png'), ('/mock/place/rcmd6.png'),
-    ('/mock/place/rcmd7.png'), ('/mock/place/rcmd8.png'),
-    ('/mock/place/egypt_pyramids.jpg'), ('/mock/place/egypt_sphinx.jpg'), ('/mock/place/egypt_hatshepsut.jpg'),
-    ('/mock/place/abkhazia_anakopia.jpg'), ('/mock/place/abkhazia_botsad.jpg'), ('/mock/place/abkhazia_oldenburg.jpg'),
-    ('/mock/place/russia_kremlin.jpg'), ('/mock/place/russia_bolshoi.jpg'), ('/mock/place/russia_tretyakov.jpg'),
-    ('/mock/place/russia_zoo.jpg'), ('/mock/place/russia_petropavlovka.jpg'), ('/mock/place/russia_hermitage.jpg'),
-    ('/mock/place/england_stonehenge.jpg'), ('/mock/place/england_tower.jpg'), ('/mock/place/england_buckingham.jpg'),
-    ('/mock/place/england_hampton.jpg')
+    ('/static/brazil_stalagem_st_hubertus.png'), ('/static/brazil_ritta_hoppner.png'), ('/static/france_rodin_museum.png'),
+    ('/static/italy_roman_forum.png'), ('/static/spain_santa_maria_del_pi.png'), ('/static/netherlands_de_hallen_amsterdam.png'),
+    ('/static/indonesia_amnaya_resort_kuta.png'), ('/static/spain_placa_reial.png'),
+    ('/static/egypt_pyramids.jpg'), ('/static/egypt_sphinx.jpg'), ('/static/egypt_hatshepsut.jpg'),
+    ('/static/abkhazia_anakopia.jpg'), ('/static/abkhazia_botsad.jpg'), ('/static/abkhazia_oldenburg.jpg'),
+    ('/static/russia_kremlin.jpg'), ('/static/russia_bolshoi.jpg'), ('/static/russia_tretyakov.jpg'),
+    ('/static/russia_zoo.jpg'), ('/static/russia_petropavlovka.jpg'), ('/static/russia_hermitage.jpg'),
+    ('/static/england_stonehenge.jpg'), ('/static/england_tower.jpg'), ('/static/england_buckingham.jpg'),
+    ('/static/england_hampton.jpg')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO place_photo (place_id, photo_id, is_main)
@@ -348,11 +348,6 @@ SELECT p.id, ph.id, true
 FROM place p
 JOIN photo ph ON p.photo_url = ph.file_path
 ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO "user" (login, nickname, avatar_url, password_hash) VALUES
-    ('john@example.com', 'johnny', '/mock/user-avatar/john.jpg', 'argon2id$v=19$m=65536,t=1,p=4$LFU4f51KpaFJ85VzwIXZ2Q$NjKqQ4SfxdTnOJz22q+B8sYtNiTcOA4eozfj7mNJtnY'),
-    ('jane@example.com', 'jane', '/mock/user-avatar/jane.jpg', 'argon2id$v=19$m=65536,t=1,p=4$LFU4f51KpaFJ85VzwIXZ2Q$NjKqQ4SfxdTnOJz22q+B8sYtNiTcOA4eozfj7mNJtnY')
-ON CONFLICT (nickname) DO NOTHING;
 
 -- +goose StatementEnd
 
