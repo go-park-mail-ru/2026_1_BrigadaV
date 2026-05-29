@@ -65,7 +65,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie := &http.Cookie{
+	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
 		Value:    loginResp.Token,
 		MaxAge:   7 * 24 * 60 * 60,
@@ -74,11 +74,8 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Secure:   h.cfg.SecureCookies,
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
-	}
-	if h.cfg.CookieDomain != "" {
-		cookie.Domain = h.cfg.CookieDomain
-	}
-	http.SetCookie(w, cookie)
+		Domain:   h.cfg.CookieDomain,
+	})
 
 	response := dto.LoginResponse{
 		UserID:    loginResp.UserId,
@@ -119,7 +116,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie := &http.Cookie{
+	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
 		Value:    resp.Token,
 		MaxAge:   7 * 24 * 60 * 60,
@@ -128,11 +125,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Secure:   h.cfg.SecureCookies,
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
-	}
-	if h.cfg.CookieDomain != "" {
-		cookie.Domain = h.cfg.CookieDomain
-	}
-	http.SetCookie(w, cookie)
+		Domain:   h.cfg.CookieDomain,
+	})
 
 	response := dto.LoginResponse{
 		UserID:    resp.UserId,
