@@ -10,4 +10,5 @@ type ReviewRepository interface {
 	GetByID(ctx context.Context, id uint64) (*models.Review, error)
 	GetByPlaceIDWithAuthor(ctx context.Context, placeID uint64) ([]models.ReviewWithAuthor, error)
 	Delete(ctx context.Context, id uint64) error
+	ExistsByUserAndPlace(ctx context.Context, userID, placeID uint64) (bool, error)
 }

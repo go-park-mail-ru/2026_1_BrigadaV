@@ -63,6 +63,21 @@ func (mr *MockReviewRepositoryMockRecorder) Delete(arg0, arg1 interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockReviewRepository)(nil).Delete), arg0, arg1)
 }
 
+// ExistsByUserAndPlace mocks base method.
+func (m *MockReviewRepository) ExistsByUserAndPlace(arg0 context.Context, arg1, arg2 uint64) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ExistsByUserAndPlace", arg0, arg1, arg2)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ExistsByUserAndPlace indicates an expected call of ExistsByUserAndPlace.
+func (mr *MockReviewRepositoryMockRecorder) ExistsByUserAndPlace(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExistsByUserAndPlace", reflect.TypeOf((*MockReviewRepository)(nil).ExistsByUserAndPlace), arg0, arg1, arg2)
+}
+
 // GetByID mocks base method.
 func (m *MockReviewRepository) GetByID(arg0 context.Context, arg1 uint64) (*models.Review, error) {
 	m.ctrl.T.Helper()

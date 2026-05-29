@@ -2,12 +2,13 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             v7.34.1
-// source: review.proto
+// source: proto/review.proto
 
 package review
 
 import (
 	context "context"
+
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -23,6 +24,7 @@ const (
 	ReviewService_CreateReview_FullMethodName      = "/review.ReviewService/CreateReview"
 	ReviewService_DeleteReview_FullMethodName      = "/review.ReviewService/DeleteReview"
 	ReviewService_GetReviewsByPlace_FullMethodName = "/review.ReviewService/GetReviewsByPlace"
+	ReviewService_CheckUserReview_FullMethodName   = "/review.ReviewService/CheckUserReview"
 )
 
 // ReviewServiceClient is the client API for ReviewService service.
@@ -32,6 +34,7 @@ type ReviewServiceClient interface {
 	CreateReview(ctx context.Context, in *CreateReviewRequest, opts ...grpc.CallOption) (*ReviewResponse, error)
 	DeleteReview(ctx context.Context, in *DeleteReviewRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	GetReviewsByPlace(ctx context.Context, in *GetReviewsByPlaceRequest, opts ...grpc.CallOption) (*GetReviewsByPlaceResponse, error)
+	CheckUserReview(ctx context.Context, in *CheckUserReviewRequest, opts ...grpc.CallOption) (*CheckUserReviewResponse, error)
 }
 
 type reviewServiceClient struct {
@@ -72,6 +75,16 @@ func (c *reviewServiceClient) GetReviewsByPlace(ctx context.Context, in *GetRevi
 	return out, nil
 }
 
+func (c *reviewServiceClient) CheckUserReview(ctx context.Context, in *CheckUserReviewRequest, opts ...grpc.CallOption) (*CheckUserReviewResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CheckUserReviewResponse)
+	err := c.cc.Invoke(ctx, ReviewService_CheckUserReview_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ReviewServiceServer is the server API for ReviewService service.
 // All implementations must embed UnimplementedReviewServiceServer
 // for forward compatibility.
@@ -79,6 +92,7 @@ type ReviewServiceServer interface {
 	CreateReview(context.Context, *CreateReviewRequest) (*ReviewResponse, error)
 	DeleteReview(context.Context, *DeleteReviewRequest) (*emptypb.Empty, error)
 	GetReviewsByPlace(context.Context, *GetReviewsByPlaceRequest) (*GetReviewsByPlaceResponse, error)
+	CheckUserReview(context.Context, *CheckUserReviewRequest) (*CheckUserReviewResponse, error)
 	mustEmbedUnimplementedReviewServiceServer()
 }
 
@@ -97,6 +111,9 @@ func (UnimplementedReviewServiceServer) DeleteReview(context.Context, *DeleteRev
 }
 func (UnimplementedReviewServiceServer) GetReviewsByPlace(context.Context, *GetReviewsByPlaceRequest) (*GetReviewsByPlaceResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetReviewsByPlace not implemented")
+}
+func (UnimplementedReviewServiceServer) CheckUserReview(context.Context, *CheckUserReviewRequest) (*CheckUserReviewResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CheckUserReview not implemented")
 }
 func (UnimplementedReviewServiceServer) mustEmbedUnimplementedReviewServiceServer() {}
 func (UnimplementedReviewServiceServer) testEmbeddedByValue()                       {}
@@ -173,6 +190,24 @@ func _ReviewService_GetReviewsByPlace_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ReviewService_CheckUserReview_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CheckUserReviewRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ReviewServiceServer).CheckUserReview(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ReviewService_CheckUserReview_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ReviewServiceServer).CheckUserReview(ctx, req.(*CheckUserReviewRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ReviewService_ServiceDesc is the grpc.ServiceDesc for ReviewService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -192,7 +227,11 @@ var ReviewService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "GetReviewsByPlace",
 			Handler:    _ReviewService_GetReviewsByPlace_Handler,
 		},
+		{
+			MethodName: "CheckUserReview",
+			Handler:    _ReviewService_CheckUserReview_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "review.proto",
+	Metadata: "proto/review.proto",
 }
