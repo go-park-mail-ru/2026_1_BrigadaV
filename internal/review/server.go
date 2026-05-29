@@ -117,3 +117,11 @@ func (s *Server) GetReviewsByPlace(ctx context.Context, req *pb.GetReviewsByPlac
 		Reviews: toReviewWithAuthorMessages(reviews),
 	}, nil
 }
+
+func (s *Server) CheckUserReview(ctx context.Context, req *pb.CheckUserReviewRequest) (*pb.CheckUserReviewResponse, error) {
+	exists, err := s.svc.CheckUserReview(ctx, req.UserId, req.PlaceId)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &pb.CheckUserReviewResponse{Exists: exists}, nil
+}

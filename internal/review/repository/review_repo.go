@@ -71,3 +71,16 @@ func (r *ReviewRepo) Delete(ctx context.Context, id uint64) error {
 	_, err := r.db.Exec(ctx, `DELETE FROM review WHERE id = $1`, id)
 	return err
 }
+
+// ExistsByUserAndPlace проверяет, существует ли отзыв пользователя на указанное место
+func (r *ReviewRepo) ExistsByUserAndPlace(ctx context.Context, userID, placeID uint64) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM review WHERE user_id = $1 AND place_id = $2)`,
+		userID, placeID,
+	).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}

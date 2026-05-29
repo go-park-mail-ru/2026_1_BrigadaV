@@ -10,3 +10,8 @@ type CreateReviewRequest struct {
 	Content   string  `json:"content"`
 	VisitDate *string `json:"visit_date,omitempty"`
 }
+
+//easyjson:json
+type CheckUserReviewResponse struct {
+	Exists bool `json:"exists"`
+}

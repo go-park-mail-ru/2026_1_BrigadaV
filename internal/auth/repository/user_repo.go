@@ -76,6 +76,22 @@ func (r *UserRepo) GetByID(ctx context.Context, id uint64) (*models.User, error)
 	return &user, err
 }
 
+// GetByIDForUpdate – получает пользователя с блокировкой строки для последующего обновления
+func (r *UserRepo) GetByIDForUpdate(ctx context.Context, tx pgx.Tx, id uint64) (*models.User, error) {
+	query := `SELECT id, login, nickname, avatar_url, password_hash, yandex_id, country, city, about, has_reviews, role, created_at, updated_at
+	          FROM "user" WHERE id = $1 FOR UPDATE`
+	var user models.User
+	err := tx.QueryRow(ctx, query, id).Scan(
+		&user.ID, &user.Login, &user.Nickname, &user.AvatarURL, &user.PasswordHash, &user.YandexID,
+		&user.Country, &user.City, &user.About, &user.HasReviews, &user.Role,
+		&user.CreatedAt, &user.UpdatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	return &user, err
+}
+
 func (r *UserRepo) GetByYandexID(ctx context.Context, yandexID string) (*models.User, error) {
 	query := `SELECT id, login, nickname, avatar_url, password_hash, yandex_id, country, city, about, has_reviews, role, created_at, updated_at
 	          FROM "user" WHERE yandex_id = $1`
@@ -95,5 +111,13 @@ func (r *UserRepo) Update(ctx context.Context, user *models.User) error {
 	query := `UPDATE "user" SET login=$1, nickname=$2, avatar_url=$3, country=$4, city=$5, about=$6, has_reviews=$7, role=$8, updated_at=NOW()
 	          WHERE id=$9 RETURNING updated_at`
 	return r.db.QueryRow(ctx, query, user.Login, user.Nickname, user.AvatarURL,
+		user.Country, user.City, user.About, user.HasReviews, user.Role, user.ID).Scan(&user.UpdatedAt)
+}
+
+// UpdateWithTx – обновление пользователя в рамках переданной транзакции
+func (r *UserRepo) UpdateWithTx(ctx context.Context, tx pgx.Tx, user *models.User) error {
+	query := `UPDATE "user" SET login=$1, nickname=$2, avatar_url=$3, country=$4, city=$5, about=$6, has_reviews=$7, role=$8, updated_at=NOW()
+	          WHERE id=$9 RETURNING updated_at`
+	return tx.QueryRow(ctx, query, user.Login, user.Nickname, user.AvatarURL,
 		user.Country, user.City, user.About, user.HasReviews, user.Role, user.ID).Scan(&user.UpdatedAt)
 }

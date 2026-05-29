@@ -278,8 +278,8 @@ func (r *PlaceRepo) GetByCategory(ctx context.Context, categoryID uint64) ([]mod
 
 func (r *PlaceRepo) FilterByReviewsAndRating(ctx context.Context, filter PlaceFilter) ([]models.Place, error) {
 	logger.Debug(ctx, "filtering places by reviews and rating", logrus.Fields{
-		"min_rating":   filter.MinRating,
-		"min_reviews":  filter.MinReviews,
+		"min_rating":  filter.MinRating,
+		"min_reviews": filter.MinReviews,
 	})
 
 	args := []any{}
@@ -287,13 +287,12 @@ func (r *PlaceRepo) FilterByReviewsAndRating(ctx context.Context, filter PlaceFi
 	var conditions []string
 	if filter.MinRating > 0 {
 		args = append(args, filter.MinRating)
-		conditions = append(conditions, fmt.Sprintf("COALESCE(p.rating, 0) >= $%d", len(args)))
+		conditions = append(conditions, fmt.Sprintf("p.rating >= $%d", len(args)))
 	}
 	if filter.MinReviews > 0 {
 		args = append(args, filter.MinReviews)
-		conditions = append(conditions, fmt.Sprintf("COALESCE(p.review_count, 0) >= $%d", len(args)))
+		conditions = append(conditions, fmt.Sprintf("p.review_count >= $%d", len(args)))
 	}
-
 	where := "WHERE 1=1"
 	if len(conditions) > 0 {
 		where += " AND " + strings.Join(conditions, " AND ")

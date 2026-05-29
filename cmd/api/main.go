@@ -184,6 +184,7 @@ func main() {
 	authOnly.HandleFunc("/logout", authHandler.Logout).Methods("POST", "OPTIONS")
 	authOnly.HandleFunc("/reviews", reviewHandler.Create).Methods("POST", "OPTIONS")
 	authOnly.HandleFunc("/reviews/{id:[0-9]+}", reviewHandler.Delete).Methods("DELETE", "OPTIONS")
+	authOnly.HandleFunc("/reviews/check", reviewHandler.CheckUserReview).Methods("GET", "OPTIONS")
 	authOnly.HandleFunc("/trips/{id:[0-9]+}/places", tripHandler.AddPlace).Methods("POST", "OPTIONS")
 	authOnly.HandleFunc("/trips/{id:[0-9]+}", tripHandler.Update).Methods("PUT", "OPTIONS")
 	authOnly.HandleFunc("/trips/{id:[0-9]+}", tripHandler.Delete).Methods("DELETE", "OPTIONS")
