@@ -8,11 +8,11 @@
  4. [Степан Бурматов](https://github.com/BurmatovStepan) — **Frontend Developer**
 
 ### Внешние ссылки
- - [Figma](https://www.figma.com/design/TuvbJqnQeBLsmuGjyBXAQC/Tripadvisor-Guidely)s
+ - [Figma](https://www.figma.com/design/TuvbJqnQeBLsmuGjyBXAQC/Tripadvisor-Guidely)
  - [Frontend](https://github.com/frontend-park-mail-ru/2026_1_BrigadaV.git)
  - [Deploy](https://guidely.ru)
  - [Jira](https://ru.yougile.com/team/947473cd578d/TripAdvisor)
- - [Swagger] (https://guidely.ru:8080/api/swagger)
+ - [Swagger](https://guidely.ru:8080/api/swagger)
 
 ### Технологический стек
 
@@ -75,8 +75,8 @@
  CI запускается при пуше в ветку `dev`
  CI/CD запускается при пуше в ветку `main`
 
-1.  **Линтинг и статический анализ
-2.  **Тестирование
-3.  **Сборка (build)
-4.  **Деплой на тестовое окружение (staging)
-5.  **Деплой в продуктовую среду (production)
+1.  **Линтинг и статический анализ**
+2.  **Тестирование**
+3.  **Сборка (build)**
+4.  **Деплой на тестовое окружение (staging)**
+5.  **Деплой в продуктовую среду (production)**
