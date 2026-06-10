@@ -97,6 +97,21 @@ func (mr *MockPlaceServiceMockRecorder) GetDetails(arg0, arg1, arg2 interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDetails", reflect.TypeOf((*MockPlaceService)(nil).GetDetails), arg0, arg1, arg2)
 }
 
+// GetPlacesByLocation mocks base method.
+func (m *MockPlaceService) GetPlacesByLocation(arg0 context.Context, arg1 string) ([]models.Place, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetPlacesByLocation", arg0, arg1)
+	ret0, _ := ret[0].([]models.Place)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetPlacesByLocation indicates an expected call of GetPlacesByLocation.
+func (mr *MockPlaceServiceMockRecorder) GetPlacesByLocation(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPlacesByLocation", reflect.TypeOf((*MockPlaceService)(nil).GetPlacesByLocation), arg0, arg1)
+}
+
 // GetReviews mocks base method.
 func (m *MockPlaceService) GetReviews(arg0 context.Context, arg1 uint64) ([]models.ReviewWithAuthor, error) {
 	m.ctrl.T.Helper()

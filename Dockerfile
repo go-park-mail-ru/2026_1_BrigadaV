@@ -19,6 +19,7 @@ COPY --from=builder /app/server .
 
 RUN mkdir -p uploads/photos
 COPY assets/fonts ./assets/fonts
+COPY assets/places ./assets/places
 
 EXPOSE 8080
 

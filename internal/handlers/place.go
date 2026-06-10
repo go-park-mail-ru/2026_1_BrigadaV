@@ -399,3 +399,67 @@ func (h *PlaceHandler) GetBotPreview(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	t.Execute(w, data)
 }
+
+
+func (h *PlaceHandler) GetRecommendedPlaces(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserIDFromContext(r)
+	if userID == 0 {
+		writeJSON(w, http.StatusUnauthorized, &dto.ErrorResponse{Error: "unauthorized"})
+		return
+	}
+
+	vars := mux.Vars(r)
+	tripID, err := strconv.ParseUint(vars["id"], 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid trip id"})
+		return
+	}
+
+	trip, _, _, err := h.tripService.GetTripDetailsWithRole(r.Context(), tripID, userID)
+	if err != nil {
+		if err.Error() == "trip not found" || err.Error() == "sql: no rows in result set" {
+			writeJSON(w, http.StatusNotFound, &dto.ErrorResponse{Error: "trip not found or access denied"})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, &dto.ErrorResponse{Error: "internal error"})
+		return
+	}
+
+	if trip.Location == nil || *trip.Location == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte("[]"))
+		return
+	}
+
+	places, err := h.placeService.GetPlacesByLocation(r.Context(), *trip.Location)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, &dto.ErrorResponse{Error: "failed to fetch recommended places"})
+		return
+	}
+
+	addedIDs, err := h.tripService.GetTripPlaceIDs(r.Context(), tripID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, &dto.ErrorResponse{Error: "failed to fetch trip places"})
+		return
+	}
+
+	addedMap := make(map[uint64]bool)
+	for _, id := range addedIDs {
+		addedMap[id] = true
+	}
+
+	result := make(dto.PlaceResponseList, 0, len(places))
+	for _, p := range places {
+		dtoPlace := placeToDTO(p)
+		dtoPlace.IsAdded = addedMap[p.ID]
+		result = append(result, dtoPlace)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	data, err := easyjson.Marshal(result)
+	if err != nil {
+		logger.Error(r.Context(), "easyjson marshal error", logrus.Fields{"error": err})
+		return
+	}
+	w.Write(data)
+}

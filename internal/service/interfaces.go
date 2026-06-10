@@ -16,6 +16,7 @@ type PlaceService interface {
 	IsPlaceInTrip(ctx context.Context, placeID, tripID uint64) (bool, error)
 	Search(ctx context.Context, query string, filter PlaceFilter) ([]models.Place, error)
 	FilterByReviewsAndRating(ctx context.Context, filter PlaceFilter) ([]models.Place, error)
+	GetPlacesByLocation(ctx context.Context, location string) ([]models.Place, error)
 }
 
 type ProfileService interface {

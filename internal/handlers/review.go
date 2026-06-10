@@ -102,3 +102,36 @@ func (h *ReviewHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// CheckUserReview проверяет, оставлял ли пользователь отзыв на указанное место
+// GET /api/reviews/check?place_id=123
+func (h *ReviewHandler) CheckUserReview(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserIDFromContext(r)
+	if userID == 0 {
+		writeJSON(w, http.StatusUnauthorized, &dto.ErrorResponse{Error: "unauthorized"})
+		return
+	}
+
+	placeIDStr := r.URL.Query().Get("place_id")
+	if placeIDStr == "" {
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "missing place_id"})
+		return
+	}
+	placeID, err := strconv.ParseUint(placeIDStr, 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, &dto.ErrorResponse{Error: "invalid place_id"})
+		return
+	}
+
+	resp, err := h.client.CheckUserReview(r.Context(), &pb.CheckUserReviewRequest{
+		UserId:  userID,
+		PlaceId: placeID,
+	})
+	if err != nil {
+		logger.Error(r.Context(), "CheckUserReview gRPC error", logrus.Fields{"error": err, "user_id": userID, "place_id": placeID})
+		writeJSON(w, http.StatusInternalServerError, &dto.ErrorResponse{Error: "internal error"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, &dto.CheckUserReviewResponse{Exists: resp.Exists})
+}

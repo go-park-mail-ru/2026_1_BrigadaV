@@ -335,3 +335,42 @@ func (r *PlaceRepo) Search(ctx context.Context, query string, filter PlaceFilter
 	logger.Debug(ctx, "search completed", logrus.Fields{"count": len(places)})
 	return places, nil
 }
+
+
+func (r *PlaceRepo) GetPlacesByLocation(ctx context.Context, location string) ([]models.Place, error) {
+	logger.Debug(ctx, "getting full places by strict location", logrus.Fields{"location": location})
+
+	parts := strings.Split(location, ",")
+	for i := range parts {
+		parts[i] = strings.TrimSpace(parts[i])
+	}
+
+	var whereClause string
+	var args []any
+
+	if len(parts) == 1 {
+		whereClause = "c.name = $1"
+		args = []any{parts[0]}
+	} else {
+		whereClause = "(c.name = $1 AND l.name = $2)"
+		args = []any{parts[0], parts[1]}
+	}
+
+	query := fmt.Sprintf(
+		"SELECT %s %s WHERE %s ORDER BY p.rating DESC, p.review_count DESC",
+		placeSelectCols, placeJoins, whereClause,
+	)
+
+	places, err := r.queryPlaces(ctx, query, args...)
+	if err != nil {
+		logger.Error(ctx, "failed to get places by location", logrus.Fields{"error": err})
+		return nil, err
+	}
+
+	if places == nil {
+		places = []models.Place{}
+	}
+
+	logger.Debug(ctx, "places retrieved by location", logrus.Fields{"count": len(places)})
+	return places, nil
+}
